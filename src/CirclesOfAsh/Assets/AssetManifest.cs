@@ -11,6 +11,8 @@ public sealed class AssetManifest
     public Dictionary<string, SpriteSheetEntry> SpriteSheets { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> Fonts { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> Sounds { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Loopende Musikstücke. Getrennt von "Sounds", weil sie anders abgespielt und geregelt werden.</summary>
+    public Dictionary<string, string> Music { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Überlagert Einträge eines Mod-Manifests (spätere Einträge gewinnen).</summary>
     public void MergeFrom(AssetManifest other)
@@ -19,6 +21,7 @@ public sealed class AssetManifest
         foreach (var (id, entry) in other.SpriteSheets) SpriteSheets[id] = entry;
         foreach (var (id, path) in other.Fonts) Fonts[id] = path;
         foreach (var (id, path) in other.Sounds) Sounds[id] = path;
+        foreach (var (id, path) in other.Music) Music[id] = path;
     }
 }
 

@@ -1,4 +1,5 @@
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Progression;
 using Microsoft.Xna.Framework.Audio;
 
 namespace CirclesOfAsh.Assets;
@@ -20,14 +21,25 @@ public sealed class AudioService : IDisposable
         _soundPaths = soundPaths;
     }
 
-    public float MasterVolume { get; set; } = 0.5f;
+    /// <summary>Obergrenze für ALLES (Musik und Effekte). Kommt aus dem Optionsmenü.</summary>
+    public float MasterVolume { get; set; } = 0.8f;
+
+    /// <summary>Nur Soundeffekte – getrennt regelbar von der Musik.</summary>
+    public float SfxVolume { get; set; } = 0.8f;
+
+    /// <summary>Übernimmt die Regler aus dem Optionsmenü. Wird beim Start und nach jeder Änderung gerufen.</summary>
+    public void ApplySettings(GameSettings settings)
+    {
+        MasterVolume = settings.MasterVolume;
+        SfxVolume = settings.SfxVolume;
+    }
 
     public void Play(string? soundId, float volume = 1f, float pitch = 0f)
     {
         if (!_isAvailable || string.IsNullOrEmpty(soundId)) return;
         SoundEffect? effect = GetOrLoad(soundId);
         // "?." = Null-Conditional: Play wird nur aufgerufen, wenn effect nicht null ist
-        effect?.Play(Math.Clamp(volume * MasterVolume, 0f, 1f), Math.Clamp(pitch, -1f, 1f), 0f);
+        effect?.Play(Math.Clamp(volume * SfxVolume * MasterVolume, 0f, 1f), Math.Clamp(pitch, -1f, 1f), 0f);
     }
 
     public IEnumerable<string> SoundIds => _soundPaths.Keys;

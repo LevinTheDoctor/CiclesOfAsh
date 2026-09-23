@@ -21,6 +21,18 @@
           {
             "enemy": "wraith",
             "weight": 3
+          },
+          {
+            "enemy": "spider",
+            "weight": 2
+          },
+          {
+            "enemy": "skeleton",
+            "weight": 2
+          },
+          {
+            "enemy": "leech",
+            "weight": 1
           }
         ],
         "boss": "boss_shepherd",
@@ -28,7 +40,8 @@
         "believersPerDungeon": 12,
         "tileset": "tiles.limbo",
         "background": "background.limbo",
-        "ambientLight": "#6E6C84",
+        "music": "music.limbo",
+        "ambientLight": "#9D99B4",
         "decay": 0.15,
         "ambientParticles": "dust",
         "themes": [
@@ -91,6 +104,18 @@
           {
             "enemy": "wraith",
             "weight": 1
+          },
+          {
+            "enemy": "knight",
+            "weight": 2
+          },
+          {
+            "enemy": "imp",
+            "weight": 2
+          },
+          {
+            "enemy": "swarm",
+            "weight": 2
           }
         ],
         "boss": "boss_mammon",
@@ -98,7 +123,8 @@
         "believersPerDungeon": 20,
         "tileset": "tiles.greed",
         "background": "background.greed",
-        "ambientLight": "#4E4238",
+        "music": "music.greed",
+        "ambientLight": "#71655A",
         "decay": 0.45,
         "ambientParticles": "ash",
         "themes": [
@@ -158,6 +184,22 @@
           {
             "enemy": "wraith",
             "weight": 2
+          },
+          {
+            "enemy": "golem",
+            "weight": 2
+          },
+          {
+            "enemy": "knight",
+            "weight": 3
+          },
+          {
+            "enemy": "imp",
+            "weight": 2
+          },
+          {
+            "enemy": "leech",
+            "weight": 2
           }
         ],
         "boss": "boss_titan",
@@ -165,7 +207,8 @@
         "believersPerDungeon": 30,
         "tileset": "tiles.wrath",
         "background": "background.wrath",
-        "ambientLight": "#321A1C",
+        "music": "music.wrath",
+        "ambientLight": "#5A3840",
         "decay": 0.8,
         "ambientParticles": "embers",
         "themes": [
