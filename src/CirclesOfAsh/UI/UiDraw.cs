@@ -55,6 +55,12 @@ public sealed class MenuList
     public sealed record Entry(string Label, Action OnSelect, bool IsEnabled = true, string? Hint = null);
 
     private readonly List<Entry> _entries = new();
+    /// <summary>
+    /// Bildschirmrechteck je Eintrag, von Draw gefüllt und von Update ausgewertet.
+    /// Immediate-Mode-Muster: Gezeichnet wird vor dem nächsten Update, die Rechtecke sind also
+    /// aktuell. So braucht die Maus kein eigenes Layout-Wissen.
+    /// </summary>
+    private readonly Dictionary<int, Rectangle> _hitBoxes = new();
 
     public int SelectedIndex { get; private set; }
     public int Count => _entries.Count;
@@ -87,6 +93,28 @@ public sealed class MenuList
             }
             audio.Play("pickup", 0.2f, 0.4f);
         }
+        // Maus: Überfahren wählt, Klick löst aus. Nur wenn die Maus auch benutzt wird – sonst
+        // würde ein ruhender Zeiger die Auswahl der Tastatur dauerhaft überschreiben.
+        if (input.LastDevice == InputDevice.Mouse)
+        {
+            foreach ((int index, Rectangle box) in _hitBoxes)
+            {
+                if (!box.Contains(input.MousePosition) || !_entries[index].IsEnabled) continue;
+                if (index != SelectedIndex)
+                {
+                    SelectedIndex = index;
+                    audio.Play("pickup", 0.2f, 0.4f);
+                }
+                if (input.MouseWasPressed)
+                {
+                    audio.Play("unseal", 0.3f, 0.5f);
+                    _entries[index].OnSelect();
+                    return;
+                }
+                break;
+            }
+        }
+
         if (input.WasPressed(GameAction.Confirm) && _entries[SelectedIndex].IsEnabled)
         {
             audio.Play("unseal", 0.3f, 0.5f);
@@ -99,13 +127,19 @@ public sealed class MenuList
     {
         int first = Math.Clamp(SelectedIndex - maxVisible / 2, 0, Math.Max(0, _entries.Count - maxVisible));
         int last = Math.Min(_entries.Count, first + maxVisible);
+        _hitBoxes.Clear();
         for (int index = first; index < last; index++)
         {
             Entry entry = _entries[index];
             bool isSelected = index == SelectedIndex;
             string label = isSelected ? $"· {entry.Label} ·" : entry.Label;
             Color color = !entry.IsEnabled ? Palette.Ash * 0.6f : isSelected ? Palette.Gold : Palette.Bone;
-            font.DrawCentered(spriteBatch, label, centerX, top + (index - first) * (font.LineHeight + 4), color);
+            float y = top + (index - first) * (font.LineHeight + 4);
+            font.DrawCentered(spriteBatch, label, centerX, y, color);
+
+            // Trefferfläche etwas breiter als der Text, damit auch knapp daneben noch gilt.
+            int width = font.MeasureWidth(label) + 16;
+            _hitBoxes[index] = new Rectangle((int)(centerX - width / 2f), (int)y - 1, width, font.LineHeight + 2);
         }
     }
 }

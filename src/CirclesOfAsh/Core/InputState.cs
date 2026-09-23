@@ -6,6 +6,9 @@ namespace CirclesOfAsh.Core;
 /// <summary>Abstrakte Spielaktionen statt fester Tasten -> Tastatur und Gamepad gleichzeitig, leicht umbelegbar.</summary>
 public enum GameAction { Left, Right, Up, Down, Jump, Dash, AbilityOne, AbilityTwo, Interact, Confirm, Cancel, Pause, Randomize }
 
+/// <summary>Womit der Spieler zuletzt etwas getan hat. Steuert Mauszeiger und Tastenbeschriftungen.</summary>
+public enum InputDevice { Keyboard, Gamepad, Mouse }
+
 /// <summary>
 /// Kapselt Tastatur, Gamepad und Texteingabe. Speichert den Zustand des aktuellen UND vorherigen Frames,
 /// damit "gerade gedrückt" (Flanke) von "wird gehalten" unterschieden werden kann.
@@ -61,6 +64,28 @@ public sealed class InputState
     private IReadOnlyDictionary<GameAction, string>? _padLabels;
     private string _padName = "";
 
+    private MouseState _currentMouse, _previousMouse;
+    private bool _hasMouseBaseline;   // erster Frame: noch keine Vorher-Position, sonst "Maus bewegt"-Fehlalarm
+
+    /// <summary>Zuletzt benutztes Eingabegerät. Wird jeden Frame aus der tatsächlichen Aktivität bestimmt.</summary>
+    public InputDevice LastDevice { get; private set; } = InputDevice.Keyboard;
+
+    /// <summary>
+    /// Mausposition in der VIRTUELLEN Auflösung (480x270), nicht in Fensterpixeln. Umgerechnet über
+    /// <see cref="CirclesGame.CanvasArea"/>, damit sie bei jeder Fenstergröße und im Vollbild auf
+    /// dem liegt, was man sieht. Außerhalb der Leinwand (schwarze Balken) auch außerhalb 0..480/0..270.
+    /// </summary>
+    public Point MousePosition { get; private set; }
+
+    /// <summary>true im ersten Frame des Drückens der linken Maustaste.</summary>
+    public bool MouseWasPressed => _currentMouse.LeftButton == ButtonState.Pressed
+                                   && _previousMouse.LeftButton == ButtonState.Released;
+
+    public bool MouseIsDown => _currentMouse.LeftButton == ButtonState.Pressed;
+
+    /// <summary>Mausrad seit dem letzten Frame: positiv = nach oben gedreht.</summary>
+    public int ScrollDelta => _currentMouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
+
     /// <summary>
     /// Liefert zu einem Gerätenamen die passenden Tastenbeschriftungen (Content/Data/controllers.json).
     /// Wird von GameContext gesetzt; so kommt InputState ohne Kenntnis der Definitionen aus.
@@ -83,12 +108,47 @@ public sealed class InputState
     {
         _previousKeys = _currentKeys;
         _previousPad = _currentPad;
+        _previousMouse = _currentMouse;
         _currentKeys = Keyboard.GetState();
         _currentPad = GamePad.GetState(PlayerIndex.One);
+        _currentMouse = Mouse.GetState();
+        if (!_hasMouseBaseline)
+        {
+            // Ohne diesen Abgleich gilt der Sprung von (0,0) auf die echte Position als Bewegung
+            // und der Mauszeiger blitzt beim Start kurz auf.
+            _previousMouse = _currentMouse;
+            _hasMouseBaseline = true;
+        }
+        MousePosition = ToVirtual(_currentMouse.Position);
         TypedText = _typedBuffer.ToString();
         _typedBuffer.Clear();
         UpdateRumble(deltaSeconds);
         UpdateControllerProfile();
+        UpdateLastDevice();
+    }
+
+    /// <summary>Rechnet Fensterpixel in die virtuelle Auflösung um (Letterbox-Versatz und Maßstab).</summary>
+    private static Point ToVirtual(Point windowPixel)
+    {
+        Rectangle canvas = CirclesGame.CanvasArea;
+        if (canvas.Width <= 0 || canvas.Height <= 0) return Point.Zero;
+        return new Point(
+            (windowPixel.X - canvas.X) * CirclesGame.VirtualWidth / canvas.Width,
+            (windowPixel.Y - canvas.Y) * CirclesGame.VirtualHeight / canvas.Height);
+    }
+
+    /// <summary>
+    /// Erkennt, womit gerade gespielt wird. Bewusst nur bei echter Aktivität umschalten: Ein
+    /// ruhender Controller darf den Mauszeiger nicht ausblenden und umgekehrt.
+    /// </summary>
+    private void UpdateLastDevice()
+    {
+        if (_currentMouse.Position != _previousMouse.Position || MouseIsDown || ScrollDelta != 0)
+            LastDevice = InputDevice.Mouse;
+        else if (_currentPad.IsConnected && _currentPad.PacketNumber != _previousPad.PacketNumber)
+            LastDevice = InputDevice.Gamepad;
+        else if (_currentKeys.GetPressedKeyCount() > 0)
+            LastDevice = InputDevice.Keyboard;
     }
 
     /// <summary>
@@ -97,7 +157,8 @@ public sealed class InputState
     /// </summary>
     public string Glyph(GameAction action)
     {
-        if (HasGamePad && _padLabels is not null && _padLabels.TryGetValue(action, out string? label))
+        if (HasGamePad && LastDevice == InputDevice.Gamepad
+            && _padLabels is not null && _padLabels.TryGetValue(action, out string? label))
             return label;
         return KeyboardLabels.TryGetValue(action, out string? key) ? key : action.ToString();
     }

@@ -38,6 +38,13 @@ public sealed class SettingsScene : SceneBase
         _difficulties = context.Definitions.Difficulties.All.ToList();
     }
 
+    // Trefferflaechen, von Draw gefuellt und von Update ausgewertet (wie in MenuList).
+    private readonly Dictionary<Tab, Rectangle> _tabBoxes = new();
+    private readonly Dictionary<int, Rectangle> _rowBoxes = new();
+    private readonly Dictionary<int, Rectangle> _barBoxes = new();
+    /// <summary>true, solange auf einem Regler gedrueckt gehalten wird (Ziehen darf den Balken verlassen).</summary>
+    private bool _draggingBar;
+
     private GameSettings Settings => Context.Settings;
     private int RowCount => LayoutOf(_tab).RowCount;
     private int RowIndex
@@ -83,6 +90,78 @@ public sealed class SettingsScene : SceneBase
 
         int change = input.WasPressed(GameAction.Right) ? 1 : input.WasPressed(GameAction.Left) ? -1 : 0;
         if (change != 0) ChangeValue(change);
+
+        if (input.LastDevice == InputDevice.Mouse) UpdateMouse(input);
+    }
+
+    /// <summary>
+    /// Maus: Reiter anklicken, Zeile anklicken, Regler direkt ziehen. Die Rechtecke stammen aus
+    /// dem letzten Draw – deshalb muss hier kein Layout doppelt gerechnet werden.
+    /// </summary>
+    private void UpdateMouse(InputState input)
+    {
+        Point cursor = input.MousePosition;
+
+        if (input.MouseWasPressed)
+        {
+            foreach ((Tab tab, Rectangle box) in _tabBoxes)
+            {
+                if (!box.Contains(cursor) || tab == _tab) continue;
+                _tab = tab;
+                RowIndex = Math.Min(RowIndex, RowCount - 1);
+                Context.Audio.Play("pickup", 0.2f, 0.4f);
+                return;
+            }
+            foreach ((int index, Rectangle box) in _rowBoxes)
+            {
+                if (!box.Contains(cursor)) continue;
+                if (index != RowIndex) Context.Audio.Play("pickup", 0.2f, 0.4f);
+                RowIndex = index;
+                break;
+            }
+        }
+
+        if (!input.MouseIsDown)
+        {
+            _draggingBar = false;
+            return;
+        }
+        if (!_barBoxes.TryGetValue(RowIndex, out Rectangle barBox)) return;
+
+        // Ziehen beginnt nur AUF dem Regler, darf ihn danach aber verlassen – sonst reisst der
+        // Wert ab, sobald man beim Ziehen minimal nach oben rutscht.
+        if (input.MouseWasPressed && barBox.Contains(cursor)) _draggingBar = true;
+        if (!_draggingBar) return;
+
+        float ratio = Math.Clamp((cursor.X - barBox.Left) / (float)Math.Max(1, barBox.Width), 0f, 1f);
+        SetRatio(ratio);
+    }
+
+    /// <summary>Setzt den Regler der aktuellen Zeile direkt (Maus). Tastatur/Pad gehen über ChangeValue.</summary>
+    private void SetRatio(float ratio)
+    {
+        switch (_tab)
+        {
+            case Tab.Audio:
+                switch ((AudioRow)RowIndex)
+                {
+                    case AudioRow.Master: Settings.MasterVolume = ratio; break;
+                    case AudioRow.Music: Settings.MusicVolume = ratio; break;
+                    case AudioRow.Sfx: Settings.SfxVolume = ratio; break;
+                    default: return;
+                }
+                break;
+            case Tab.Gameplay:
+                switch ((GameplayRow)RowIndex)
+                {
+                    case GameplayRow.AmbientLift: Settings.AmbientLift = ratio; break;
+                    case GameplayRow.Rumble: Settings.RumbleIntensity = ratio; break;
+                    default: return;
+                }
+                break;
+            default: return;
+        }
+        Context.SaveSettings();   // wirkt sofort: Lautstärke, Helligkeit, Vibration
     }
 
     private void Leave()
@@ -179,8 +258,11 @@ public sealed class SettingsScene : SceneBase
 
         // Zeilen des aktiven Reiters
         float y = panel.Top + 40;
+        _rowBoxes.Clear();
+        _barBoxes.Clear();
         for (int index = 0; index < RowCount; index++)
         {
+            _rowBoxes[index] = new Rectangle(panel.Left + 8, (int)y - 1, panel.Width - 16, font.LineHeight + 2);
             (string label, string value) = RowTexts(_tab, index);
             bool isSelected = index == RowIndex;
             Color color = isSelected ? Palette.Gold : Palette.Bone * 0.85f;
@@ -190,6 +272,7 @@ public sealed class SettingsScene : SceneBase
             {
                 // Regler: echter gezeichneter Balken (wie in der HUD) plus Prozentwert dahinter.
                 var bar = new Rectangle(panel.Left + BarLeft, (int)y + 2, BarWidth, font.LineHeight - 3);
+                _barBoxes[index] = bar;
                 UiDraw.Bar(spriteBatch, pixel, bar, ratio, isSelected ? Palette.Gold : Palette.Faith);
                 font.DrawShadowed(spriteBatch, value, new Vector2(bar.Right + 8, y),
                     isSelected ? Palette.Faith : Palette.Bone);
@@ -214,6 +297,7 @@ public sealed class SettingsScene : SceneBase
     private void DrawTabs(SpriteBatch spriteBatch, BitmapFont font, Texture2D pixel, float centerX, Rectangle panel)
     {
         float y = panel.Top + 24;
+        _tabBoxes.Clear();
         string[] titles = { "Bildschirm", "Audio", "Steuerung", "Gameplay" };
         float totalWidth = titles.Sum(title => font.MeasureWidth(title) + 24);
         float x = centerX - totalWidth / 2f;
@@ -222,7 +306,9 @@ public sealed class SettingsScene : SceneBase
             var tab = (Tab)index;
             int width = font.MeasureWidth(titles[index]) + 24;
             bool active = tab == _tab;
-            if (active) UiDraw.Rect(spriteBatch, pixel, new Rectangle((int)x - 4, (int)y - 2, width + 8, font.LineHeight + 4), Palette.Gold * 0.18f);
+            var box = new Rectangle((int)x - 4, (int)y - 2, width + 8, font.LineHeight + 4);
+            _tabBoxes[tab] = box;
+            if (active) UiDraw.Rect(spriteBatch, pixel, box, Palette.Gold * 0.18f);
             font.DrawShadowed(spriteBatch, titles[index], new Vector2(x, y), active ? Palette.Gold : Palette.Bone * 0.7f);
             x += width + 8;
         }

@@ -84,6 +84,8 @@ public sealed class CirclesGame : Game
     {
         float deltaSeconds = MathF.Min((float)gameTime.ElapsedGameTime.TotalSeconds, MaxDeltaSeconds);
         _context.Input.Update(deltaSeconds);
+        // Zeiger nur zeigen, solange die Maus auch benutzt wird – sonst stört er im Spiel.
+        IsMouseVisible = _context.Input.LastDevice == InputDevice.Mouse;
         _context.Music.Update(deltaSeconds);   // treibt die Überblendung zwischen zwei Stücken
         _context.Scenes.Update(deltaSeconds);
         base.Update(gameTime);
@@ -109,14 +111,22 @@ public sealed class CirclesGame : Game
         base.Draw(gameTime);
     }
 
-    /// <summary>Größter ganzzahliger Skalierungsfaktor, zentriert mit schwarzen Balken.</summary>
+    /// <summary>
+    /// Wohin die Leinwand im Fenster gezeichnet wird: größter ganzzahliger Skalierungsfaktor,
+    /// zentriert mit schwarzen Balken. Statisch hinterlegt, weil <see cref="Core.InputState"/> es
+    /// braucht, um Mauskoordinaten aus Fensterpixeln in die virtuelle Auflösung umzurechnen –
+    /// ohne diesen Bezug läge der Zeiger bei jedem Skalierungsfaktor woanders als das Bild.
+    /// </summary>
+    public static Rectangle CanvasArea { get; private set; } = new(0, 0, VirtualWidth, VirtualHeight);
+
     private Rectangle ComputeLetterboxRectangle()
     {
         Rectangle window = GraphicsDevice.PresentationParameters.Bounds;
         int scale = Math.Max(1, Math.Min(window.Width / VirtualWidth, window.Height / VirtualHeight));
         int width = VirtualWidth * scale;
         int height = VirtualHeight * scale;
-        return new Rectangle((window.Width - width) / 2, (window.Height - height) / 2, width, height);
+        CanvasArea = new Rectangle((window.Width - width) / 2, (window.Height - height) / 2, width, height);
+        return CanvasArea;
     }
 
     protected override void UnloadContent()
