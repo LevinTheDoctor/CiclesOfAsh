@@ -149,6 +149,38 @@ public sealed class DungeonWorld : IDisposable
         return doomed.Count;
     }
 
+    /// <summary>
+    /// Prüft eine Kandidatenposition (Unterkante, Mitte) für einen Gegner gegen die Karte: Steckt
+    /// der spätere Körper in einer massiven Kachel, wird auf die Bodenmitte des Raums
+    /// zurückgefallen. Ein Gegner im Fels ist unerreichbar – und hielt sonst Kämpfe für immer offen.
+    /// Alle Spawn-Stellen (Welle, Boss, Kerker, Rettung) benutzen diese Prüfung.
+    /// </summary>
+    public Vector2 SafeSpawnBottomCenter(EnemyDefinition definition, Vector2 candidate, RoomNode room)
+    {
+        var size = new Point(definition.Width, definition.Height);
+        if (!IsBodyBlocked(candidate - new Vector2(size.X / 2f, size.Y), size)) return candidate;
+
+        Log.Warn($"Spawn von '{definition.Id}' in Geometrie verworfen (Kandidat ({candidate.X:0}, {candidate.Y:0})) "
+               + $"– Rückfall auf die Bodenmitte von Raum {room.OwnerKey}.");
+        var fallback = new Vector2(room.PixelBounds.Center.X, DungeonGenerator.FloorPixelY(room));
+        if (IsBodyBlocked(fallback - new Vector2(size.X / 2f, size.Y), size))
+            Log.Warn($"Auch die Raummitte von {room.OwnerKey} ist blockiert – der Notausgang-Wächter ist jetzt die letzte Linie.");
+        return fallback;
+    }
+
+    /// <summary>Steckt der Körper (Position = linke obere Ecke) ganz oder teilweise in massiven Kacheln?</summary>
+    private bool IsBodyBlocked(Vector2 topLeft, Point size)
+    {
+        int left = TileMap.ToTile(topLeft.X);
+        int right = TileMap.ToTile(topLeft.X + size.X - 0.01f);
+        int top = TileMap.ToTile(topLeft.Y);
+        int bottom = TileMap.ToTile(topLeft.Y + size.Y - 0.01f);
+        for (int tileY = top; tileY <= bottom; tileY++)
+            for (int tileX = left; tileX <= right; tileX++)
+                if (TileMap.IsBlocking(Map[tileX, tileY])) return true;
+        return false;
+    }
+
     private Matrix WorldTransform => Camera.Transform * Matrix.CreateTranslation(_shakeOffset.X, _shakeOffset.Y, 0f);
 
     private void CreateProps()
@@ -338,10 +370,12 @@ public sealed class DungeonWorld : IDisposable
         for (int guard = 0; guard < 2 + Random.Next(2); guard++)
         {
             SpawnWeight pick = pool[Random.Next(pool.Count)];
+            EnemyDefinition guardDefinition = Context.Definitions.Enemies.Get(pick.Enemy);
             float offsetX = 30 + guard * 26;
             Vector2 spot = new(soul.Center.X + (guard % 2 == 0 ? offsetX : -offsetX),
                 DungeonGenerator.FloorPixelY(room));
-            SpawnEnemy(Context.Definitions.Enemies.Get(pick.Enemy), spot, RescueOwner);
+            spot = SafeSpawnBottomCenter(guardDefinition, spot, room);
+            SpawnEnemy(guardDefinition, spot, RescueOwner);
         }
     }
 

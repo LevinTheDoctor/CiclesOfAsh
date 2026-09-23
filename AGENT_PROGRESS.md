@@ -81,7 +81,7 @@ sichtbar machen, nicht still überdecken.
 sie — ein laufender, nur langsamer Boss-Kampf löst den Wächter also nicht aus. Stillstand über
 45 s → Gegner entfernen, Arena abschließen, `Log.Warn("NOTAUSGANG: …")`.
 
-### [ ] 1.5 Spawnpunkte gegen die Geometrie prüfen
+### [x] 1.5 Spawnpunkte gegen die Geometrie prüfen
 
 **Problem:** `SpawnWaveEnemy` würfelt eine Position und prüft nur den Abstand zum Spieler, nie ob
 dort eine Wand ist. Dieselbe Lücke haben Prison-Wachen, Boss-Spawn und Rescue-Wachen. Ein Gegner
@@ -92,6 +92,11 @@ kann in Geometrie stecken bleiben.
 vier Spawn-Stellen benutzen sie; schlägt sie fehl, wird auf die Bodenmitte des Raums zurückgefallen.
 
 **Prüfen:** Log auf Meldungen über verworfene Spawnpunkte ansehen.
+
+**Erledigt.** `DungeonWorld.SafeSpawnBottomCenter(definition, candidate, room)` + private
+`IsBodyBlocked`: prüft den vollständigen Körper-AABB gegen blockierende Kacheln, Rückfall auf die
+Bodenmitte des Raums. Verdrahtet an Wellen-Spawn, Boss-Spawn, Kerker-Wächter/Wachen und
+Rescue-Wachen. Jeder Verwurf wird ins Log geschrieben.
 
 ### [ ] 1.6 NPC-Bewegung mit Physik
 

@@ -149,6 +149,7 @@ public sealed class WaveDirector
         if (room.Type == RoomType.Boss)
         {
             var bossPosition = new Vector2(room.PixelBounds.Center.X + 96, DungeonGenerator.FloorPixelY(room));
+            bossPosition = world.SafeSpawnBottomCenter(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss), bossPosition, room);
             world.SpawnEnemy(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss), bossPosition, room.OwnerKey);
             world.Announce(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss).Name);
             return;
@@ -168,7 +169,8 @@ public sealed class WaveDirector
     {
         EnemyDefinition warden = world.Context.Definitions.Enemies.Get(prison.MiniBoss);
         float floorY = DungeonGenerator.FloorPixelY(room);
-        world.SpawnEnemy(warden, new Vector2(room.PixelBounds.Center.X + 64, floorY), room.OwnerKey);
+        Vector2 wardenSpot = world.SafeSpawnBottomCenter(warden, new Vector2(room.PixelBounds.Center.X + 64, floorY), room);
+        world.SpawnEnemy(warden, wardenSpot, room.OwnerKey);
         world.Announce($"{warden.Name} bewacht die Gefangenen!");
         if (string.IsNullOrEmpty(prison.Guards)) return;
         EnemyDefinition guard = world.Context.Definitions.Enemies.Get(prison.Guards);
@@ -176,7 +178,8 @@ public sealed class WaveDirector
         {
             float x = room.PixelBounds.Left + 60 + index * (room.PixelBounds.Width - 120) / Math.Max(1, prison.GuardCount - 1);
             float y = guard.IsFlying ? room.PixelBounds.Top + 60 : floorY;
-            world.SpawnEnemy(guard, new Vector2(x, y), room.OwnerKey);
+            Vector2 spot = world.SafeSpawnBottomCenter(guard, new Vector2(x, y), room);
+            world.SpawnEnemy(guard, spot, room.OwnerKey);
         }
     }
 
@@ -203,6 +206,8 @@ public sealed class WaveDirector
             position = new Vector2(x, y);
             if (MathF.Abs(x - world.Player.Center.X) > 80f) break;   // nicht direkt neben dem Spieler spawnen
         }
+        // Fällt die Position in Geometrie, geht es in die Raummitte – ein Gegner im Fels ist unerreichbar.
+        position = world.SafeSpawnBottomCenter(definition, position, _arena!);
         world.SpawnEnemy(definition, position, _arena.OwnerKey);
     }
 
