@@ -46,11 +46,27 @@ public sealed class Npc : Entity
             float direction = MathF.Sign(target.X - Center.X);
             if (MathF.Abs(target.X - Center.X) > 6f)
             {
-                Position += new Vector2(direction * 34f, 0f) * deltaSeconds;
+                Velocity.X = direction * 34f;
                 FacingRight = direction > 0f;
             }
+            else Velocity.X = 0f;
         }
+        else Velocity.X = 0f;
+
+        // Dasselbe Muster wie Enemy.Update: Schwerkraft, dann Kachelkollision. Vorher lief die
+        // Seele auf konstanter Höhe stur in X-Richtung – durch Wände und aus der Karte hinaus.
+        Velocity.Y = MathF.Min(Velocity.Y + TilePhysics.Gravity * deltaSeconds, TilePhysics.MaxFallSpeed);
+        CollisionResult collision = TilePhysics.MoveAndCollide(this, world.Map, deltaSeconds, ignorePlatforms: false);
+        OnGround = collision.HasFlag(CollisionResult.Landed);
+
+        // An einer Wand hängen geblieben (z. B. Höhlendeko)? Dann hüpfen, damit sie weiterkommt.
+        if (Velocity.X != 0f && collision.HasFlag(CollisionResult.HitWall) && OnGround) Velocity.Y = -240f;
+
+        _animation.Play(MathF.Abs(Velocity.X) > 5f ? "run" : "idle");
     }
+
+    /// <summary>Bodenkontakt für den Sprung aus der Wand (siehe Update).</summary>
+    private bool OnGround { get; set; }
 
     /// <summary>Hub-Variante ohne Welt: nur Idle-Animation (NPCs stehen/beten im Tempel).</summary>
     public void UpdateHub(float deltaSeconds)

@@ -98,7 +98,7 @@ vier Spawn-Stellen benutzen sie; schlägt sie fehl, wird auf die Bodenmitte des 
 Bodenmitte des Raums. Verdrahtet an Wellen-Spawn, Boss-Spawn, Kerker-Wächter/Wachen und
 Rescue-Wachen. Jeder Verwurf wird ins Log geschrieben.
 
-### [ ] 1.6 NPC-Bewegung mit Physik
+### [x] 1.6 NPC-Bewegung mit Physik
 
 **Problem:** `Npc.Update` ist die einzige Bewegungslogik im Spiel ohne Physik — keine Schwerkraft,
 keine Kollision, keine Kartengrenze. Die befreite Seele läuft auf konstanter Höhe stur in
@@ -110,6 +110,10 @@ springen, damit sie nicht dauerhaft hängt.
 
 **Prüfen:** Eine Seele befreien und zum Ausgang begleiten — sie muss auf dem Boden laufen und die
 Karte nicht verlassen.
+
+**Erledigt.** `Npc.Update` setzt `Velocity.X` (nur bei aktiver Flucht) und läuft danach durch
+`TilePhysics.MoveAndCollide` — Schwerkraft, Kachelkollision, One-Way-Plattformen. Hängt sie an
+einer Wand, hüpft sie (240 px). `UpdateHub` (Tempel) bleibt bewusst ohne Physik.
 
 ### [ ] 1.7 Tempel: Brett und Schrein freistellen
 
