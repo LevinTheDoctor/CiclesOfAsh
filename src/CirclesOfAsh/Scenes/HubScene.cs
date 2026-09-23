@@ -137,10 +137,12 @@ public sealed class HubScene : SceneBase
         }
         // Tempelwärtin in der Mitte beim Schrein
         Add("temple_keeper", HubWidthTiles / 2, HubHeightTiles - 2, "keeper");
-        // Zwei betende Pilger auf den Podesten. Die Plattform liegt in Zeile HubHeightTiles - 5,
-        // der Körper gehört also eine Zeile darüber – sonst stecken sie im Podest.
-        Add("pilgrim", 4, HubHeightTiles - 6, "blessed");     // schon gesegnet -> keine doppelte Belohnung
-        Add("hermit", HubWidthTiles - 4, HubHeightTiles - 6, "blessed");
+        // Pilger und Eremit stehen auf dem TEMPELBODEN unterhalb der Podeste. Zuvor stand der
+        // Pilger exakt auf dem Missionsbrett (beide x=4): er wurde nach dem Brett gezeichnet und
+        // verdeckte es, und Interagieren öffnete den NPC-Dialog statt das Brett.
+        // Die Podeste oben sind seitdem allein Brett und Schrein vorbehalten.
+        Add("pilgrim", 4, HubHeightTiles - 2, "blessed");
+        Add("hermit", HubWidthTiles - 4, HubHeightTiles - 2, "blessed");
     }
 
     /// <summary>Begleitseelen im Hub: schweben um den Spieler (dieselbe Companion-Klasse wie im Dungeon).</summary>
@@ -234,34 +236,57 @@ public sealed class HubScene : SceneBase
         _hotspotNpc = null;
         _hotspotCompanion = null;
 
+        // Nächstgelegener Kandidat IN REICHWEITE gewinnt, nicht der letzte Treffer der Schleife.
+        // Sonst verdeckt ein NPC (der direkt am Missionsbrett steht) dauerhaft die
+        // Brett-Interaktion – oder ein ferner Hotspot zeigt überall im Tempel seinen Prompt an.
+        const float hotspotRange = 28f;
+        float bestDistanceSquared = hotspotRange * hotspotRange;
+
+        void Consider(Vector2 spot, Hotspot candidate)
+        {
+            float distanceSquared = Vector2.DistanceSquared(_player.Center, spot);
+            if (distanceSquared >= bestDistanceSquared) return;
+            bestDistanceSquared = distanceSquared;
+            _hotspot = candidate;
+            _hotspotNpc = null;
+            _hotspotCompanion = null;
+        }
+
         // Missionsbrett: links auf dem Podest (feste Position)
-        if (Vector2.Distance(_player.Center, BoardSpot) < 26f) _hotspot = Hotspot.MissionBoard;
+        Consider(BoardSpot, Hotspot.MissionBoard);
 
         // Schrein: rechts auf dem Podest
-        if (Vector2.Distance(_player.Center, ShrineSpot) < 26f) _hotspot = Hotspot.Shrine;
+        Consider(ShrineSpot, Hotspot.Shrine);
 
         // Truhe und Höllentor stehen auf dem Tempelboden zwischen den Podesten.
         // Beide brauchen einen laufenden Abstieg – ohne Lauf gibt es weder Ausrüstung noch ein Ziel.
         if (Context.Progression.CurrentRun is not null)
         {
-            if (Vector2.Distance(_player.Center, ChestSpot) < 24f) _hotspot = Hotspot.Inventory;
-            if (Vector2.Distance(_player.Center, GateSpot) < 28f) _hotspot = Hotspot.Gate;
+            Consider(ChestSpot, Hotspot.Inventory);
+            Consider(GateSpot, Hotspot.Gate);
         }
 
         foreach (Npc npc in _npcs)
         {
-            if (MathF.Abs(npc.Center.X - _player.Center.X) < 20f && MathF.Abs(npc.Center.Y - _player.Center.Y) < 26f)
+            var npcSpot = new Vector2(npc.Center.X, npc.Center.Y);
+            float distanceSquared = Vector2.DistanceSquared(_player.Center, npcSpot);
+            if (distanceSquared < bestDistanceSquared)
             {
+                bestDistanceSquared = distanceSquared;
                 _hotspot = Hotspot.Keeper;
                 _hotspotNpc = npc;
+                _hotspotCompanion = null;
             }
         }
         foreach (Companion companion in _companions)
         {
-            if (Vector2.Distance(companion.Center, _player.Center) < 18f)
+            float distanceSquared = Vector2.DistanceSquared(companion.Center, _player.Center);
+            if (distanceSquared < bestDistanceSquared)
             {
+                bestDistanceSquared = distanceSquared;
                 _hotspot = Hotspot.Companion;
                 _hotspotCompanion = companion;
+                _hotspotNpc = null;
             }
         }
     }
@@ -284,7 +309,9 @@ public sealed class HubScene : SceneBase
                 Context.Scenes.Push(new CircleIntroScene(Context));
                 break;
             case Hotspot.Keeper when _hotspotNpc is not null:
-                OpenNpcDialog(_hotspotNpc, "temple_keeper");
+                // Jeder NPC führt seinen EIGENEN Dialog – zuvor bekam jeder die festen Zeilen
+                // der Tempelwärtin, egal ob Pilger oder Eremit.
+                OpenNpcDialog(_hotspotNpc);
                 break;
             case Hotspot.Companion when _hotspotCompanion is not null:
                 OpenCompanionDialog(_hotspotCompanion);
@@ -292,8 +319,9 @@ public sealed class HubScene : SceneBase
         }
     }
 
-    private void OpenNpcDialog(Npc npc, string dialogId)
+    private void OpenNpcDialog(Npc npc)
     {
+        string dialogId = npc.Definition.DialogId;
         if (!Context.Definitions.Dialogs.Contains(dialogId)) return;
         DialogDefinition dialog = Context.Definitions.Dialogs.Get(dialogId);
         DialogLineDefinition? entry = Context.Dialogs.ResolveEntry(dialog, npc);
@@ -471,6 +499,7 @@ public sealed class HubScene : SceneBase
         spriteBatch.Draw(pixel, new Rectangle((int)x + 3, (int)y + 4, 2, 3), new Color(150, 24, 36));
         spriteBatch.Draw(pixel, new Rectangle((int)x + 6, (int)y + 5, 2, 2), new Color(150, 24, 36));
         spriteBatch.Draw(pixel, new Rectangle((int)x + 4, (int)y + 8, 3, 2), new Color(150, 24, 36));
+        LabelStation(spriteBatch, "Bitten", new Vector2(x + 6, y + 18));
     }
 
     private void DrawShrine(SpriteBatch spriteBatch, Texture2D pixel)
@@ -482,6 +511,14 @@ public sealed class HubScene : SceneBase
         int shown = Math.Min(4, Context.Collectibles.Values.Sum());
         for (int index = 0; index < shown; index++)
             spriteBatch.Draw(pixel, new Rectangle((int)x + 2 + index * 3, (int)y + 8, 2, 2), new Color(240, 220, 140));
+        LabelStation(spriteBatch, "Schrein", new Vector2(x + 6, y + 18));
+    }
+
+    /// <summary>Kleine Stations-Beschriftung (Brett/Schrein), damit man die Hotspots wiederfindet.</summary>
+    private void LabelStation(SpriteBatch spriteBatch, string text, Vector2 bottomCenter)
+    {
+        int width = Context.Font.MeasureWidth(text);
+        Context.Font.DrawShadowed(spriteBatch, text, bottomCenter - new Vector2(width / 2f, 0), Palette.Bone * 0.75f);
     }
 
     /// <summary>Das Höllentor: ein Torbogen mit glimmendem Schlund, der langsam pulsiert.</summary>
@@ -515,7 +552,8 @@ public sealed class HubScene : SceneBase
             Hotspot.Shrine => $"{use} Schrein der Reliquien",
             Hotspot.Inventory => $"{use} Ausrüstung",
             Hotspot.Gate => $"{use} Höllentor – hinabsteigen",
-            Hotspot.Keeper => $"{use} Mit Tempelwärtin sprechen",
+            Hotspot.Keeper when _hotspotNpc is not null =>
+                $"{use} Mit {_hotspotNpc.Definition.Name} sprechen",
             Hotspot.Companion when _hotspotCompanion is not null =>
                 $"{use} {PetService.GetPet(Context, _hotspotCompanion.Definition.Id)?.Name ?? _hotspotCompanion.Definition.Name} streicheln/füttern",
             _ => null,

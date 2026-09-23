@@ -115,7 +115,7 @@ Karte nicht verlassen.
 `TilePhysics.MoveAndCollide` — Schwerkraft, Kachelkollision, One-Way-Plattformen. Hängt sie an
 einer Wand, hüpft sie (240 px). `UpdateHub` (Tempel) bleibt bewusst ohne Physik.
 
-### [ ] 1.7 Tempel: Brett und Schrein freistellen
+### [x] 1.7 Tempel: Brett und Schrein freistellen
 
 **Problem:** Der Pilger steht exakt auf dem Missionsbrett (beide bei x = 72) und wird **nach** dem
 Brett gezeichnet, verdeckt es also. Die NPC-Schleife überschreibt außerdem den Hotspot
@@ -129,6 +129,12 @@ findet.
 
 **Prüfen:** Im Tempel Brett und Schrein sehen und öffnen können; Pilger und Eremit führen ihren
 eigenen Dialog.
+
+**Erledigt.** Pilger/Eremit stehen jetzt auf dem Tempelboden (Zeile `HubHeightTiles - 2`) unter
+ihren Podesten. `UpdateHotspots` sammelt alle Kandidaten und nimmt den nächstgelegenen innerhalb
+28 px (Reichweite bleibt, Überschneidung aufgelöst). `OpenNpcDialog` nimmt
+`npc.Definition.DialogId`; der Prompt nennt den NPC-Namen. Brett und Schrein tragen kleine
+Beschriftungen.
 
 ### [ ] 1.8 Erzeugung prüfbar machen
 
