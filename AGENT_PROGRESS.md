@@ -188,13 +188,20 @@ Xbox-Profil zurück oder werden von SDL gar nicht als Controller erkannt.
 
 **Lösung:** Geprüft: MonoGame 3.8.2 sucht beim Start selbst eine `gamecontrollerdb.txt` im
 Programmverzeichnis (`InitDatabase` in `MonoGame.Framework.dll`). Es genügt also, die Datei aus dem
-SDL_GameControllerDB-Projekt mitzuliefern und über die `.csproj` ins Ausgabeverzeichnis kopieren zu
-lassen — damit werden nahezu alle handelsüblichen Controller korrekt belegt. Dazu weitere
+SDL_GameControllerDB-Projekt mitzuliefern und über die `.csproj` ins Ausgabeverzeichnis kopieren
+zu lassen — damit werden nahezu alle handelsüblichen Controller korrekt belegt. Dazu weitere
 Beschriftungsprofile in `controllers.json` (8BitDo, Logitech, generische DirectInput-Pads) und ein
 Eintrag in `THIRD_PARTY_NOTICES.md`.
 
 **Prüfen:** Mit verschiedenen Controllern starten und im Log den erkannten Namen und das gewählte
 Profil ablesen.
+
+**Erledigt.** `Content/gamecontrollerdb.txt` (SDL_GameControllerDB-Stand, 2.288 Zeilen: 322 macOS-,
+869 Windows-, 744 Linux-Mappings, u. a. 317× 8BitDo) wird über die bestehende
+`Content\**`-Kopierregel automatisch neben die Binary gelegt — MonoGame 3.8.2 lädt sie beim Start
+selbst (in der DLL verifiziert). `controllers.json` um 8BitDo- und Logitech-Profile ergänzt;
+`THIRD_PARTY_NOTICES.md` nennt Quelle und Lizenz. Die physische Belegung (`InputState._bindings`)
+bleibt davon unberührt — sie ist Paket 4/Roadmap (frei belegbare Tasten).
 
 ---
 

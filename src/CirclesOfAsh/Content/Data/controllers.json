@@ -32,6 +32,28 @@
     }
   },
   {
+    // 8BitDo-Pads melden sich je nach Modus (Switch/XInput/DInput) unterschiedlich, die
+    // Belegung bleibt aber physisch gleich: Nintendo-Layout mit Xbox-Tastennamen.
+    "id": "8bitdo",
+    "name": "8BitDo",
+    "match": [ "8bitdo" ],
+    "labels": {
+      "Jump": "A", "Dash": "R1", "AbilityOne": "X", "AbilityTwo": "Y",
+      "Interact": "L1", "Confirm": "A", "Cancel": "B", "Pause": "Start", "Randomize": "Select"
+    }
+  },
+  {
+    // Logitech-Pads (F3xx/F5xx/ChillStream) nutzen das Xbox-Layout, melden sich aber
+    // haeufig als reines DirectInput-Geraet ohne "xbox" im Namen.
+    "id": "logitech",
+    "name": "Logitech",
+    "match": [ "logitech" ],
+    "labels": {
+      "Jump": "1", "Dash": "R1", "AbilityOne": "3", "AbilityTwo": "4",
+      "Interact": "L1", "Confirm": "1", "Cancel": "2", "Pause": "9", "Randomize": "10"
+    }
+  },
+  {
     "id": "xbox",
     "name": "Xbox",
     "match": [],
