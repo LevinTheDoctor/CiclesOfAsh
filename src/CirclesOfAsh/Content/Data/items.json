@@ -1,0 +1,39 @@
+[
+  // slot: Lamp | Amulet | Ring | Collectible   ·   rarity: Common | Rare | Sacred
+  // modifiers: stat = Name aus StatType (Combat/Stats.cs), isPercent = Prozentbonus (0.1 = +10 %)
+  // Laternen erhöhen LightRadius – je tiefer der Kreis, desto wichtiger!
+  { "id": "grave_lantern", "name": "Grablaterne", "slot": "Lamp", "rarity": "Common",
+    "description": "Rostig, aber sie brennt noch. Vertreibt die erste Finsternis.",
+    "lightColor": "#FFD08A", "modifiers": [ { "stat": "LightRadius", "amount": 34 } ] },
+  { "id": "saint_lamp", "name": "Lampe der Heiligen", "slot": "Lamp", "rarity": "Rare",
+    "description": "Ihr weißes Licht erinnert die Verdammten an den Himmel.",
+    "lightColor": "#F4F0FF", "modifiers": [ { "stat": "LightRadius", "amount": 52 }, { "stat": "Might", "amount": 0.05, "isPercent": true } ] },
+  { "id": "hellfire_lantern", "name": "Höllenfeuer-Laterne", "slot": "Lamp", "rarity": "Sacred", "minCircle": 1,
+    "description": "In ihr brennt ein Splitter des Abgrunds. Rotes Licht, rote Wut.",
+    "lightColor": "#FF7050", "modifiers": [ { "stat": "LightRadius", "amount": 44 }, { "stat": "Might", "amount": 0.15, "isPercent": true } ] },
+
+  { "id": "rosary", "name": "Rosenkranz", "slot": "Amulet", "rarity": "Common",
+    "description": "Jede Perle ein Gebet, das nie erhört wurde.",
+    "modifiers": [ { "stat": "MaxHealth", "amount": 25 } ] },
+  { "id": "bleeding_heart", "name": "Blutendes Herz", "slot": "Amulet", "rarity": "Sacred", "minCircle": 1,
+    "description": "Es schlägt noch – für dich.",
+    "modifiers": [ { "stat": "MaxHealth", "amount": 40 }, { "stat": "ManaRegen", "amount": 1 } ] },
+  { "id": "eye_of_vigil", "name": "Auge der Wacht", "slot": "Amulet", "rarity": "Rare",
+    "description": "Es sieht Seelen, bevor du sie siehst.",
+    "modifiers": [ { "stat": "PickupRadius", "amount": 24 }, { "stat": "CooldownReduction", "amount": 0.05 } ] },
+
+  { "id": "ring_of_ash", "name": "Aschering", "slot": "Ring", "rarity": "Common",
+    "description": "Warm, obwohl kein Feuer mehr brennt.",
+    "modifiers": [ { "stat": "Might", "amount": 0.08, "isPercent": true } ] },
+  { "id": "ring_of_silence", "name": "Ring des Schweigens", "slot": "Ring", "rarity": "Rare",
+    "description": "Wer ihn trägt, wird überhört – und übersehen.",
+    "modifiers": [ { "stat": "StealthDamage", "amount": 0.5 }, { "stat": "MoveSpeed", "amount": 0.05, "isPercent": true } ] },
+  { "id": "ring_of_mammon", "name": "Mammons Siegelring", "slot": "Ring", "rarity": "Sacred", "minCircle": 1,
+    "description": "Schwer vor Gold. Macht stark, macht langsam.",
+    "modifiers": [ { "stat": "Might", "amount": 0.18, "isPercent": true }, { "stat": "MoveSpeed", "amount": -0.05, "isPercent": true } ] },
+
+  // Sammelobjekte: liegen schwebend in den Verliesen und zählen für Bitten der Gläubigen
+  { "id": "prayer_beads", "name": "Gebetsperlen", "slot": "Collectible", "description": "Verloren von einer Mutter im Limbus." },
+  { "id": "soul_shard", "name": "Seelensplitter", "slot": "Collectible", "description": "Ein Bruchstück einer zerrissenen Seele." },
+  { "id": "lost_letter", "name": "Verlorener Brief", "slot": "Collectible", "description": "An die Lebenden adressiert. Nie angekommen." }
+]

@@ -1,0 +1,20 @@
+# Build-Ausgaben
+bin/
+obj/
+publish/
+artifacts/
+
+# IDEs
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.DotSettings.user
+
+# Python-Cache (Asset-Generator)
+__pycache__/
+
+# Lokale Spielstände/Logs, falls zum Testen ins Repo kopiert
+*.db
+*.log

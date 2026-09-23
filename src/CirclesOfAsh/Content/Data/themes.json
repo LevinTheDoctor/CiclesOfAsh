@@ -1,0 +1,33 @@
+[
+  // Raumthemen = "Persönlichkeit". shape: Normal | Cave (zerklüftet) | Flooded (Teich)
+  // anchor: Floor | Ceiling | Wall   ·   min/max = Anzahl pro Raum
+  { "id": "crypt", "name": "Krypta der Vergessenen", "shape": "Normal", "props": [
+    { "prop": "coffin", "anchor": "Floor", "min": 1, "max": 2 }, { "prop": "candles", "anchor": "Floor", "min": 1, "max": 2 },
+    { "prop": "bones", "anchor": "Floor", "min": 1, "max": 3 }, { "prop": "cobweb", "anchor": "Ceiling", "min": 1, "max": 2 },
+    { "prop": "torch", "anchor": "Wall", "min": 1, "max": 2 } ] },
+  { "id": "cave", "name": "Tropfsteinhöhle", "shape": "Cave", "props": [
+    { "prop": "bat", "anchor": "Ceiling", "min": 3, "max": 6 }, { "prop": "stalactite", "anchor": "Ceiling", "min": 2, "max": 4 },
+    { "prop": "bones", "anchor": "Floor", "min": 0, "max": 2 } ] },
+  { "id": "cathedral", "name": "Zerfallene Kathedrale", "shape": "Normal", "props": [
+    { "prop": "window", "anchor": "Wall", "min": 1, "max": 2 }, { "prop": "lamp", "anchor": "Ceiling", "min": 1, "max": 3 },
+    { "prop": "statue", "anchor": "Floor", "min": 1, "max": 2 }, { "prop": "banner", "anchor": "Wall", "min": 0, "max": 2 },
+    { "prop": "candles", "anchor": "Floor", "min": 0, "max": 1 } ] },
+  { "id": "flooded", "name": "Überfluteter Kreuzgang", "shape": "Flooded", "props": [
+    { "prop": "lamp", "anchor": "Ceiling", "min": 1, "max": 1 }, { "prop": "stalactite", "anchor": "Ceiling", "min": 1, "max": 3 },
+    { "prop": "chains", "anchor": "Ceiling", "min": 1, "max": 2 }, { "prop": "bat", "anchor": "Ceiling", "min": 0, "max": 3 } ] },
+  { "id": "vault", "name": "Schatzgewölbe der Gier", "shape": "Normal", "props": [
+    { "prop": "gold_pile", "anchor": "Floor", "min": 2, "max": 4 }, { "prop": "torch", "anchor": "Wall", "min": 1, "max": 2 },
+    { "prop": "statue", "anchor": "Floor", "min": 0, "max": 1 }, { "prop": "chains", "anchor": "Ceiling", "min": 1, "max": 2 } ] },
+  { "id": "forge", "name": "Glutschmiede", "shape": "Cave", "props": [
+    { "prop": "lava_vent", "anchor": "Floor", "min": 2, "max": 3 }, { "prop": "chains", "anchor": "Ceiling", "min": 2, "max": 3 },
+    { "prop": "fire_bowl", "anchor": "Floor", "min": 0, "max": 1 }, { "prop": "bones", "anchor": "Floor", "min": 1, "max": 2 } ] },
+  { "id": "prison", "name": "Kerker", "shape": "Normal", "props": [
+    { "prop": "chains", "anchor": "Ceiling", "min": 2, "max": 4 }, { "prop": "torch", "anchor": "Wall", "min": 2, "max": 2 },
+    { "prop": "bones", "anchor": "Floor", "min": 1, "max": 2 } ] },
+  { "id": "sanctum", "name": "Sanktum des Siegels", "shape": "Normal", "props": [
+    { "prop": "candles", "anchor": "Floor", "min": 2, "max": 2 }, { "prop": "statue", "anchor": "Floor", "min": 1, "max": 2 },
+    { "prop": "window", "anchor": "Wall", "min": 1, "max": 1 }, { "prop": "torch", "anchor": "Wall", "min": 1, "max": 2 } ] },
+  { "id": "throne", "name": "Thronsaal", "shape": "Normal", "props": [
+    { "prop": "banner", "anchor": "Wall", "min": 2, "max": 2 }, { "prop": "torch", "anchor": "Wall", "min": 2, "max": 3 },
+    { "prop": "statue", "anchor": "Floor", "min": 2, "max": 2 }, { "prop": "chains", "anchor": "Ceiling", "min": 1, "max": 2 } ] }
+]

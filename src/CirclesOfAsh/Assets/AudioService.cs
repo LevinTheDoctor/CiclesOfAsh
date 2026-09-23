@@ -1,0 +1,67 @@
+using CirclesOfAsh.Core;
+using Microsoft.Xna.Framework.Audio;
+
+namespace CirclesOfAsh.Assets;
+
+/// <summary>
+/// Spielt Soundeffekte per ID ab. Lazy Loading: Eine WAV wird erst beim ersten Abspielen geladen.
+/// Ohne Audiogerät (z. B. CI-Server) deaktiviert sich der Dienst still, statt das Spiel abstürzen zu lassen.
+/// </summary>
+public sealed class AudioService : IDisposable
+{
+    private readonly ContentLocator _locator;
+    private readonly IReadOnlyDictionary<string, string> _soundPaths;
+    private readonly Dictionary<string, SoundEffect?> _cache = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isAvailable = true;
+
+    public AudioService(ContentLocator locator, IReadOnlyDictionary<string, string> soundPaths)
+    {
+        _locator = locator;
+        _soundPaths = soundPaths;
+    }
+
+    public float MasterVolume { get; set; } = 0.5f;
+
+    public void Play(string? soundId, float volume = 1f, float pitch = 0f)
+    {
+        if (!_isAvailable || string.IsNullOrEmpty(soundId)) return;
+        SoundEffect? effect = GetOrLoad(soundId);
+        // "?." = Null-Conditional: Play wird nur aufgerufen, wenn effect nicht null ist
+        effect?.Play(Math.Clamp(volume * MasterVolume, 0f, 1f), Math.Clamp(pitch, -1f, 1f), 0f);
+    }
+
+    public IEnumerable<string> SoundIds => _soundPaths.Keys;
+
+    /// <summary>Lädt einen Sound vorab (Ladebildschirm), damit das erste Abspielen nicht ruckelt.</summary>
+    public void Preload(string soundId)
+    {
+        if (_isAvailable) GetOrLoad(soundId);
+    }
+
+    private SoundEffect? GetOrLoad(string soundId)
+    {
+        if (_cache.TryGetValue(soundId, out SoundEffect? cached)) return cached;
+
+        SoundEffect? effect = null;
+        string? path = _soundPaths.TryGetValue(soundId, out string? relativePath) ? _locator.TryResolve(relativePath) : null;
+        if (path is not null)
+        {
+            try
+            {
+                effect = SoundEffect.FromFile(path);
+            }
+            catch (Exception exception)   // bewusst breit: jede Audio-Ausnahme soll nur loggen
+            {
+                Log.Warn($"Audio deaktiviert ({exception.GetType().Name}): {exception.Message}");
+                _isAvailable = false;
+            }
+        }
+        _cache[soundId] = effect;
+        return effect;
+    }
+
+    public void Dispose()
+    {
+        foreach (SoundEffect? effect in _cache.Values) effect?.Dispose();
+    }
+}

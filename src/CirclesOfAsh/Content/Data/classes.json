@@ -1,0 +1,29 @@
+[
+  {
+    "id": "warrior",
+    "name": "Kreuzritter der Asche",
+    "description": "Nahkampf. Viel Leben und Rüstung, schwere Hiebe mit Rückstoß. Verzeiht Fehler, braucht aber Nähe zum Feind.",
+    "outfitSprite": "outfit.warrior", "accentSprite": "accent.warrior",
+    "baseStats": { "MaxHealth": 140, "MaxMana": 40, "ManaRegen": 2, "MoveSpeed": 105, "JumpPower": 460, "Armor": 2 },
+    "startingAbilities": [ "ash_cleave" ],
+    "abilityPool": [ "ash_cleave", "consecration", "holy_bolt", "orbiting_candles" ]
+  },
+  {
+    "id": "mage",
+    "name": "Magier der Seelenglut",
+    "description": "Fernkampf und Flächenschaden. Wenig Leben, dafür große Manareserven. Hält Horden auf Abstand.",
+    "outfitSprite": "outfit.mage", "accentSprite": "accent.mage",
+    "baseStats": { "MaxHealth": 90, "MaxMana": 100, "ManaRegen": 5, "MoveSpeed": 108, "JumpPower": 460, "Armor": 0 },
+    "startingAbilities": [ "holy_bolt", "soul_nova" ],
+    "abilityPool": [ "holy_bolt", "soul_nova", "orbiting_candles", "soul_lance" ]
+  },
+  {
+    "id": "shadow",
+    "name": "Schatten der Beichte",
+    "description": "Tarnung und Tempo. Aus dem Schleier (Q) heraus verursacht der erste Treffer vielfachen Schaden. Gegner verlieren dich aus den Augen.",
+    "outfitSprite": "outfit.shadow", "accentSprite": "accent.shadow",
+    "baseStats": { "MaxHealth": 100, "MaxMana": 60, "ManaRegen": 3, "MoveSpeed": 125, "JumpPower": 480, "Armor": 0, "StealthDamage": 2.5 },
+    "startingAbilities": [ "shadow_dagger", "shadow_veil" ],
+    "abilityPool": [ "shadow_dagger", "shadow_veil", "phantom_blades", "ash_cleave" ]
+  }
+]

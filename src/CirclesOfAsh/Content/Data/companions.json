@@ -1,0 +1,18 @@
+[
+  { "id": "ember_soul", "name": "Glutseele", "description": "Schießt auf nahe Feinde. Skaliert mit deiner Macht.",
+    "spriteSheet": "companion.ember", "behavior": "attacker", "power": 6, "interval": 1.2, "range": 150,
+    "projectileSprite": "projectile.ember", "unlockAtBelievers": 0 },
+  { "id": "tear_soul", "name": "Tränenseele", "description": "Heilt dich regelmäßig, wenn du verwundet bist.",
+    "spriteSheet": "companion.tear", "behavior": "healer", "power": 6, "interval": 4, "unlockAtBelievers": 60 },
+  { "id": "moon_soul", "name": "Mondseele", "description": "Schenkt dir fortlaufend Mana.",
+    "spriteSheet": "companion.moon", "behavior": "mana", "power": 12, "interval": 3, "unlockAtBelievers": 150 },
+
+  // unlockAtBelievers -1 = nur durch Befreiung aus einem Kerker (siehe worlds.json -> prison.companionReward)
+  { "id": "chain_soul", "name": "Kettenseele", "description": "Ein befreiter Gefangener. Schlägt selten, aber mit schwerer Kette zu.",
+    "spriteSheet": "companion.chain", "behavior": "attacker", "power": 14, "interval": 2.2, "range": 130,
+    "projectileSprite": "projectile.soul_spark", "unlockAtBelievers": -1 },
+  { "id": "bell_soul", "name": "Glockenseele", "description": "Ein befreiter Küster. Heilt stärker, aber seltener.",
+    "spriteSheet": "companion.bell", "behavior": "healer", "power": 14, "interval": 7, "unlockAtBelievers": -1 },
+  { "id": "pilgrim_soul", "name": "Pilgerseele", "description": "Eine befreite Pilgerin. Speist dich mit Mana und Hoffnung.",
+    "spriteSheet": "companion.moon", "behavior": "mana", "power": 18, "interval": 3, "unlockAtBelievers": -1 }
+]

@@ -1,0 +1,55 @@
+[
+  // behavior = Schlüssel aus Modding/BehaviorRegistry.cs
+  // activation: Auto (feuert selbst) | Manual (Taste, siehe inputAction) | Passive
+  { "id": "ash_cleave", "name": "Aschehieb", "description": "Automatischer Schwerthieb gegen nahe Feinde.",
+    "behavior": "melee_arc", "activation": "Auto", "cooldown": 0.9, "damage": 14, "damagePerLevel": 5,
+    "range": 70, "radius": 40, "knockback": 90, "maxLevel": 6, "sprite": "effect.slash", "sound": "slash" },
+
+  { "id": "consecration", "name": "Weihe", "description": "Heiliger Boden verbrennt alle Feinde in der Nähe.",
+    "behavior": "nova", "activation": "Auto", "cooldown": 3.0, "damage": 10, "damagePerLevel": 4,
+    "radius": 48, "knockback": 70, "maxLevel": 5, "sound": "unseal" },
+
+  { "id": "holy_bolt", "name": "Heiliger Bolzen", "description": "Geweihtes Geschoss auf den nächsten Feind. Mehr Bolzen auf höheren Stufen.",
+    "behavior": "projectile", "activation": "Auto", "cooldown": 0.8, "damage": 9, "damagePerLevel": 3,
+    "range": 220, "speed": 240, "count": 1, "countEveryLevels": 2, "knockback": 40, "maxLevel": 6,
+    "sprite": "projectile.holy_bolt", "sound": "shoot" },
+
+  { "id": "soul_lance", "name": "Seelenlanze", "description": "Langsame Lanze, die viele Feinde durchbohrt.",
+    "behavior": "projectile", "activation": "Auto", "cooldown": 2.2, "manaCost": 6, "damage": 22, "damagePerLevel": 7,
+    "range": 260, "speed": 170, "pierce": 5, "knockback": 30, "maxLevel": 5,
+    "sprite": "projectile.soul_spark", "sound": "shoot" },
+
+  { "id": "soul_nova", "name": "Seelennova", "description": "Ring aus Seelenfeuer um dich herum. Kostet Mana.",
+    "behavior": "nova", "activation": "Auto", "cooldown": 2.2, "manaCost": 10, "damage": 12, "damagePerLevel": 4,
+    "radius": 56, "knockback": 120, "maxLevel": 6, "sound": "unseal" },
+
+  { "id": "orbiting_candles", "name": "Kreisende Kerzen", "description": "Geweihte Kerzen umkreisen dich und versengen Feinde.",
+    "behavior": "orbit", "activation": "Passive", "damage": 6, "damagePerLevel": 2,
+    "radius": 30, "speed": 140, "count": 2, "countEveryLevels": 2, "knockback": 30, "maxLevel": 6,
+    "sprite": "projectile.candle" },
+
+  { "id": "shadow_dagger", "name": "Schattendolch", "description": "Schnelle Dolche, die einen Feind durchdringen.",
+    "behavior": "projectile", "activation": "Auto", "cooldown": 0.55, "damage": 7, "damagePerLevel": 2.5,
+    "range": 180, "speed": 320, "pierce": 1, "countEveryLevels": 3, "knockback": 20, "maxLevel": 6,
+    "sprite": "projectile.shadow_dagger", "sound": "shoot" },
+
+  { "id": "phantom_blades", "name": "Phantomklingen", "description": "Unsichtbare Klingen tanzen eng um dich.",
+    "behavior": "orbit", "activation": "Passive", "damage": 8, "damagePerLevel": 3,
+    "radius": 22, "speed": 200, "count": 1, "countEveryLevels": 2, "knockback": 20, "maxLevel": 5,
+    "sprite": "projectile.shadow_dagger" },
+
+  { "id": "shadow_veil", "name": "Schleier (Q)", "description": "Werde unsichtbar. Gegner verlieren dich, der erste Treffer ist verheerend.",
+    "behavior": "stealth", "activation": "Manual", "inputAction": "AbilityOne", "cooldown": 8, "manaCost": 15,
+    "duration": 3, "maxLevel": 4 },
+
+  // ---------------- Ewige Gaben (Boss-Belohnungen, bleiben nach dem Tod)
+  { "id": "abyssal_dash", "name": "Abgrundschritt", "description": "Dash (Shift, mit Hoch/Runter vertikal). Zerbricht rissige Wände.",
+    "behavior": "dash", "activation": "Manual", "inputAction": "Dash", "cooldown": 0.7, "speed": 420, "duration": 0.18, "maxLevel": 1 },
+
+  { "id": "wings_of_ash", "name": "Aschenschwingen", "description": "Ein zusätzlicher Sprung in der Luft.",
+    "behavior": "air_jump", "activation": "Passive", "count": 1, "maxLevel": 1 },
+
+  { "id": "last_judgement", "name": "Jüngstes Gericht", "description": "Gewaltige heilige Explosion (E). Hoher Manaverbrauch.",
+    "behavior": "nova", "activation": "Manual", "inputAction": "AbilityTwo", "cooldown": 10, "manaCost": 30,
+    "damage": 45, "radius": 110, "knockback": 200, "maxLevel": 1, "sound": "roar" }
+]

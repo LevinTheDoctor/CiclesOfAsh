@@ -1,0 +1,29 @@
+[
+  // behavior: static | bats | lever | rune_pillar | mural | brazier | chest | cage   (siehe Props/PropBehaviors.cs)
+  // width/height in Pixeln = Größe eines Frames. lightRadius > 0 = Lichtquelle.
+  { "id": "lamp", "name": "Hängelaterne", "spriteSheet": "prop.lamp", "width": 12, "height": 20, "lightRadius": 64, "lightColor": "#FFC070" },
+  { "id": "torch", "name": "Fackel", "spriteSheet": "prop.torch", "width": 8, "height": 16, "lightRadius": 58, "lightColor": "#FF9A50", "lightFlicker": 0.15 },
+  { "id": "candles", "name": "Kerzen", "spriteSheet": "prop.candles", "width": 16, "height": 10, "lightRadius": 34, "lightColor": "#FFD090" },
+  { "id": "fire_bowl", "name": "Feuerschale", "spriteSheet": "prop.brazier", "width": 16, "height": 16, "lightRadius": 60, "lightColor": "#FF8040", "lightFlicker": 0.15 },
+  { "id": "window", "name": "Bleiglasfenster", "spriteSheet": "prop.window", "width": 24, "height": 40, "lightRadius": 46, "lightColor": "#8070C0", "lightFlicker": 0 },
+  { "id": "lava_vent", "name": "Glutspalte", "spriteSheet": "prop.lava_vent", "width": 16, "height": 8, "lightRadius": 50, "lightColor": "#FF5020", "lightFlicker": 0.2 },
+  { "id": "bat", "name": "Fledermaus", "spriteSheet": "prop.bat", "behavior": "bats", "width": 10, "height": 8 },
+  { "id": "bones", "name": "Gebeine", "spriteSheet": "prop.bones", "width": 14, "height": 7 },
+  { "id": "coffin", "name": "Sarg", "spriteSheet": "prop.coffin", "width": 12, "height": 24 },
+  { "id": "chains", "name": "Ketten", "spriteSheet": "prop.chains", "width": 6, "height": 28 },
+  { "id": "stalactite", "name": "Tropfstein", "spriteSheet": "prop.stalactite", "width": 8, "height": 16 },
+  { "id": "statue", "name": "Trauernder Engel", "spriteSheet": "prop.statue", "width": 16, "height": 28 },
+  { "id": "gold_pile", "name": "Goldhaufen", "spriteSheet": "prop.gold_pile", "width": 16, "height": 8, "lightRadius": 18, "lightColor": "#FFD060" },
+  { "id": "banner", "name": "Banner", "spriteSheet": "prop.banner", "width": 10, "height": 24 },
+  { "id": "cobweb", "name": "Spinnennetz", "spriteSheet": "prop.cobweb", "width": 16, "height": 16 },
+
+  // Interaktive Props (Taste F)
+  { "id": "lever", "name": "Hebel", "spriteSheet": "prop.lever", "behavior": "lever", "width": 12, "height": 14, "interactable": true, "prompt": "Hebel umlegen" },
+  { "id": "rune_pillar", "name": "Runensäule", "spriteSheet": "prop.rune_pillar", "behavior": "rune_pillar", "width": 16, "height": 32,
+    "interactable": true, "prompt": "Rune berühren", "lightColor": "#70E6BE" },
+  { "id": "mural", "name": "Inschrift", "spriteSheet": "prop.mural", "behavior": "mural", "width": 40, "height": 24 },
+  { "id": "brazier", "name": "Kohlenbecken", "spriteSheet": "prop.brazier", "behavior": "brazier", "width": 16, "height": 16,
+    "interactable": true, "prompt": "Entzünden", "lightColor": "#FF8040", "lightFlicker": 0.15 },
+  { "id": "chest", "name": "Truhe", "spriteSheet": "prop.chest", "behavior": "chest", "width": 16, "height": 12, "interactable": true, "prompt": "Öffnen" },
+  { "id": "cage", "name": "Käfig", "spriteSheet": "prop.cage", "behavior": "cage", "width": 16, "height": 24 }
+]

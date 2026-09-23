@@ -1,0 +1,16 @@
+{
+  // Auswahlmöglichkeiten des Charakter-Editors. Farben als #RRGGBB, sie färben Graustufen-Ebenen ein.
+  // Reihenfolge nicht umsortieren: Spielstände speichern die Position (Index)!
+  "bodySprite": "char.body",
+  "skinTones": [ "#F2D3B8", "#E0B090", "#B07A55", "#7A4E33", "#D0CCD8", "#9DB09A" ],
+  "hairStyles": [
+    { "id": "short", "name": "Kurz", "sprite": "hair.short" },
+    { "id": "long", "name": "Lang", "sprite": "hair.long" },
+    { "id": "braid", "name": "Zopf", "sprite": "hair.braid" },
+    { "id": "mohawk", "name": "Kamm", "sprite": "hair.mohawk" },
+    { "id": "curls", "name": "Locken", "sprite": "hair.hooded_curls" },
+    { "id": "bald", "name": "Kahl", "sprite": "" }
+  ],
+  "hairColors": [ "#2A2024", "#5A3A28", "#A06A3A", "#E0C080", "#E8E4F0", "#B03020", "#4A5A8A", "#6A8A5A" ],
+  "accentColors": [ "#961824", "#D4AA48", "#5A6EE6", "#6EE6BE", "#AA64E6", "#E87828", "#E8E0D0", "#3A3A44" ]
+}

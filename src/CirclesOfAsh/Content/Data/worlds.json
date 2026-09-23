@@ -1,0 +1,210 @@
+// Welten und ihre Kreise. Tiefer = dunkleres ambientLight, höherer decay (mehr Verfall, bröckelnde Plattformen).
+[
+  {
+    "id": "inferno",
+    "name": "Das Inferno",
+    "lore": "Einst warst du angebetet. Nun ist dein Name vergessen und deine Gläubigen sind in die Kreise der Hölle gefallen.",
+    "believersOnLiberation": 150,
+    "circles": [
+      {
+        "id": "limbo",
+        "name": "Limbus",
+        "lore": "Der erste Kreis. Hier warten die Seelen, die nie getauft wurden – ohne Qual, aber ohne Hoffnung. Ein Hirte ohne Namen hütet sie in ewiger Dämmerung. Befreie sie, und sie werden an dich glauben.",
+        "difficulty": 1.0,
+        "tileTint": "#FFFFFF",
+        "backgroundTint": "#FFFFFF",
+        "enemyPool": [
+          {
+            "enemy": "ghoul",
+            "weight": 5
+          },
+          {
+            "enemy": "wraith",
+            "weight": 3
+          }
+        ],
+        "boss": "boss_shepherd",
+        "bossReward": "abyssal_dash",
+        "believersPerDungeon": 12,
+        "tileset": "tiles.limbo",
+        "background": "background.limbo",
+        "ambientLight": "#6E6C84",
+        "decay": 0.15,
+        "ambientParticles": "dust",
+        "themes": [
+          {
+            "theme": "crypt",
+            "weight": 4
+          },
+          {
+            "theme": "cave",
+            "weight": 3
+          },
+          {
+            "theme": "cathedral",
+            "weight": 3
+          },
+          {
+            "theme": "flooded",
+            "weight": 2
+          }
+        ],
+        "puzzles": [
+          "levers",
+          "rune_order"
+        ],
+        "collectibles": [
+          "prayer_beads",
+          "soul_shard"
+        ],
+        "collectiblesPerDungeon": 2,
+        "prison": {
+          "dungeonIndex": 2,
+          "miniBoss": "warden_limbo",
+          "guards": "ghoul",
+          "guardCount": 3,
+          "captives": 3,
+          "companionReward": "pilgrim_soul",
+          "believers": 25
+        }
+      },
+      {
+        "id": "greed",
+        "name": "Kreis der Gier",
+        "lore": "Der vierte Kreis. Geizhälse und Verschwender wälzen schwere Lasten gegeneinander, auf ewig. Über ihnen thront Mammon auf einem Berg aus Gold, das niemandem gehört.",
+        "difficulty": 1.6,
+        "tileTint": "#FFFFFF",
+        "backgroundTint": "#FFFFFF",
+        "enemyPool": [
+          {
+            "enemy": "ghoul",
+            "weight": 3
+          },
+          {
+            "enemy": "hound",
+            "weight": 3
+          },
+          {
+            "enemy": "cultist",
+            "weight": 2
+          },
+          {
+            "enemy": "wraith",
+            "weight": 1
+          }
+        ],
+        "boss": "boss_mammon",
+        "bossReward": "wings_of_ash",
+        "believersPerDungeon": 20,
+        "tileset": "tiles.greed",
+        "background": "background.greed",
+        "ambientLight": "#4E4238",
+        "decay": 0.45,
+        "ambientParticles": "ash",
+        "themes": [
+          {
+            "theme": "vault",
+            "weight": 4
+          },
+          {
+            "theme": "cave",
+            "weight": 2
+          },
+          {
+            "theme": "flooded",
+            "weight": 2
+          },
+          {
+            "theme": "crypt",
+            "weight": 2
+          }
+        ],
+        "puzzles": [
+          "rune_order",
+          "braziers",
+          "levers"
+        ],
+        "collectibles": [
+          "lost_letter",
+          "soul_shard"
+        ],
+        "collectiblesPerDungeon": 2,
+        "prison": {
+          "dungeonIndex": 1,
+          "miniBoss": "warden_greed",
+          "guards": "hound",
+          "guardCount": 3,
+          "captives": 3,
+          "companionReward": "chain_soul",
+          "believers": 35
+        }
+      },
+      {
+        "id": "wrath",
+        "name": "Kreis des Zorns",
+        "lore": "Der fünfte Kreis. Im Sumpf des Styx zerfleischen sich die Zornigen gegenseitig. Ein Titan, geboren aus ihrer Wut, wacht über die Mauern der Stadt Dis.",
+        "difficulty": 2.3,
+        "tileTint": "#FFFFFF",
+        "backgroundTint": "#FFFFFF",
+        "enemyPool": [
+          {
+            "enemy": "hound",
+            "weight": 4
+          },
+          {
+            "enemy": "cultist",
+            "weight": 3
+          },
+          {
+            "enemy": "wraith",
+            "weight": 2
+          }
+        ],
+        "boss": "boss_titan",
+        "bossReward": "last_judgement",
+        "believersPerDungeon": 30,
+        "tileset": "tiles.wrath",
+        "background": "background.wrath",
+        "ambientLight": "#321A1C",
+        "decay": 0.8,
+        "ambientParticles": "embers",
+        "themes": [
+          {
+            "theme": "forge",
+            "weight": 4
+          },
+          {
+            "theme": "cave",
+            "weight": 3
+          },
+          {
+            "theme": "crypt",
+            "weight": 2
+          },
+          {
+            "theme": "prison",
+            "weight": 1
+          }
+        ],
+        "puzzles": [
+          "braziers",
+          "rune_order"
+        ],
+        "collectibles": [
+          "soul_shard",
+          "lost_letter"
+        ],
+        "collectiblesPerDungeon": 3,
+        "prison": {
+          "dungeonIndex": 2,
+          "miniBoss": "warden_wrath",
+          "guards": "cultist",
+          "guardCount": 2,
+          "captives": 3,
+          "companionReward": "bell_soul",
+          "believers": 50
+        }
+      }
+    ]
+  }
+]

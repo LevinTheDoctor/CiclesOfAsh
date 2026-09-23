@@ -1,0 +1,12 @@
+[
+  { "id": "vitality", "name": "Lebenskraft", "description": "+20 maximale Lebenspunkte.", "stat": "MaxHealth", "amount": 20, "maxStacks": 5 },
+  { "id": "might", "name": "Göttliche Macht", "description": "+10 % Schaden aller Fähigkeiten.", "stat": "Might", "amount": 0.10, "isPercent": true, "maxStacks": 5 },
+  { "id": "swiftness", "name": "Flinke Sohlen", "description": "+8 % Bewegungstempo.", "stat": "MoveSpeed", "amount": 0.08, "isPercent": true, "maxStacks": 3 },
+  { "id": "bulwark", "name": "Bollwerk", "description": "+1 Rüstung (weniger Schaden pro Treffer).", "stat": "Armor", "amount": 1, "maxStacks": 5 },
+  { "id": "haste", "name": "Eile", "description": "6 % kürzere Abklingzeiten.", "stat": "CooldownReduction", "amount": 0.06, "maxStacks": 5 },
+  { "id": "reach", "name": "Weite", "description": "+10 % Wirkungsbereich.", "stat": "AreaSize", "amount": 0.10, "maxStacks": 4 },
+  { "id": "magnet", "name": "Seelensog", "description": "Seelen werden aus größerer Entfernung angezogen.", "stat": "PickupRadius", "amount": 12, "maxStacks": 4 },
+  { "id": "mana_font", "name": "Manaquell", "description": "+1,5 Mana pro Sekunde.", "stat": "ManaRegen", "amount": 1.5, "maxStacks": 4 },
+  { "id": "zeal", "name": "Eifer", "description": "+20 maximales Mana.", "stat": "MaxMana", "amount": 20, "maxStacks": 3 },
+  { "id": "dark_whisper", "name": "Dunkles Flüstern", "description": "+40 % Schaden aus der Tarnung.", "stat": "StealthDamage", "amount": 0.4, "maxStacks": 3 }
+]

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    DesktopGL = MonoGame-Backend auf OpenGL + SDL2.
+    Läuft ohne Codeänderung auf Windows, Linux und macOS. Welches OS gebaut wird,
+    entscheidet allein der Runtime Identifier beim Publish (-r win-x64 / linux-x64 / osx-arm64).
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>CirclesOfAsh</RootNamespace>
+    <AssemblyName>CirclesOfAsh</AssemblyName>
+    <TieredPGO>true</TieredPGO>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.2.1105" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+  </ItemGroup>
+
+  <!--
+    Kein MonoGame-Content-Pipeline-Build (MGCB)! Assets werden zur Laufzeit als PNG/WAV/JSON
+    geladen. Deshalb reicht es, den Content-Ordner neben die .exe zu kopieren.
+    Folge: Assets sind nach dem Build austauschbar, ohne neu zu kompilieren.
+  -->
+  <ItemGroup>
+    <None Update="Content\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.Xna.Framework" />
+    <Using Include="Microsoft.Xna.Framework.Graphics" />
+  </ItemGroup>
+
+</Project>

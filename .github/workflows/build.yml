@@ -1,0 +1,37 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    # Matrix: prüft bei jedem Push, dass das Projekt auf allen drei Systemen kompiliert
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, ubuntu-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - run: dotnet restore
+      - run: dotnet build --configuration Release --no-restore
+
+  publish-windows:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish win-x64 (self-contained)
+        run: dotnet publish src/CirclesOfAsh/CirclesOfAsh.csproj -c Release -r win-x64 --self-contained true -o publish/win-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CirclesOfAsh-win-x64
+          path: publish/win-x64
