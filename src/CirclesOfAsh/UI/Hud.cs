@@ -81,13 +81,7 @@ public sealed class Hud
         foreach (AbilityInstance ability in world.Player.Abilities)
         {
             if (ability.Definition.Activation != AbilityActivation.Manual) continue;
-            string key = ability.Definition.InputAction switch
-            {
-                GameAction.Dash => "Shift",
-                GameAction.AbilityTwo => "E",
-                _ => "Q",
-            };
-            string label = $"[{key}] {ability.Definition.Name}";
+            string label = $"{_context.Input.Prompt(ability.Definition.InputAction)} {ability.Definition.Name}";
             float cooldown = ability.EffectiveCooldown(world.Player.Stats);
             float ready = cooldown <= 0f ? 1f : 1f - ability.CooldownRemaining / cooldown;
             int width = font.MeasureWidth(label) + 6;

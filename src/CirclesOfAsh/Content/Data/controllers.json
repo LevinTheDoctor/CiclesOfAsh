@@ -1,0 +1,43 @@
+[
+  // Controller-Profile (Content/Data/controllers.json).
+  //   match    = Textbausteine, die im Gerätenamen gesucht werden (klein geschrieben, erster Treffer gewinnt).
+  //              Leer = Auffangprofil, wenn kein anderes passt.
+  //   labels   = Beschriftung je Spielaktion. Der Code kennt nur die Aktion, nie eine Taste.
+  // Die Reihenfolge in dieser Datei entscheidet, welches Profil zuerst geprüft wird.
+  {
+    "id": "dualsense",
+    "name": "PlayStation",
+    "match": [ "dualsense", "dualshock", "playstation", "ps4", "ps5", "wireless controller" ],
+    "labels": {
+      "Jump": "X", "Dash": "R1", "AbilityOne": "□", "AbilityTwo": "△",
+      "Interact": "L1", "Confirm": "X", "Cancel": "○", "Pause": "Options", "Randomize": "Create"
+    }
+  },
+  {
+    "id": "switch",
+    "name": "Nintendo Switch",
+    "match": [ "nintendo", "switch", "joy-con", "joycon", "pro controller" ],
+    "labels": {
+      "Jump": "B", "Dash": "R", "AbilityOne": "Y", "AbilityTwo": "X",
+      "Interact": "L", "Confirm": "B", "Cancel": "A", "Pause": "+", "Randomize": "-"
+    }
+  },
+  {
+    "id": "steam",
+    "name": "Steam Deck",
+    "match": [ "steam" ],
+    "labels": {
+      "Jump": "A", "Dash": "R1", "AbilityOne": "X", "AbilityTwo": "Y",
+      "Interact": "L1", "Confirm": "A", "Cancel": "B", "Pause": "Menü", "Randomize": "Ansicht"
+    }
+  },
+  {
+    "id": "xbox",
+    "name": "Xbox",
+    "match": [],
+    "labels": {
+      "Jump": "A", "Dash": "RB", "AbilityOne": "X", "AbilityTwo": "Y",
+      "Interact": "LB", "Confirm": "A", "Cancel": "B", "Pause": "Menü", "Randomize": "Ansicht"
+    }
+  }
+]

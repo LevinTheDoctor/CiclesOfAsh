@@ -37,13 +37,46 @@ public sealed class InputState
     private KeyboardState _currentKeys, _previousKeys;
     private GamePadState _currentPad, _previousPad;
 
+    // Vibration: läuft als Restzeit-Timer. Solange er > 0 ist, liegt die gesetzte Stärke an.
+    private float _rumbleTimer;
+    private float _rumbleLow, _rumbleHigh;
+    private bool _rumbleActive;
+
+    /// <summary>
+    /// Gesamtstärke der Vibration (Optionsmenü × Schwierigkeitsstufe). 0 schaltet sie ganz ab.
+    /// Wird von GameContext gesetzt, damit InputState weder Settings noch Fortschritt kennen muss.
+    /// </summary>
+    public float RumbleScale { get; set; } = 0.6f;
+
+    // Tastatur-Beschriftungen. Bewusst hier und nicht in JSON: die Tastenbelegung selbst steht
+    // ebenfalls fest in _bindings – beides gehört zusammen.
+    private static readonly Dictionary<GameAction, string> KeyboardLabels = new()
+    {
+        [GameAction.Jump] = "Leer", [GameAction.Dash] = "Umschalt",
+        [GameAction.AbilityOne] = "J", [GameAction.AbilityTwo] = "I",
+        [GameAction.Interact] = "F", [GameAction.Confirm] = "Enter",
+        [GameAction.Cancel] = "Esc", [GameAction.Pause] = "Esc", [GameAction.Randomize] = "F5",
+    };
+
+    private IReadOnlyDictionary<GameAction, string>? _padLabels;
+    private string _padName = "";
+
+    /// <summary>
+    /// Liefert zu einem Gerätenamen die passenden Tastenbeschriftungen (Content/Data/controllers.json).
+    /// Wird von GameContext gesetzt; so kommt InputState ohne Kenntnis der Definitionen aus.
+    /// </summary>
+    public Func<string, IReadOnlyDictionary<GameAction, string>?>? ControllerProfileResolver { get; set; }
+
+    /// <summary>true, sobald ein Gamepad angeschlossen ist. Steuert, ob Glyphen oder Tasten angezeigt werden.</summary>
+    public bool HasGamePad { get; private set; }
+
     /// <summary>Im aktuellen Frame getippte Zeichen (inkl. '\b' für Rücktaste). Für Namenseingaben.</summary>
     public string TypedText { get; private set; } = "";
 
     /// <summary>Wird vom Fenster-Event (Window.TextInput) aufgerufen – liefert Zeichen inkl. Umlauten und Tastaturlayout.</summary>
     public void OnTextInput(char character) => _typedBuffer.Append(character);
 
-    public void Update()
+    public void Update(float deltaSeconds)
     {
         _previousKeys = _currentKeys;
         _previousPad = _currentPad;
@@ -51,6 +84,79 @@ public sealed class InputState
         _currentPad = GamePad.GetState(PlayerIndex.One);
         TypedText = _typedBuffer.ToString();
         _typedBuffer.Clear();
+        UpdateRumble(deltaSeconds);
+        UpdateControllerProfile();
+    }
+
+    /// <summary>
+    /// Beschriftung einer Aktion für die Anzeige: bei angeschlossenem Controller die Taste des
+    /// erkannten Profils ("A", "○", "L1"), sonst die Tastatur ("F", "Leer").
+    /// </summary>
+    public string Glyph(GameAction action)
+    {
+        if (HasGamePad && _padLabels is not null && _padLabels.TryGetValue(action, out string? label))
+            return label;
+        return KeyboardLabels.TryGetValue(action, out string? key) ? key : action.ToString();
+    }
+
+    /// <summary>Beschriftung in eckigen Klammern, wie sie über Interaktionspunkten steht: "[F]".</summary>
+    public string Prompt(GameAction action) => $"[{Glyph(action)}]";
+
+    /// <summary>Erkennt einen Wechsel des Controllers und holt das passende Profil genau dann neu.</summary>
+    private void UpdateControllerProfile()
+    {
+        GamePadCapabilities capabilities = GamePad.GetCapabilities(PlayerIndex.One);
+        HasGamePad = capabilities.IsConnected;
+        string name = HasGamePad ? capabilities.DisplayName ?? "" : "";
+        if (name == _padName) return;   // nichts geändert -> kein Nachschlagen
+
+        _padName = name;
+        _padLabels = HasGamePad ? ControllerProfileResolver?.Invoke(name) : null;
+    }
+
+    /// <summary>
+    /// Lässt den Controller vibrieren. "low" ist der schwere Motor (dumpfes Grollen),
+    /// "high" der leichte (feines Surren). Ein neuer, stärkerer Impuls überschreibt einen laufenden.
+    /// Ohne Controller passiert schlicht nichts.
+    /// </summary>
+    public void Rumble(float low, float high, float seconds)
+    {
+        if (RumbleScale <= 0f || seconds <= 0f) return;
+        float scaledLow = Math.Clamp(low * RumbleScale, 0f, 1f);
+        float scaledHigh = Math.Clamp(high * RumbleScale, 0f, 1f);
+        // Ein schwächerer Impuls darf einen laufenden starken nicht abwürgen.
+        if (_rumbleTimer > 0f && scaledLow < _rumbleLow && scaledHigh < _rumbleHigh) return;
+        _rumbleLow = scaledLow;
+        _rumbleHigh = scaledHigh;
+        _rumbleTimer = seconds;
+    }
+
+    private void UpdateRumble(float deltaSeconds)
+    {
+        if (_rumbleTimer > 0f)
+        {
+            _rumbleTimer -= deltaSeconds;
+            SetVibration(_rumbleLow, _rumbleHigh);
+            _rumbleActive = true;
+        }
+        else if (_rumbleActive)
+        {
+            SetVibration(0f, 0f);   // genau einmal ausschalten, nicht in jedem Frame
+            _rumbleActive = false;
+        }
+    }
+
+    private static void SetVibration(float low, float high)
+    {
+        // Ohne angeschlossenen Controller wirft MonoGame nicht, liefert aber false - beides ist uns egal.
+        try
+        {
+            GamePad.SetVibration(PlayerIndex.One, low, high);
+        }
+        catch (Exception)
+        {
+            // Manche SDL-Treiber werfen bei Rumble ohne Haptik-Unterstützung. Kein Grund, das Spiel zu stören.
+        }
     }
 
     public bool IsDown(GameAction action) => IsDown(action, _currentKeys, _currentPad);

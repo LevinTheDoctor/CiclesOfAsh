@@ -3,7 +3,7 @@
   "cellWidth": 8,
   "cellHeight": 9,
   "lineHeight": 10,
-  "charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÄÖÜäöüß–·…›‹",
+  "charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ÄÖÜäöüß–·…›‹○□△",
   "advances": [
     2,
     2,
@@ -111,6 +111,9 @@
     2,
     6,
     3,
-    3
+    3,
+    5,
+    4,
+    6
   ]
 }

@@ -9,6 +9,9 @@ from PIL import ImageDraw, ImageFont
 from .core import FONT_SOURCES, new_image, rng
 
 CHARSET = "".join(chr(code) for code in range(32, 127)) + "ÄÖÜäöüß–·…›‹"
+# Controller-Glyphen (Content/Data/controllers.json). Das PlayStation-Kreuz fehlt in Tiny5
+# und würde als leerer Kasten erscheinen – dafür steht dort schlicht ein "X".
+CHARSET += "○□△"
 
 
 def build_font(fonts, name, source_file, size):
