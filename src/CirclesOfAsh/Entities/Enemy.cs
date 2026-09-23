@@ -48,6 +48,13 @@ public sealed class Enemy : Actor
     /// <summary>Brains können hier eine Animation erzwingen (z. B. "cast"). null = automatisch idle/run.</summary>
     public string? ForcedAnimation { get; set; }
 
+    /// <summary>
+    /// Wer diesen Gegner beschworen hat: die Id des Arenaraums oder "rescue" für die Wachen des
+    /// Rettungsereignisses. Arena und Rescue zählen nur ihre EIGENEN Gegner – sonst hält eine noch
+    /// lebende Rescue-Wache am anderen Ende des Verlieses die Arenatüren für immer verschlossen.
+    /// </summary>
+    public string Owner { get; set; } = "";
+
     public override void Update(DungeonWorld world, float deltaSeconds)
     {
         _animation.Update(deltaSeconds);

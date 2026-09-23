@@ -94,7 +94,10 @@ public sealed class SummonAttack : IBossAttack
         for (int index = 0; index < count; index++)
         {
             float offsetX = (index - (count - 1) / 2f) * 40f;
-            world.SpawnEnemy(minion, new Vector2(boss.BottomCenter.X + offsetX, boss.BottomCenter.Y - (minion.IsFlying ? 40f : 0f)));
+            // Diener erben den Besitzer des Bosses – sonst zaehlt der Thronsaal sie nicht mit
+            // und die Tuer oeffnet sich, waehrend noch Diener leben.
+            world.SpawnEnemy(minion, new Vector2(boss.BottomCenter.X + offsetX, boss.BottomCenter.Y - (minion.IsFlying ? 40f : 0f)),
+                boss.Owner);
         }
         world.Announce("Diener werden beschworen!");
     }

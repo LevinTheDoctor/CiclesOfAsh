@@ -48,7 +48,7 @@ public sealed class WaveDirector
         // Boss- und Kerkerkämpfe haben keine Wellen: vorbei, wenn alle Gegner tot sind
         if (_arena.Type is RoomType.Boss or RoomType.Prison)
         {
-            if (world.AliveEnemyCount == 0) CompleteArena(world);
+            if (world.AliveEnemyCountOf(_arena.OwnerKey) == 0) CompleteArena(world);
             return;
         }
 
@@ -60,14 +60,14 @@ public sealed class WaveDirector
         }
 
         _spawnTimer -= deltaSeconds;
-        if (_remainingToSpawn > 0 && _spawnTimer <= 0f && world.AliveEnemyCount < _balance.MaxAliveEnemies)
+        if (_remainingToSpawn > 0 && _spawnTimer <= 0f && world.AliveEnemyCountOf(_arena.OwnerKey) < _balance.MaxAliveEnemies)
         {
             SpawnWaveEnemy(world);
             _remainingToSpawn--;
             _spawnTimer = _balance.SpawnInterval;
         }
 
-        if (_remainingToSpawn > 0 || world.AliveEnemyCount > 0) return;
+        if (_remainingToSpawn > 0 || world.AliveEnemyCountOf(_arena.OwnerKey) > 0) return;
 
         _waveIndex++;
         if (_waveIndex >= _plan.WavesPerArena)
@@ -97,7 +97,7 @@ public sealed class WaveDirector
         if (room.Type == RoomType.Boss)
         {
             var bossPosition = new Vector2(room.PixelBounds.Center.X + 96, DungeonGenerator.FloorPixelY(room));
-            world.SpawnEnemy(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss), bossPosition);
+            world.SpawnEnemy(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss), bossPosition, room.OwnerKey);
             world.Announce(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss).Name);
             return;
         }
@@ -116,7 +116,7 @@ public sealed class WaveDirector
     {
         EnemyDefinition warden = world.Context.Definitions.Enemies.Get(prison.MiniBoss);
         float floorY = DungeonGenerator.FloorPixelY(room);
-        world.SpawnEnemy(warden, new Vector2(room.PixelBounds.Center.X + 64, floorY));
+        world.SpawnEnemy(warden, new Vector2(room.PixelBounds.Center.X + 64, floorY), room.OwnerKey);
         world.Announce($"{warden.Name} bewacht die Gefangenen!");
         if (string.IsNullOrEmpty(prison.Guards)) return;
         EnemyDefinition guard = world.Context.Definitions.Enemies.Get(prison.Guards);
@@ -124,7 +124,7 @@ public sealed class WaveDirector
         {
             float x = room.PixelBounds.Left + 60 + index * (room.PixelBounds.Width - 120) / Math.Max(1, prison.GuardCount - 1);
             float y = guard.IsFlying ? room.PixelBounds.Top + 60 : floorY;
-            world.SpawnEnemy(guard, new Vector2(x, y));
+            world.SpawnEnemy(guard, new Vector2(x, y), room.OwnerKey);
         }
     }
 
@@ -151,7 +151,7 @@ public sealed class WaveDirector
             position = new Vector2(x, y);
             if (MathF.Abs(x - world.Player.Center.X) > 80f) break;   // nicht direkt neben dem Spieler spawnen
         }
-        world.SpawnEnemy(definition, position);
+        world.SpawnEnemy(definition, position, _arena.OwnerKey);
     }
 
     private EnemyDefinition PickWeightedEnemy(DungeonWorld world)

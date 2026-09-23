@@ -14,7 +14,7 @@ Alle acht Punkte laufen auf dasselbe Grundproblem zu: Eine Arena gilt nur dann a
 Türen wieder. Es gibt keinen Notausgang. Jeder Gegner, der lebt aber nicht erreichbar oder nicht
 auffindbar ist, sperrt den Spieler dauerhaft ein.
 
-### [ ] 1.1 Gegner ihrem Ereignis zuordnen
+### [x] 1.1 Gegner ihrem Ereignis zuordnen
 
 **Problem:** `DungeonWorld.AliveEnemyCount` zählt Gegner global über den ganzen Dungeon. Arena
 (`WaveDirector.Update`) und Rescue-Ereignis (`UpdateRescueEvent`) warten beide auf denselben
@@ -26,6 +26,10 @@ Neu: `AliveEnemyCount(string owner)`; beide Systeme fragen nur noch ihren eigene
 
 **Prüfen:** Rescue-Kampf auslösen, Wachen am Leben lassen, Raum verlassen, eine Arena leerräumen —
 die Türen müssen sich öffnen.
+
+**Erledigt.** `Enemy.Owner` + `DungeonWorld.AliveEnemyCountOf(owner)`; `RoomNode.OwnerKey` liefert
+das Kürzel. Alle sechs Spawn-Stellen (Welle, Boss, Boss-Diener, Kerker-Wächter, Kerker-Wachen,
+Rescue-Wachen) setzen ihn; Arena und Rettung zählen nur noch sich selbst.
 
 ### [ ] 1.2 Flieger in der Arena halten
 

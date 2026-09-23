@@ -118,8 +118,28 @@ public sealed class DungeonWorld : IDisposable
     /// <summary>Rescue-Events: "Seele in Not"-Nische. Nach Befreiung läuft die Seele zum Ausgang.</summary>
     public IReadOnlyList<Npc> RescueSouls => _npcs.Where(npc => npc.Tag == "rescue").ToList();
 
+    /// <summary>Alle lebenden Gegner im Verlies. Nur für Anzeigen – für Abschlussbedingungen
+    /// immer die Überladung mit Besitzer benutzen.</summary>
     public int AliveEnemyCount =>
         _enemies.Count(enemy => !enemy.IsRemoved) + _spawnQueue.Count(entity => entity is Enemy);
+
+    /// <summary>
+    /// Lebende Gegner eines bestimmten Ereignisses. Arena und Rettung fragen jeweils nur ihre
+    /// eigenen ab, damit sie sich nicht gegenseitig aussperren können.
+    /// </summary>
+    public int AliveEnemyCountOf(string owner) =>
+        _enemies.Count(enemy => !enemy.IsRemoved && enemy.Owner == owner)
+        + _spawnQueue.Count(entity => entity is Enemy queued && queued.Owner == owner);
+
+    /// <summary>Entfernt alle noch lebenden Gegner eines Ereignisses (Notausgang, siehe WaveDirector).</summary>
+    public int RemoveEnemiesOf(string owner)
+    {
+        // ToList: die Liste wird zwar nicht verändert, aber Remove() ändert das Filterkriterium –
+        // erst einsammeln, dann entfernen, ist eindeutig.
+        List<Enemy> doomed = _enemies.Where(candidate => !candidate.IsRemoved && candidate.Owner == owner).ToList();
+        foreach (Enemy enemy in doomed) enemy.Remove();
+        return doomed.Count;
+    }
 
     private Matrix WorldTransform => Camera.Transform * Matrix.CreateTranslation(_shakeOffset.X, _shakeOffset.Y, 0f);
 
@@ -295,6 +315,9 @@ public sealed class DungeonWorld : IDisposable
 
     // ------------------------------------------------------------------ Rescue-Event
     /// <summary>Startet den Kampf um die eingeschlossene Seele.</summary>
+    /// <summary>Besitzer-Kürzel der Wachen des Rettungsereignisses.</summary>
+    public const string RescueOwner = "rescue";
+
     private void StartRescueFight(Npc soul)
     {
         if (RescueTriggered || RescueRoom is not { } room) return;
@@ -310,14 +333,14 @@ public sealed class DungeonWorld : IDisposable
             float offsetX = 30 + guard * 26;
             Vector2 spot = new(soul.Center.X + (guard % 2 == 0 ? offsetX : -offsetX),
                 DungeonGenerator.FloorPixelY(room));
-            SpawnEnemy(Context.Definitions.Enemies.Get(pick.Enemy), spot);
+            SpawnEnemy(Context.Definitions.Enemies.Get(pick.Enemy), spot, RescueOwner);
         }
     }
 
     /// <summary>Prüft das Rescue-Event: Wachen besiegt? -> Seele läuft los, Fortschritt + Belohnung.</summary>
     private void UpdateRescueEvent()
     {
-        if (RescueTriggered && !RescueCompleted && AliveEnemyCount == 0)
+        if (RescueTriggered && !RescueCompleted && AliveEnemyCountOf(RescueOwner) == 0)
         {
             RescueCompleted = true;
             Npc? soul = _npcs.FirstOrDefault(npc => npc.Tag == "rescue");
@@ -450,7 +473,11 @@ public sealed class DungeonWorld : IDisposable
     // ------------------------------------------------------------------ Aktionen
     public void Spawn(Entity entity) => _spawnQueue.Add(entity);
 
-    public Enemy SpawnEnemy(EnemyDefinition definition, Vector2 bottomCenter)
+    /// <param name="owner">
+    /// Ereignis, zu dem dieser Gegner gehört (Id des Arenaraums oder "rescue"). Siehe
+    /// <see cref="Enemy.Owner"/> – ohne diese Zuordnung blockieren sich Arena und Rettung gegenseitig.
+    /// </param>
+    public Enemy SpawnEnemy(EnemyDefinition definition, Vector2 bottomCenter, string owner = "")
     {
         DifficultyDefinition difficulty = Context.Progression.Difficulty;
         float healthMultiplier = Plan.DifficultyMultiplier * difficulty.EnemyHealth;
@@ -459,6 +486,7 @@ public sealed class DungeonWorld : IDisposable
             Context.Behaviors.CreateEnemyBrain(definition.Brain), bottomCenter, healthMultiplier, damageMultiplier);
         // Tempo-Modifier der Schwierigkeit: WalkerBrains lesen die effektive Geschwindigkeit direkt.
         enemy.ApplySpeedMultiplier(difficulty.EnemySpeed);
+        enemy.Owner = owner;
         if (definition.IsBoss || definition.IsMiniBoss) ActiveBoss = enemy;
         Spawn(enemy);
         return enemy;

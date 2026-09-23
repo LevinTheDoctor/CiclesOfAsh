@@ -35,6 +35,13 @@ public sealed class RoomNode
     public bool IsVisited { get; set; }
     public bool IsCleared { get; set; }
     public bool IsCombatRoom => Type is RoomType.Arena or RoomType.Boss or RoomType.Prison;
+
+    /// <summary>
+    /// Eindeutiges Kürzel dieses Raums. Dient als Besitzer der hier beschworenen Gegner
+    /// (siehe <see cref="CirclesOfAsh.Entities.Enemy.Owner"/>). Die Kachelposition ist pro Verlies
+    /// eindeutig und ändert sich nach der Erzeugung nicht mehr.
+    /// </summary>
+    public string OwnerKey => $"room:{TileBounds.X}:{TileBounds.Y}";
 }
 
 /// <summary>Was der Generator erzeugen soll. Record = unveränderlicher Datencontainer mit Wertgleichheit.</summary>
