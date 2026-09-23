@@ -13,6 +13,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/publish/$RID"
 APP="$OUT/CirclesOfAsh.app"
 VERSION="${VERSION:-1.0.0}"
+DOTNET_VERSION="${VERSION#v}"
 
 case "$RID" in
   osx-arm64|osx-x64) ;;
@@ -23,7 +24,9 @@ esac
 echo "==> Publish für $RID"
 rm -rf "$OUT"
 dotnet publish "$ROOT/src/CirclesOfAsh/CirclesOfAsh.csproj" \
-  -c Release -r "$RID" --self-contained true -o "$OUT/payload"
+  -c Release -r "$RID" --self-contained true \
+  -p:Version="$DOTNET_VERSION" \
+  -o "$OUT/payload"
 
 # 2) Icon bereitstellen (nur, wenn Pillow da ist - sonst bleibt das Bündel eben ohne Symbol).
 if [ ! -f "$ROOT/build/icons/CirclesOfAsh.icns" ]; then
