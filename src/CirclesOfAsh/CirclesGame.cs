@@ -25,6 +25,12 @@ public sealed class CirclesGame : Game
 
     public CirclesGame()
     {
+        // Logdatei als Allererstes: Alles, was hier im Konstruktor passiert, laeuft VOR
+        // GameContext.Create – ohne diese Zeile verschwinden die Meldungen spurlos, weil sie nur
+        // nach stdout gehen und der spaetere Initialize die Datei leert.
+        Directory.CreateDirectory(GameContext.SaveDirectory);
+        Log.Initialize(GameContext.LogFilePath);
+
         // Controller-Mappings VOR allen SDL-Initialisierungen laden (siehe SdlControllerMappings):
         // MonoGame öffnet Pads erst nach SDL_Init, und SDL kombiniert beide Datenbanken.
         SdlControllerMappings.Load(Path.Combine(AppContext.BaseDirectory, "Content", "gamecontrollerdb.txt"));

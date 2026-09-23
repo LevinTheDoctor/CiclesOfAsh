@@ -7,10 +7,18 @@ namespace CirclesOfAsh.Core;
 public static class Log
 {
     private static string? _logFilePath;   // "?" = nullable: vor Initialize gibt es keine Datei
+    private static bool _isInitialized;
     private static readonly object FileLock = new();
 
+    /// <summary>
+    /// Legt die Logdatei an und leert sie. Mehrfach aufrufbar: Nur der ERSTE Aufruf leert, spätere
+    /// tun nichts. Sonst würde ein späterer Aufruf (GameContext.Create) die Zeilen löschen, die
+    /// schon vorher geschrieben wurden – etwa das Laden der Controller-Datenbank beim Start.
+    /// </summary>
     public static void Initialize(string logFilePath)
     {
+        if (_isInitialized) return;
+        _isInitialized = true;
         _logFilePath = logFilePath;
         try { File.WriteAllText(logFilePath, string.Empty); }
         catch (IOException) { _logFilePath = null; }
