@@ -222,6 +222,12 @@ public sealed class SwarmerBrain : IEnemyBrain
 public sealed class AmbusherBrain : IEnemyBrain
 {
     private const float TriggerDistance = 60f;
+    /// <summary>
+    /// Auslöseabstand, sobald er der letzte lebende Gegner seines Kampfes ist. Dann soll er
+    /// gefunden werden, statt getarnt in einer Ecke liegenzubleiben – ein unentdeckter Egel hielt
+    /// sonst die Arenatüren für immer verschlossen.
+    /// </summary>
+    private const float LastOneTriggerDistance = 3000f;
     private bool _wasTriggered;
 
     public void Update(Enemy enemy, DungeonWorld world, float deltaSeconds)
@@ -230,7 +236,8 @@ public sealed class AmbusherBrain : IEnemyBrain
         {
             enemy.Velocity.X = 0f;
             float distance = Vector2.Distance(enemy.Center, world.Player.Center);
-            if (distance < TriggerDistance)
+            bool isLastOfItsFight = enemy.Owner.Length > 0 && world.AliveEnemyCountOf(enemy.Owner) <= 1;
+            if (distance < (isLastOfItsFight ? LastOneTriggerDistance : TriggerDistance))
             {
                 _wasTriggered = true;
                 enemy.ForcedAnimation = null;

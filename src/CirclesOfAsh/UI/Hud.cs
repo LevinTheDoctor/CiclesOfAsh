@@ -39,8 +39,16 @@ public sealed class Hud
         string? waveText = world.Waves.StatusText;
         string progress = waveText ?? (plan.IsBossDungeon ? "" : $"Arenen {world.Waves.ClearedArenas}/{world.Waves.TotalArenas}");
         font.DrawCentered(spriteBatch, progress, CirclesGame.VirtualWidth / 2f, 14, waveText is null ? Palette.Ash : Palette.Ember);
+        // Verbliebene Gegner des AKTIVEN Kampfes: Ist die Welle vermeintlich leer, sieht der
+        // Spieler hier sofort, dass noch etwas lebt (z. B. ein getarnter Egel in einer Ecke).
+        if (world.Waves.IsFighting && world.Waves.ActiveArena is { } fight)
+        {
+            int enemiesLeft = world.AliveEnemyCountOf(fight.OwnerKey);
+            if (enemiesLeft > 0)
+                font.DrawCentered(spriteBatch, $"Verdammte: {enemiesLeft}", CirclesGame.VirtualWidth / 2f, 24, Palette.Ember * 0.8f);
+        }
         if (world.Puzzle is { IsSolved: false } puzzle)   // Property-Pattern: nicht null UND noch nicht gelöst
-            font.DrawCentered(spriteBatch, puzzle.Hint, CirclesGame.VirtualWidth / 2f, 24, Palette.Soul);
+            font.DrawCentered(spriteBatch, puzzle.Hint, CirclesGame.VirtualWidth / 2f, 34, Palette.Soul);
 
         // Gläubige unter der Minikarte
         string believers = $"Gläubige {_context.Progression.Meta.Believers}";

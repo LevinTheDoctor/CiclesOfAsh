@@ -33,6 +33,9 @@ public sealed class WaveDirector
     public bool AllArenasCleared => ClearedArenas >= TotalArenas;
     public bool IsFighting => _arena is not null;
 
+    /// <summary>Der gerade versiegelte Kampfraum, sonst null. Gegner dieses Raums bleiben darin eingesperrt.</summary>
+    public RoomNode? ActiveArena => _arena;
+
     public string? StatusText => _arena is { Type: RoomType.Arena }   // Property-Pattern: nicht null UND Type == Arena
         ? $"Welle {Math.Min(_waveIndex + 1, _plan.WavesPerArena)}/{_plan.WavesPerArena}"
         : null;

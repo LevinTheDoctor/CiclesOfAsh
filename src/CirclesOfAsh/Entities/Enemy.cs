@@ -72,6 +72,7 @@ public sealed class Enemy : Actor
         if (Definition.IsFlying)
         {
             Position += Velocity * deltaSeconds;   // Geister schweben durch Wände
+            ConfineToArena(world);
         }
         else
         {
@@ -82,6 +83,30 @@ public sealed class Enemy : Actor
 
         if (MathF.Abs(Velocity.X) > 1f) FacingRight = Velocity.X > 0f;
         _animation.Play(ForcedAnimation ?? (MathF.Abs(Velocity.X) > 5f ? "run" : "idle"));
+    }
+
+    /// <summary>
+    /// Hält fliegende Gegner in ihrer versiegelten Arena fest. Sie ignorieren bewusst jede
+    /// Kachelkollision – das gilt aber auch für die zugemauerten Türen, und ein Gegner, der
+    /// hinausfliegt, ist unerreichbar und hält die Arena für immer offen.
+    /// Innerhalb des Raums bleibt das Durchschweben durch Wände erhalten.
+    /// </summary>
+    private void ConfineToArena(DungeonWorld world)
+    {
+        if (world.Waves.ActiveArena is not { } arena || arena.OwnerKey != Owner) return;
+
+        Rectangle bounds = arena.PixelBounds;
+        float left = bounds.Left + 2, right = bounds.Right - Size.X - 2;
+        float top = bounds.Top + 2, bottom = bounds.Bottom - Size.Y - 2;
+        // Bei sehr schmalen Räumen darf Clamp nicht mit vertauschten Grenzen aufgerufen werden.
+        if (right < left || bottom < top) return;
+
+        float clampedX = Math.Clamp(Position.X, left, right);
+        float clampedY = Math.Clamp(Position.Y, top, bottom);
+        // Gegen die Wand gedrückt: Geschwindigkeit in dieser Achse abbauen, sonst klebt er dort fest.
+        if (clampedX != Position.X) Velocity.X = 0f;
+        if (clampedY != Position.Y) Velocity.Y = 0f;
+        Position = new Vector2(clampedX, clampedY);
     }
 
     public override void Draw(SpriteBatch spriteBatch)

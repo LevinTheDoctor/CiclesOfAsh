@@ -31,7 +31,7 @@ die Türen müssen sich öffnen.
 das Kürzel. Alle sechs Spawn-Stellen (Welle, Boss, Boss-Diener, Kerker-Wächter, Kerker-Wachen,
 Rescue-Wachen) setzen ihn; Arena und Rettung zählen nur noch sich selbst.
 
-### [ ] 1.2 Flieger in der Arena halten
+### [x] 1.2 Flieger in der Arena halten
 
 **Problem:** `Enemy.Update` überspringt für fliegende Gegner jede Kachelkollision („Geister schweben
 durch Wände"). Das gilt auch für die versiegelten Türkacheln. `wraith` und `imp` können aus der
@@ -43,7 +43,11 @@ Raumgrenzen geklemmt. Das Durchschweben durch Wände innerhalb des Raums bleibt 
 **Prüfen:** Flieger am Rand der Arena mit einem Dash-Angriff wegstoßen — er darf den Raum nicht
 verlassen.
 
-### [ ] 1.3 Den Egel auffindbar machen
+**Erledigt.** `Enemy.ConfineToArena` klemmt fliegende Gegner auf `ActiveArena.PixelBounds`, solange
+der eigene Besitzer dort kämpft; `WaveDirector.ActiveArena` legt den versiegelten Raum offen.
+Innen bleibt das Durchschweben erhalten, an den Grenzen wird die Achsengeschwindigkeit genullt.
+
+### [x] 1.3 Den Egel auffindbar machen
 
 **Problem:** `leech` benutzt das `ambusher`-Hirn und bewegt sich getarnt **überhaupt nicht**, bis
 der Spieler auf 60 px herankommt. Er steht im normalen Gegnerpool. Liegt er in einer Ecke, an der
@@ -55,6 +59,10 @@ Spieler zu. Zusätzlich zeigt die HUD die Zahl der verbliebenen Gegner, damit si
 überhaupt noch etwas lebt.
 
 **Prüfen:** Arena mit Egel leerräumen, ohne in seine Ecke zu laufen — er muss von selbst kommen.
+
+**Erledigt.** `AmbusherBrain`: Auslöseabstand 3000 px statt 60 px, sobald
+`AliveEnemyCountOf(owner) <= 1`. HUD: „Verdammte: N" unter dem Wellenstatus, solange ein Kampf
+läuft und Gegner übrig sind.
 
 ### [ ] 1.4 Notausgang gegen Einmauern
 
