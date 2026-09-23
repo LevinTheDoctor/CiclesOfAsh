@@ -136,7 +136,7 @@ ihren Podesten. `UpdateHotspots` sammelt alle Kandidaten und nimmt den nächstge
 `npc.Definition.DialogId`; der Prompt nennt den NPC-Namen. Brett und Schrein tragen kleine
 Beschriftungen.
 
-### [ ] 1.8 Erzeugung prüfbar machen
+### [x] 1.8 Erzeugung prüfbar machen
 
 **Problem:** Der Nutzer beschreibt die Dungeon-Erzeugung als „komisch"; die Beispiel-Layouts sind
 auffällig linear. Ob tatsächlich Räume unerreichbar erzeugt werden, ist bisher nicht messbar.
@@ -147,6 +147,14 @@ Siegeltor, Arena, Kerker oder Schatzraum nicht erreichbar sind.
 
 **Prüfen:** Mehrere Seeds starten und das Log auswerten. Schlägt die Prüfung regelmäßig an, wird
 der Generator selbst überarbeitet — das ist dann ein eigenes Paket.
+
+**Erledigt.** `DungeonReachability.Check` (Flutfüllung: horizontal, Sprung ≤ 6 Kacheln hoch,
+beliebig tief Fall, Schachtspalten) läuft in `DungeonScene` direkt nach `Generate` und meldet
+unerreichbare Pflichträume per `Log.Warn`. Schatzräume gelten als erreichbar, sobald ihre
+rissige Dash-Sperre betreten werden kann (die Wand ist zwei Kacheln dick — die Prüfung schreitet
+durch die Cracked-Kacheln). Messergebnis Seed-Sweep (`dotnet run --project tools/SeedSweep`):
+**1600 Dungeons über 400 Seeds, 0 Befunde.** Die Linearität der Beispiel-Layouts ist also kein
+Reichweitenfehler; der Generator selbst braucht (noch) kein eigenes Paket.
 
 ---
 

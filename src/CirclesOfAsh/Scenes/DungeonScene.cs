@@ -22,6 +22,7 @@ public sealed class DungeonScene : SceneBase
         _run = committedRun.Clone();
         DungeonPlan plan = context.Progression.CreateDungeonPlan(_run);
         DungeonLayout layout = new DungeonGenerator(context.Definitions).Generate(plan);
+        DungeonReachability.Check(layout);   // meldet unerreichbare Pflichträume ins Log (nur Messung)
         var player = PlayerFactory.Create(context, _run, layout.PlayerSpawn);
         var companions = PlayerFactory.CreateCompanions(context, _run, player.Center);
 

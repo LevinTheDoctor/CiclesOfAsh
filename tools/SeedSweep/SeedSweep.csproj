@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Seed-Sweep fuer AGENT_PROGRESS 1.8: erzeugt Dungeons fuer viele Seeds und prueft die
+       Erreichbarkeit. Kein Teil des Spiels, nur ein Diagnosewerkzeug. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SeedSweep</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CirclesOfAsh\CirclesOfAsh.csproj" />
+  </ItemGroup>
+
+</Project>
