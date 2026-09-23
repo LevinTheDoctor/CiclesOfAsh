@@ -22,14 +22,17 @@
 1. [Spielkonzept](#spielkonzept)
 2. [Schnellstart](#schnellstart)
 3. [Steuerung](#steuerung)
-4. [Projektstruktur](#projektstruktur)
-5. [Architektur](#architektur)
-6. [Technische Entscheidungen](#technische-entscheidungen)
-7. [Erweitern – Schritt für Schritt](#erweitern--schritt-für-schritt)
-8. [Assets austauschen & Mods](#assets-austauschen--mods)
-9. [Spielstand (SQLite)](#spielstand-sqlite)
-10. [Roadmap](#roadmap)
-11. [Lizenz](#lizenz)
+4. [Der Tempel (Hub)](#der-tempel-hub)
+5. [Optionen & Schwierigkeit](#optionen--schwierigkeit)
+6. [Projektstruktur](#projektstruktur)
+7. [Architektur](#architektur)
+8. [Technische Entscheidungen](#technische-entscheidungen)
+9. [Erweitern – Schritt für Schritt](#erweitern--schritt-für-schritt)
+10. [Assets austauschen & Mods](#assets-austauschen--mods)
+11. [Spielstand (SQLite)](#spielstand-sqlite)
+12. [Auslieferung & Release](#auslieferung--release)
+13. [Roadmap](#roadmap)
+14. [Lizenz](#lizenz)
 
 ---
 
@@ -77,8 +80,8 @@ Welt (z. B. "Das Inferno")
 MonoGame und SQLite kommen automatisch über NuGet.
 
 ```bash
-git clone https://github.com/LevinTheDoctor/circles-of-ash.git
-cd circles-of-ash
+git clone https://github.com/LevinTheDoctor/CiclesOfAsh.git
+cd CiclesOfAsh
 dotnet run --project src/CirclesOfAsh
 ```
 
@@ -99,8 +102,15 @@ plattformübergreifend. Nur der Runtime Identifier ändert sich:
 ./build/publish.sh osx-arm64
 ```
 
-Die GitHub Action unter `.github/workflows/build.yml` kompiliert bei jedem Push auf Windows, Linux und
-macOS und stellt den Windows-Build als Artefakt bereit.
+Für macOS gibt es ein fertiges Programmbündel statt einer nackten Binärdatei:
+
+```bash
+./build/macos-app.sh osx-arm64     # Apple Silicon
+./build/macos-app.sh osx-x64       # Intel
+# -> publish/osx-arm64/CirclesOfAsh.app
+```
+
+Mehr dazu unter [Auslieferung & Release](#auslieferung--release).
 
 ---
 
@@ -122,12 +132,74 @@ macOS und stellt den Windows-Build als Artefakt bereit.
 
 Angriffe laufen automatisch. Tastenbelegung: `Core/InputState.cs`.
 
+### Controller-Profile
+
+Das Spiel erkennt am Gerätenamen, welcher Controller angeschlossen ist, und beschriftet alle
+Hinweise im Spiel entsprechend – Xbox zeigt `A`, PlayStation `X`/`○`/`□`/`△`, Switch die
+vertauschte Belegung `B`/`A`/`Y`/`X`, Steam Deck wie Xbox. Ohne Controller stehen dort die Tasten.
+
+Die Profile sind reine Daten: `Content/Data/controllers.json`. Ein neuer Controller braucht dort
+nur einen Eintrag mit `match` (Textbausteine im Gerätenamen) und `labels` – kein Codeeingriff.
+Das Auffangprofil ist das mit leerem `match`; genau eines davon muss es geben.
+
+Vibration hängt an `DungeonWorld.ShakeCamera`: Jeder wuchtige Moment erschüttert ohnehin schon die
+Kamera, also vibriert der Controller im selben Maß. Stärke = Regler im Optionsmenü × Schwierigkeitsstufe.
+
+---
+
+## Der Tempel (Hub)
+
+Zwischen zwei Abstiegen steht man nicht in einem Menü, sondern im **begehbaren Tempel der Gläubigen**.
+Man läuft hin und benutzt, was man braucht:
+
+| Ort | Was dort passiert |
+|---|---|
+| **Höllentor** (rechts, glühender Schlund) | Öffnet die Kreis-Übersicht – von dort geht es hinab |
+| **Truhe** (links) | Ausrüstung des laufenden Abstiegs |
+| **Missionsbrett** (linkes Podest) | Bitten der Gläubigen annehmen und aufgeben |
+| **Schrein** (rechtes Podest) | Gesammelte Reliquien über alle Läufe |
+| **Tempelwärtin** (Mitte) | Dialog: Hinweise, Erklärungen zu den Haustieren |
+| **Begleitseelen** (laufen frei herum) | Streicheln und füttern – hebt Stimmung und Loyalität |
+| **Deko-Modus** (F5) | Deko frei platzieren, kostet Gläubige, bleibt gespeichert |
+
+Der Tempel ist in `Scenes/HubScene.cs`; sein Grundriss entsteht in `BuildHubMap()`. Die festen
+Standorte stehen als Properties (`GateSpot`, `ChestSpot`, `BoardSpot`, `ShrineSpot`) an einer Stelle,
+damit Erkennung und Darstellung nicht auseinanderlaufen.
+
+---
+
+## Optionen & Schwierigkeit
+
+Das Optionsmenü (`Esc` → Optionen, `Scenes/SettingsScene.cs`) wirkt sofort und wird in SQLite gesichert:
+
+* **Bildschirm** – Größe (1×–6× der virtuellen 480×270), Vollbild, VSync
+* **Audio** – Master, Musik und Effekte getrennt regelbar
+* **Gameplay** – Helligkeit (gegen zu dunkle Verliese), Vibration, Schadenszahlen, Schwierigkeit
+
+### Schwierigkeitsstufen
+
+Vier Stufen in `Content/Data/difficulties.json`: **Büßer**, **Gläubiger** (Standard), **Märtyrer**,
+**Verdammter**. Alle Werte sind Multiplikatoren und greifen an je einer Stelle im Code:
+
+| Feld | Wirkung |
+|---|---|
+| `enemyHealth`, `enemyDamage`, `enemySpeed` | Gegnerwerte beim Spawn (`DungeonWorld.SpawnEnemy`) |
+| `waveSize` | Wellengröße (`WaveDirector`) |
+| `healMultiplier` | Wie viel ein Herz heilt |
+| `xpMultiplier` | Seelen-Ertrag (`DungeonWorld.GainExperience`) |
+| `rewardMultiplier` | Gläubige pro geschafftem Verlies |
+| `believerRetention` | Anteil der Gläubigen, der den Tod überdauert |
+| `rumbleMultiplier` | Vibrationsstärke |
+
+Eine eigene Stufe ist ein weiterer Eintrag in der JSON – kein Codeeingriff. Die Stufe `devout` muss
+existieren, sie ist der Rückfallwert.
+
 ---
 
 ## Projektstruktur
 
 ```
-circles-of-ash/
+CirclesOfAsh/
 ├─ src/CirclesOfAsh/
 │  ├─ Content/                  ← ALLE austauschbaren Inhalte (wird neben die .exe kopiert)
 │  │  ├─ manifest.json          ← Asset-IDs → Dateien, Spritesheet-Raster, Animationen
@@ -144,14 +216,17 @@ circles-of-ash/
 │  ├─ Abilities/     Fähigkeits-Verhalten (Projektil, Nova, Orbit, Dash …)
 │  ├─ Enemies/       Gegner-KI (Brains) und Boss-Angriffe
 │  ├─ Companions/    Begleiter-Verhalten
-│  ├─ Progression/   Lauf/Meta-Zustand, Regeln, Level-Up, Spieler-Factory, Items, Missionen
+│  ├─ Dialogs/       DialogService: Bedingungen, Antworten, Wirkungen (Segen, Bitten, Füttern)
+│  ├─ Pets/          PetService: Name, Stimmung, Loyalität der Begleitseelen
+│  ├─ Progression/   Lauf/Meta-Zustand, Regeln, Level-Up, Spieler-Factory, Items, Missionen, Einstellungen
 │  ├─ Persistence/   ISaveRepository + SQLite-Implementierung mit Migrationen
-│  ├─ Scenes/        Laden, Titel, Charakter-Editor, Kreis-Übersicht, Dungeon, Inventar, Bitten, Overlays
+│  ├─ Scenes/        Laden, Titel, Charakter-Editor, Tempel, Kreis-Übersicht, Dungeon, Dialog, Optionen, Overlays
 │  └─ UI/            HUD, Minikarte, Menüs, Panels
 ├─ tools/generate_placeholder_assets.py   ← erzeugt alle Platzhalter-Assets (CC0)
-├─ tools/assetgen/                         ← Generator-Module: Charaktere, Kreaturen, Welt, Medien
-├─ build/                                  ← Publish-Skripte
-└─ .github/workflows/build.yml             ← CI für Windows/Linux/macOS
+├─ tools/assetgen/                         ← Generator-Module: Charaktere, Kreaturen, Welt, Medien, Musik, Icons
+├─ build/publish.sh, macos-app.sh          ← Publish-Skripte, macOS-Programmbündel
+├─ build/icons/                            ← erzeugte App-Icons (.icns/.ico)
+└─ .github/workflows/                      ← CI (build.yml) und Release für alle Systeme (release.yml)
 ```
 
 ---
@@ -367,9 +442,36 @@ Braucht es eigene Props, müssen sie im Generator (`PlacePuzzle`) platziert werd
 Nur `missions.json`: `type` (`Collect`, `Slay`, `Rescue`, `CompleteCircle`), `target` (Item-, Gegner-,
 Kreis-ID oder `*`), `count`, `rewardBelievers`, optional `requiredBelievers`.
 
+### Neuer NPC mit Dialog
+Zwei JSON-Dateien, kein Code:
+1. `dialogs.json`: ein Eintrag mit `id` und `lines`. Jede Zeile hat `id`, `text` und optional
+   `choices` (`label`, `next`, `effect`, `target`). Mehrere Zeilen dürfen dieselbe `id` tragen –
+   die erste, deren `if`-Bedingung passt, gewinnt. So spricht derselbe NPC je nach Fortschritt anders.
+   `effect` kennt `blessing` (Segen für den Lauf), `accept_mission` und `feed_pet`.
+2. `npcs.json`: `id`, `spriteSheet` (aus `manifest.json`), `dialogId`, `spawnsInDungeon`,
+   `givesBlessing`, `lightRadius`/`lightColor` (damit man ihn im Dunkeln findet).
+
+Beim Start wird geprüft, dass jeder NPC einen existierenden Dialog hat und jedes `next` auf eine
+vorhandene Zeile zeigt – Tippfehler fallen sofort auf, nicht erst im Gespräch.
+
+### Neue Bitte der Gläubigen
+Nur `missions.json`: `type` (`Collect`, `Slay`, `Rescue`, `CompleteCircle`), `target` (Item-, Gegner-,
+Kreis-ID oder `*`), `count`, `rewardBelievers`, optional `requiredBelievers`.
+
+### Neue Schwierigkeitsstufe
+Ein Eintrag in `difficulties.json` – alle Felder sind Multiplikatoren, siehe
+[Optionen & Schwierigkeit](#optionen--schwierigkeit). Sie taucht automatisch im Optionsmenü auf.
+
+### Neues Musikstück
+In `tools/assetgen/music.py` ein `_compose(...)` mit Akkordfolge, Grundton und Melodie ergänzen,
+in `Content/manifest.json` unter `"music"` eine ID vergeben und sie in `worlds.json` beim Kreis
+(`music` / `bossMusic`) oder direkt in einer Szene über `Context.Music.Play("...")` benutzen.
+Wer echte Musik hat, ersetzt einfach die WAV-Datei – die ID bleibt.
+
 ### Balancing
 Alles Globale steht in `Content/Data/balance.json` (Wellengröße, Schwierigkeitsanstieg, XP-Kurve,
-Gläubigen-Bonus, Anteil treuer Gläubiger nach dem Tod …). Änderungen wirken beim nächsten Start.
+Gläubigen-Bonus, Bildschirmgröße, Grundhelligkeit …). Änderungen wirken beim nächsten Start.
+Werte, die vom Spieler abhängen, stehen dagegen in `difficulties.json` bzw. im Optionsmenü.
 
 ### Neue Szene
 Von `SceneBase` erben, `Update`/`Draw` implementieren, mit `Context.Scenes.Push/Replace` öffnen.
@@ -399,7 +501,8 @@ Für Overlays `IsOverlay => true` überschreiben.
 
 ## Spielstand (SQLite)
 
-Pfad: `%APPDATA%\CirclesOfAsh\save.db` (Windows) bzw. `~/.config/CirclesOfAsh/save.db` (Linux).
+Pfad: `%APPDATA%\CirclesOfAsh\save.db` (Windows), `~/.config/CirclesOfAsh/save.db` (Linux),
+`~/Library/Application Support/CirclesOfAsh/save.db` (macOS).
 
 | Tabelle | Inhalt |
 |---|---|
@@ -409,9 +512,16 @@ Pfad: `%APPDATA%\CirclesOfAsh\save.db` (Windows) bzw. `~/.config/CirclesOfAsh/sa
 | `run_items` | Fähigkeitsstufen, Upgrades, Begleiter, Items (Anzahl) und angelegte Items (`equipped`, Slot als Zahl) |
 | `run_profile` *(v2)* | Schlüssel/Wert: Name und Aussehen aus dem Charakter-Editor |
 | `missions` *(v2)* | Bitten der Gläubigen: Status (`Active`/`Completed`) und Fortschritt |
+| `settings` *(v3)* | Optionsmenü: Bildschirm, Lautstärken, Helligkeit, Vibration, Schwierigkeit |
+| `hub_deco` *(v3)* | Im Tempel platzierte Deko (Prop-Id + Kachelkoordinate) |
+| `pets` *(v3)* | Begleitseelen: Name, Stimmung, Loyalität, letzte Fütterung |
+| `collectibles` *(v3)* | Gefundene Reliquien über alle Läufe (Schrein im Tempel) |
 
 Befreite Kerker stehen in `unlocks` mit `kind = 'prison'` (Belohnung nur einmal pro Lauf).
-Alte Spielstände werden beim Start automatisch per Migration 2 erweitert.
+Alte Spielstände werden beim Start automatisch bis zur aktuellen Version migriert (zuletzt v3).
+Fehlt in `settings` ein Schlüssel – frische Installation oder neu dazugekommene Option –, gilt der
+Standardwert aus `GameSettings`; ein fehlender Wert darf nicht als 0 durchschlagen (sonst wäre das
+Spiel beim ersten Start stumm).
 
 **Schema ändern:** In `SqliteSaveRepository.Migrations` einen **neuen** SQL-Block anhängen
 (z. B. `ALTER TABLE run ADD COLUMN ...`). Beim Start wird `PRAGMA user_version` gelesen und jede
@@ -421,16 +531,63 @@ Anschauen lässt sich die Datei z. B. mit `sqlite3 save.db ".tables"` oder DB Br
 
 ---
 
+## Auslieferung & Release
+
+### Icons
+
+`tools/assetgen/icons.py` zeichnet das App-Icon prozedural: der Höllentrichter als Ringe, die nach
+innen enger, tiefer und heißer werden. Bewusst **nicht** aus `docs/logo.png` – ein 1280×440 breiter
+Schriftzug wäre bei 16×16 nicht mehr lesbar.
+
+```bash
+python tools/generate_placeholder_assets.py   # erzeugt auch build/icons/*
+```
+
+Ergebnis: `build/icons/CirclesOfAsh.ico` (Windows, in die .exe eingebettet über `<ApplicationIcon>`)
+und `CirclesOfAsh.icns` (macOS, landet im `.app`). Wo `iconutil` verfügbar ist, wird es genutzt,
+sonst schreibt das Skript das icns-Format selbst – die CI unter Linux kommt damit ebenfalls klar.
+
+### macOS-Programmbündel
+
+`build/macos-app.sh` baut `CirclesOfAsh.app` mit `Contents/{Info.plist, MacOS/, Resources/}`.
+Der gesamte Publish-Inhalt liegt unter `MacOS/`, damit die relativen Content-Pfade unverändert gelten.
+
+Das Bündel ist **nicht signiert**. Beim ersten Start meldet sich Gatekeeper; ein Rechtsklick auf
+„Öffnen" oder `xattr -dr com.apple.quarantine CirclesOfAsh.app` genügt.
+
+### Automatischer Release
+
+`.github/workflows/release.yml` löst bei einem Versions-Tag aus:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Gebaut wird für `win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64` und `osx-x64` – alle eigenständig,
+Spieler brauchen kein installiertes .NET. Windows wird als `.zip` gepackt, alle übrigen als `.tar.gz`
+(das erhält das Ausführbar-Bit und die Struktur des `.app`-Bündels). Die Archive hängen anschließend
+am GitHub-Release.
+
+`.github/workflows/build.yml` prüft bei jedem Push auf `main`/`master` zusätzlich, dass das Projekt auf
+allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei durchlaufen.
+
+---
+
 ## Roadmap
 
-- [ ] Musik (Streaming über `Song` oder eigenes OGG-Loading)
-- [ ] Tastenbelegung aus `Content/Data/input.json`
+- [x] Musik – prozeduraler Soundtrack (`tools/assetgen/music.py` + `Assets/MusicSystem.cs`)
+- [x] NPC-Hub (Tempel) als begehbarer Raum statt Menü
+- [x] Controller-Vibration, Optionsmenü (Lautstärke, Vollbild), Controller-Profile mit Glyphen
+- [x] Schwierigkeitsstufen aus `Content/Data/difficulties.json`
+- [x] Dialoge, Gläubigen-NPCs, Rescue-Missionen, Haustiere, Hub-Deko
+- [x] Release-Pipeline für alle Systeme, macOS-`.app`, App-Icons
+- [ ] Tastenbelegung frei belegbar aus `Content/Data/input.json` (Profile gibt es, das Umbelegen fehlt)
 - [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus, Erreichbarkeit) und `ProgressionService`
 - [ ] Mehr Welten (Purgatorio, Paradiso) und Kreise
 - [ ] Handgezeichnete Raumvorlagen (Room Templates) als JSON statt reiner Prozedur
-- [ ] NPC-Hub (Tempel) als begehbarer Raum statt Menü
 - [ ] Weitere Rätseltypen (Druckplatten, Spiegel für Lichtstrahlen)
-- [ ] Controller-Vibration, Optionsmenü (Lautstärke, Vollbild)
+- [ ] Echte Musik statt der prozeduralen Platzhalter; signiertes und notarisiertes macOS-Bündel
 
 ---
 
