@@ -97,7 +97,7 @@ public sealed class SettingsScene : SceneBase
                 switch ((ScreenRow)RowIndex)
                 {
                     case ScreenRow.Scale:
-                        Settings.ScreenScale = Math.Clamp(Settings.ScreenScale + step, 1, 6);
+                        Settings.ScreenScale = Math.Clamp(Settings.ScreenScale + step, 0, 6);
                         ApplyScreenSettings();
                         break;
                     case ScreenRow.Fullscreen:
@@ -212,11 +212,26 @@ public sealed class SettingsScene : SceneBase
     }
 
     /// <summary>Beschriftung + Wert der Zeile (Reiter, Index).</summary>
+    /// <summary>
+    /// Zeigt die tatsächlich benutzte Größe. Bei "Auto" steht die errechnete Skalierung dabei,
+    /// und ein fester Wert, der nicht auf den Bildschirm passt, wird als geklemmt ausgewiesen –
+    /// sonst behauptet das Menü 3x, während das Fenster in Wahrheit kleiner ist.
+    /// </summary>
+    private string ScaleValueText()
+    {
+        int effective = ScreenSetup.EffectiveScale(Context, Settings);
+        string size = $"{CirclesGame.VirtualWidth * effective}x{CirclesGame.VirtualHeight * effective}";
+        if (Settings.ScreenScale <= 0) return $"Auto ({effective}x · {size})";
+        return effective == Settings.ScreenScale
+            ? $"{effective}x ({size})"
+            : $"{Settings.ScreenScale}x → {effective}x ({size}, Bildschirm zu klein)";
+    }
+
     private (string Label, string Value) RowTexts(Tab tab, int row) => tab switch
     {
         Tab.Screen => (ScreenRow)row switch
         {
-            ScreenRow.Scale => ("Bildschirmgröße", $"{Settings.ScreenScale}x ({CirclesGame.VirtualWidth * Settings.ScreenScale}x{CirclesGame.VirtualHeight * Settings.ScreenScale})"),
+            ScreenRow.Scale => ("Bildschirmgröße", ScaleValueText()),
             ScreenRow.Fullscreen => ("Vollbild", Settings.Fullscreen ? "An" : "Aus"),
             ScreenRow.VSync => ("VSync", Settings.VSync ? "An" : "Aus"),
             _ => ("", ""),
@@ -292,18 +307,71 @@ public sealed class SettingsScene : SceneBase
 /// </summary>
 public static class ScreenSetup
 {
+    /// <summary>
+    /// Anteil der Bildschirmhöhe, der für das Fenster benutzt werden darf. Der Rest bleibt für
+    /// Menüleiste, Titelleiste und Dock. Wird das ignoriert, verkleinert das Betriebssystem das
+    /// Fenster eigenmächtig – und die Leinwand passt dann nicht mehr ganzzahlig hinein.
+    /// </summary>
+    private const float UsableHeightFraction = 0.92f;
+    private const float UsableWidthFraction = 0.98f;
+
     private static GraphicsDeviceManager? _manager;
 
     public static void Register(GraphicsDeviceManager manager) => _manager = manager;
 
+    /// <summary>
+    /// Größte ganzzahlige Skalierung der 480x270-Leinwand, die auf den Bildschirm passt.
+    /// Mindestens 1 – lieber ein zu großes Fenster als gar kein Bild.
+    /// </summary>
+    public static int AutoScale(int fallback)
+    {
+        try
+        {
+            DisplayMode display = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
+            int usableWidth = (int)(display.Width * UsableWidthFraction);
+            int usableHeight = (int)(display.Height * UsableHeightFraction);
+            return Math.Max(1, Math.Min(usableWidth / CirclesGame.VirtualWidth, usableHeight / CirclesGame.VirtualHeight));
+        }
+        catch (Exception exception)   // ohne Bildschirm (CI) gibt es keinen Adapter
+        {
+            Log.Warn($"Bildschirmgröße nicht ermittelbar ({exception.GetType().Name}) – nutze {fallback}x.");
+            return fallback;
+        }
+    }
+
+    /// <summary>
+    /// Die tatsächlich benutzte Skalierung: 0 bedeutet "automatisch". Ein fest eingestellter Wert
+    /// wird trotzdem heruntergeklemmt, wenn er nicht auf den Bildschirm passt – sonst verkleinert
+    /// das Betriebssystem das Fenster auf eine krumme Größe und es bleibt ein dicker Rand.
+    /// </summary>
+    public static int EffectiveScale(GameContext context, GameSettings settings)
+    {
+        int fallback = context.Definitions.Balance.DefaultScreenScale;
+        int automatic = AutoScale(fallback);
+        return settings.ScreenScale <= 0 ? automatic : Math.Min(settings.ScreenScale, automatic);
+    }
+
     public static void Apply(GameContext context, GameSettings settings)
     {
         if (_manager is null) return;
-        _manager.PreferredBackBufferWidth = CirclesGame.VirtualWidth * settings.ScreenScale;
-        _manager.PreferredBackBufferHeight = CirclesGame.VirtualHeight * settings.ScreenScale;
+        int scale = EffectiveScale(context, settings);
+        int width = CirclesGame.VirtualWidth * scale;
+        int height = CirclesGame.VirtualHeight * scale;
+
+        _manager.PreferredBackBufferWidth = width;
+        _manager.PreferredBackBufferHeight = height;
         _manager.SynchronizeWithVerticalRetrace = settings.VSync;
         // Nur tatsächlich umschalten, wenn der gewünschte Zustand abweicht (Toggle = Umschalter!)
         if (_manager.IsFullScreen != settings.Fullscreen) _manager.ToggleFullScreen();
         _manager.ApplyChanges();
+
+        // Zurücklesen: Das Betriebssystem darf die Anforderung ablehnen. Ohne diese Zeile blieb
+        // völlig unsichtbar, dass das Fenster kleiner ist als angefordert.
+        Rectangle actual = _manager.GraphicsDevice.PresentationParameters.Bounds;
+        string wanted = settings.ScreenScale <= 0 ? $"Auto -> {scale}x" : $"{settings.ScreenScale}x -> {scale}x";
+        if (settings.Fullscreen || (actual.Width == width && actual.Height == height))
+            Log.Info($"Bildschirm: {wanted}, Fenster {actual.Width}x{actual.Height}.");
+        else
+            Log.Warn($"Bildschirm: {wanted} angefordert ({width}x{height}), erhalten {actual.Width}x{actual.Height} – es bleibt ein Rand.");
     }
 }

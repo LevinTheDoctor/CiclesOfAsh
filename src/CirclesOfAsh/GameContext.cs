@@ -65,13 +65,22 @@ public sealed class GameContext : IDisposable
     public BitmapFont Font => Assets.GetFont("body");
     public BitmapFont TitleFont => Assets.GetFont("title");
 
+    /// <summary>
+    /// Ordner für Spielstand und Logdatei. ApplicationData = %APPDATA% unter Windows,
+    /// ~/.config unter Linux, ~/Library/Application Support unter macOS – plattformneutral.
+    /// Statisch, weil der Logger ihn schon vor <see cref="Create"/> braucht.
+    /// </summary>
+    public static string SaveDirectory { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CirclesOfAsh");
+
+    /// <summary>Pfad der Logdatei. Wird als Erstes im Spielstart initialisiert.</summary>
+    public static string LogFilePath => Path.Combine(SaveDirectory, "game.log");
+
     public static GameContext Create(GraphicsDevice graphicsDevice, Action requestExit)
     {
-        // ApplicationData = %APPDATA% unter Windows, ~/.config unter Linux -> plattformneutral
-        string saveDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CirclesOfAsh");
+        string saveDirectory = SaveDirectory;
         Directory.CreateDirectory(saveDirectory);
-        Log.Initialize(Path.Combine(saveDirectory, "game.log"));
+        Log.Initialize(LogFilePath);   // idempotent: CirclesGame hat das beim Start schon erledigt
 
         var locator = ContentLocator.Discover(AppContext.BaseDirectory);
         var assets = AssetManager.Load(graphicsDevice, locator);
@@ -84,7 +93,8 @@ public sealed class GameContext : IDisposable
         ISaveRepository saves = new SqliteSaveRepository(Path.Combine(saveDirectory, "save.db"));
         var progression = new ProgressionService(definitions, saves);
         GameSettings settings = saves.LoadSettings();
-        settings.ScreenScale = settings.ScreenScale == 0 ? definitions.Balance.DefaultScreenScale : settings.ScreenScale;
+        // 0 bedeutet jetzt "automatisch" und ist ein gueltiger, gespeicherter Wert – nicht mehr
+        // "nie gesetzt". ScreenSetup waehlt daraus die groesste Stufe, die auf den Bildschirm passt.
         settings.Sanitize();
 
         var context = new GameContext(graphicsDevice, locator, assets, audio, music, definitions, behaviors, progression, saves, requestExit)

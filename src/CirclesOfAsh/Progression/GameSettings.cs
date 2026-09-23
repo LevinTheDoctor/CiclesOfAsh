@@ -7,8 +7,11 @@ namespace CirclesOfAsh.Progression;
 public sealed class GameSettings
 {
     // ------------------------------------------------------------------ Bildschirm
-    /// <summary>Ganzzahliger Skalierungsfaktor der virtuellen 480x270-Auflösung (1..6).</summary>
-    public int ScreenScale { get; set; } = 3;
+    /// <summary>
+    /// Ganzzahliger Skalierungsfaktor der virtuellen 480x270-Auflösung (1..6).
+    /// <b>0 = automatisch</b>: Das Spiel wählt die größte Stufe, die auf den Bildschirm passt.
+    /// </summary>
+    public int ScreenScale { get; set; }
     public bool Fullscreen { get; set; }
     public bool VSync { get; set; } = true;
 
@@ -32,7 +35,7 @@ public sealed class GameSettings
     /// <summary>Klemmt alle Werte in gültige Bereiche (nach dem Laden aus der DB).</summary>
     public void Sanitize()
     {
-        ScreenScale = Math.Clamp(ScreenScale, 1, 6);
+        ScreenScale = Math.Clamp(ScreenScale, 0, 6);   // 0 = automatisch
         MasterVolume = Math.Clamp(MasterVolume, 0f, 1f);
         MusicVolume = Math.Clamp(MusicVolume, 0f, 1f);
         SfxVolume = Math.Clamp(SfxVolume, 0f, 1f);
