@@ -82,6 +82,7 @@ public sealed class HubScene : SceneBase
         _deco.Clear();
 
         CreateNpcs();
+        foreach (Npc npc in _npcs) WarnIfBlocked(npc.Bounds, npc.Definition.Name);
         CreateCompanions();
         LoadDeco();
         RebuildDecoCatalog();
@@ -113,14 +114,20 @@ public sealed class HubScene : SceneBase
     /// klemmt ihn lautlos fest – genau der Fehler, der den Tempel einmal unspielbar gemacht hat.
     /// Lieber eine Zeile im Log als eine unbewegliche Figur in der Ecke.
     /// </summary>
-    private void WarnIfSpawnBlocked()
+    private void WarnIfSpawnBlocked() => WarnIfBlocked(_player.Bounds, "Spieler");
+
+    /// <summary>
+    /// Prüft eine Kollisionsbox gegen die Kachelkarte und meldet den ersten Treffer.
+    /// Gilt für JEDE Figur im Tempel – Pilger und Eremit steckten eine Zeit lang unbemerkt im
+    /// Podest, weil diese Prüfung nur für den Spieler lief.
+    /// </summary>
+    private void WarnIfBlocked(Rectangle box, string who)
     {
-        Rectangle box = _player.Bounds;
         for (int tileY = TileMap.ToTile(box.Top); tileY <= TileMap.ToTile(box.Bottom - 1); tileY++)
         for (int tileX = TileMap.ToTile(box.Left); tileX <= TileMap.ToTile(box.Right - 1); tileX++)
         {
             if (!TileMap.IsBlocking(_map[tileX, tileY])) continue;
-            Log.Warn($"Hub-Spawn steckt in einer Wand: Kachel ({tileX}, {tileY}), Position {_player.Position}.");
+            Log.Warn($"Tempel: {who} steckt in einer Wand – Kachel ({tileX}, {tileY}), Position {box.Location}.");
             return;
         }
     }
@@ -137,12 +144,12 @@ public sealed class HubScene : SceneBase
         }
         // Tempelwärtin in der Mitte beim Schrein
         Add("temple_keeper", HubWidthTiles / 2, HubHeightTiles - 2, "keeper");
-        // Pilger und Eremit stehen auf dem TEMPELBODEN unterhalb der Podeste. Zuvor stand der
-        // Pilger exakt auf dem Missionsbrett (beide x=4): er wurde nach dem Brett gezeichnet und
-        // verdeckte es, und Interagieren öffnete den NPC-Dialog statt das Brett.
-        // Die Podeste oben sind seitdem allein Brett und Schrein vorbehalten.
-        Add("pilgrim", 4, HubHeightTiles - 2, "blessed");
-        Add("hermit", HubWidthTiles - 4, HubHeightTiles - 2, "blessed");
+        // Pilger und Eremit stehen auf dem FREIEN Tempelboden zwischen den Podesten.
+        // Die Podeste selbst füllen x 2..6 und x 23..27 massiv aus (siehe BuildHubMap) – dort
+        // standen beide vorher IM Mauerwerk. Belegt sind auf dem Boden außerdem Truhe (10),
+        // Spielerstart (13), Tempelwärtin (15) und Höllentor (21).
+        Add("pilgrim", 8, HubHeightTiles - 2, "blessed");
+        Add("hermit", 19, HubHeightTiles - 2, "blessed");
     }
 
     /// <summary>Begleitseelen im Hub: schweben um den Spieler (dieselbe Companion-Klasse wie im Dungeon).</summary>

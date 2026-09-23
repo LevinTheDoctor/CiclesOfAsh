@@ -58,15 +58,18 @@ public sealed class SettingsScene : SceneBase
             return;
         }
 
-        // Links/Rechts: Reiter wechseln (Zeilenindex wird beim Wechsel auf den neuen Reiter geklemmt)
-        if (input.WasPressed(GameAction.Left) && _tab > Tab.Screen)
+        // Reiter wechseln: AbilityOne/Two (Tastatur Q/E, Gamepad X/Y).
+        // Links/Rechts ist bewusst NICHT dafür reserviert – das ist die Taste, die jeder zuerst
+        // drückt, um einen Wert zu ändern. Vorher lag es umgekehrt, und ohne Controller schien das
+        // Menü gar nicht bedienbar zu sein.
+        if (input.WasPressed(GameAction.AbilityOne) && _tab > Tab.Screen)
         {
             _tab--;
             RowIndex = Math.Min(RowIndex, RowCount - 1);
             Context.Audio.Play("pickup", 0.2f, 0.4f);
             return;
         }
-        if (input.WasPressed(GameAction.Right) && _tab < Tab.Gameplay)
+        if (input.WasPressed(GameAction.AbilityTwo) && _tab < Tab.Gameplay)
         {
             _tab++;
             RowIndex = Math.Min(RowIndex, RowCount - 1);
@@ -74,11 +77,11 @@ public sealed class SettingsScene : SceneBase
             return;
         }
 
-        // Hoch/Runter: Zeile; Schultertasten (AbilityOne/Two) ändern Werte
+        // Hoch/Runter: Zeile; Links/Rechts: Wert der Zeile ändern
         if (input.WasPressed(GameAction.Down)) RowIndex = (RowIndex + 1) % RowCount;
         if (input.WasPressed(GameAction.Up)) RowIndex = (RowIndex - 1 + RowCount) % RowCount;
 
-        int change = input.WasPressed(GameAction.AbilityTwo) ? 1 : input.WasPressed(GameAction.AbilityOne) ? -1 : 0;
+        int change = input.WasPressed(GameAction.Right) ? 1 : input.WasPressed(GameAction.Left) ? -1 : 0;
         if (change != 0) ChangeValue(change);
     }
 
@@ -182,14 +185,28 @@ public sealed class SettingsScene : SceneBase
             bool isSelected = index == RowIndex;
             Color color = isSelected ? Palette.Gold : Palette.Bone * 0.85f;
             font.DrawShadowed(spriteBatch, label, new Vector2(panel.Left + 12, y), color);
-            font.DrawShadowed(spriteBatch, isSelected ? $"‹ {value} ›" : value, new Vector2(panel.Left + 130, y),
-                isSelected ? Palette.Faith : Palette.Bone);
+
+            if (RowRatio(_tab, index) is { } ratio)
+            {
+                // Regler: echter gezeichneter Balken (wie in der HUD) plus Prozentwert dahinter.
+                var bar = new Rectangle(panel.Left + BarLeft, (int)y + 2, BarWidth, font.LineHeight - 3);
+                UiDraw.Bar(spriteBatch, pixel, bar, ratio, isSelected ? Palette.Gold : Palette.Faith);
+                font.DrawShadowed(spriteBatch, value, new Vector2(bar.Right + 8, y),
+                    isSelected ? Palette.Faith : Palette.Bone);
+            }
+            else
+            {
+                font.DrawShadowed(spriteBatch, isSelected ? $"‹ {value} ›" : value,
+                    new Vector2(panel.Left + BarLeft, y), isSelected ? Palette.Faith : Palette.Bone);
+            }
             y += font.LineHeight + 3;
         }
 
         DrawTabHint(spriteBatch, font, centerX, panel);
-        font.DrawCentered(spriteBatch, "Links/Rechts: Reiter · Hoch/Runter: Zeile · Schultertasten: ändern · Esc: zurück",
-            centerX, CirclesGame.VirtualHeight - 12, Palette.Ash);
+        InputState hintInput = Context.Input;
+        string hint = $"{hintInput.Glyph(GameAction.AbilityOne)}/{hintInput.Glyph(GameAction.AbilityTwo)}: Reiter · "
+            + $"Hoch/Runter: Zeile · Links/Rechts: ändern · {hintInput.Glyph(GameAction.Cancel)}: zurück";
+        font.DrawCentered(spriteBatch, hint, centerX, CirclesGame.VirtualHeight - 12, Palette.Ash);
         spriteBatch.End();
     }
 
@@ -227,6 +244,29 @@ public sealed class SettingsScene : SceneBase
             : $"{Settings.ScreenScale}x → {effective}x ({size}, Bildschirm zu klein)";
     }
 
+    /// <summary>
+    /// Anteil 0..1, wenn diese Zeile ein Regler ist – sonst null. Regler werden als gezeichneter
+    /// Balken dargestellt; der frühere Textbalken benutzte Blockzeichen, die es im Zeichensatz der
+    /// Bitmap-Schrift gar nicht gibt, und war deshalb unsichtbar.
+    /// </summary>
+    private float? RowRatio(Tab tab, int row) => tab switch
+    {
+        Tab.Audio => (AudioRow)row switch
+        {
+            AudioRow.Master => Settings.MasterVolume,
+            AudioRow.Music => Settings.MusicVolume,
+            AudioRow.Sfx => Settings.SfxVolume,
+            _ => null,
+        },
+        Tab.Gameplay => (GameplayRow)row switch
+        {
+            GameplayRow.AmbientLift => Settings.AmbientLift,
+            GameplayRow.Rumble => Settings.RumbleIntensity,
+            _ => null,
+        },
+        _ => null,
+    };
+
     private (string Label, string Value) RowTexts(Tab tab, int row) => tab switch
     {
         Tab.Screen => (ScreenRow)row switch
@@ -238,9 +278,9 @@ public sealed class SettingsScene : SceneBase
         },
         Tab.Audio => (AudioRow)row switch
         {
-            AudioRow.Master => ("Lautstärke", Bar(Settings.MasterVolume)),
-            AudioRow.Music => ("Musik", Bar(Settings.MusicVolume)),
-            AudioRow.Sfx => ("Effekte", Bar(Settings.SfxVolume)),
+            AudioRow.Master => ("Lautstärke", Percent(Settings.MasterVolume)),
+            AudioRow.Music => ("Musik", Percent(Settings.MusicVolume)),
+            AudioRow.Sfx => ("Effekte", Percent(Settings.SfxVolume)),
             _ => ("", ""),
         },
         Tab.Control => (ControlRow)row switch
@@ -252,8 +292,8 @@ public sealed class SettingsScene : SceneBase
         },
         _ => (GameplayRow)row switch
         {
-            GameplayRow.AmbientLift => ("Helligkeit", Bar(Settings.AmbientLift)),
-            GameplayRow.Rumble => ("Vibration", Bar(Settings.RumbleIntensity)),
+            GameplayRow.AmbientLift => ("Helligkeit", Percent(Settings.AmbientLift)),
+            GameplayRow.Rumble => ("Vibration", Percent(Settings.RumbleIntensity)),
             GameplayRow.DamageNumbers => ("Schadenszahlen", Settings.ShowDamageNumbers ? "An" : "Aus"),
             GameplayRow.Difficulty => ("Schwierigkeit", _difficulties.FirstOrDefault(d => d.Id == Settings.DifficultyId)?.Name ?? "?"),
             _ => ("", ""),
@@ -293,11 +333,11 @@ public sealed class SettingsScene : SceneBase
             font.DrawCenteredLines(spriteBatch, font.Wrap(hint, panel.Width - 30), centerX, panel.Bottom - 44, Palette.Ash);
     }
 
-    private static string Bar(float ratio)
-    {
-        int filled = (int)MathF.Round(ratio * 10f);
-        return new string('█', filled) + new string('░', 10 - filled);
-    }
+    private static string Percent(float ratio) => $"{(int)MathF.Round(ratio * 100f)} %";
+
+    /// <summary>Breite des gezeichneten Reglers in Pixeln der virtuellen Auflösung.</summary>
+    private const int BarWidth = 90;
+    private const int BarLeft = 130;
 }
 
 /// <summary>
