@@ -1,0 +1,38 @@
+[
+  // Schwierigkeitsstufen (Content/Data/difficulties.json). Wirkung:
+  //   enemyHealth/enemyDamage/enemySpeed  = Multiplikatoren auf Gegnerwerte
+  //   waveSize                             = Multiplikator auf Wellengröße
+  //   believerRetention                    = Anteil der Gläubigen, die bei Tod bleiben
+  //   healMultiplier                       = Effektivität von Herz-Heilungen
+  //   xpMultiplier                          = XP aus Seelen
+  //   rumbleMultiplier                     = Vibration-Intensität
+  //   rewardMultiplier                      = Gläubige pro Dungeon
+  {
+    "id": "penitent",
+    "name": "Büßer",
+    "description": "Für die, die die Geschichte erleben wollen. Sanftere Gegner, großzügige Heilung.",
+    "enemyHealth": 0.7, "enemyDamage": 0.6, "enemySpeed": 0.9, "waveSize": 0.75,
+    "believerRetention": 0.6, "healMultiplier": 1.5, "xpMultiplier": 1.1, "rumbleMultiplier": 0.7, "rewardMultiplier": 0.8
+  },
+  {
+    "id": "devout",
+    "name": "Gläubiger",
+    "description": "Das vorgesehene Erlebnis: Die Hölle fordert ihren Preis, aber der Glaube trägt.",
+    "enemyHealth": 1.0, "enemyDamage": 1.0, "enemySpeed": 1.0, "waveSize": 1.0,
+    "believerRetention": 0.25, "healMultiplier": 1.0, "xpMultiplier": 1.0, "rumbleMultiplier": 1.0, "rewardMultiplier": 1.0
+  },
+  {
+    "id": "martyr",
+    "name": "Märtyrer",
+    "description": "Härtere Gegner, dichtere Wellen, knauserige Heilung. Für Veteranen des Abstiegs.",
+    "enemyHealth": 1.4, "enemyDamage": 1.35, "enemySpeed": 1.1, "waveSize": 1.3,
+    "believerRetention": 0.1, "healMultiplier": 0.8, "xpMultiplier": 0.9, "rumbleMultiplier": 1.2, "rewardMultiplier": 1.3
+  },
+  {
+    "id": "damnatus",
+    "name": "Verdammter",
+    "description": "Die Hölle in Reinform. Fast kein Vergeben – aber reichlich Gläubige für die Tollkühnen.",
+    "enemyHealth": 2.0, "enemyDamage": 1.7, "enemySpeed": 1.2, "waveSize": 1.6,
+    "believerRetention": 0.05, "healMultiplier": 0.6, "xpMultiplier": 0.8, "rumbleMultiplier": 1.3, "rewardMultiplier": 1.7
+  }
+]

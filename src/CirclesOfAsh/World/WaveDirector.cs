@@ -11,6 +11,8 @@ public sealed class WaveDirector
 {
     private readonly DungeonPlan _plan;
     private readonly BalanceDefinition _balance;
+    /// <summary>Wellengröße der gewählten Schwierigkeitsstufe (difficulties.json).</summary>
+    private readonly float _waveSizeMultiplier;
     private readonly Dictionary<Point, TileType> _sealedTiles = new();
     private RoomNode? _arena;
     private int _waveIndex;
@@ -18,10 +20,11 @@ public sealed class WaveDirector
     private float _spawnTimer;
     private float _breakTimer;
 
-    public WaveDirector(DungeonPlan plan, BalanceDefinition balance, IEnumerable<RoomNode> rooms)
+    public WaveDirector(DungeonPlan plan, BalanceDefinition balance, IEnumerable<RoomNode> rooms, float waveSizeMultiplier)
     {
         _plan = plan;
         _balance = balance;
+        _waveSizeMultiplier = waveSizeMultiplier;
         TotalArenas = rooms.Count(room => room.Type == RoomType.Arena);
     }
 
@@ -127,7 +130,9 @@ public sealed class WaveDirector
 
     private void StartWave()
     {
-        float size = _balance.BaseWaveSize * _plan.DifficultyMultiplier * (1f + _balance.WaveGrowth * _waveIndex);
+        float size = _balance.BaseWaveSize * _plan.DifficultyMultiplier * _waveSizeMultiplier * (1f + _balance.WaveGrowth * _waveIndex);
+        // Tiefe-Progression: Kreise mit viel Verfall (decay) spawnen dichter -> es "wimmelt" unten
+        size *= 1f + _plan.Circle.Decay * 0.45f;
         _remainingToSpawn = Math.Max(1, (int)MathF.Round(size));
         _spawnTimer = 0.5f;
     }

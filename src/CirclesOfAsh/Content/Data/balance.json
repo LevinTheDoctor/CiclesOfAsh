@@ -25,5 +25,7 @@
   "maxDetours": 2,
   "crumbleDelay": 0.45,
   "crumbleRespawnSeconds": 4,
-  "brazierTimeLimit": 14
+  "brazierTimeLimit": 14,
+  "ambientLift": 0.32,
+  "defaultScreenScale": 3
 }

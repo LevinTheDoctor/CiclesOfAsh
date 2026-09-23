@@ -43,8 +43,29 @@ public sealed class CirclesGame : Game
         // Methodengruppe "Exit" wird als Action übergeben -> Szenen können das Spiel beenden,
         // ohne die Game-Klasse zu kennen (lose Kopplung).
         _context = GameContext.Create(GraphicsDevice, Exit);
+        // Der GraphicsDeviceManager gehört dieser Klasse. Szenen sollen ihn nicht kennen, brauchen
+        // aber Zugriff auf Fenstergröße/Vollbild -> einmalig bei ScreenSetup hinterlegen.
+        ScreenSetup.Register(_graphics);
+        ScreenSetup.Apply(_context, _context.Settings);   // gespeicherte Bildschirm-Einstellungen sofort anwenden
+        // Beim Beenden (Fenster schließen, Alt+F4, RequestExit) Meta-Fortschritt sichern:
+        // Missionsfortschritt und Befreiungen gehen sonst seit dem letzten Speicherpunkt verloren.
+        Exiting += OnExiting;
         Window.TextInput += OnTextInput;   // "+=" abonniert das Event: Zeichen landen im InputState
         _context.Scenes.Push(LoadingScene.ForStartup(_context));
+    }
+
+    private void OnExiting(object? sender, EventArgs args)
+    {
+        // Auch ohne Audiogerät/Lauf darf das nie abstürzen: Speichern ist wichtiger als ein sauberes Beenden.
+        try
+        {
+            _context.Progression?.SaveMeta();
+            _context.SaveSettings();
+        }
+        catch (Exception exception)
+        {
+            Log.Error($"Speichern beim Beenden fehlgeschlagen: {exception.Message}");
+        }
     }
 
     private void OnTextInput(object? sender, TextInputEventArgs eventArgs) => _context.Input.OnTextInput(eventArgs.Character);
@@ -52,7 +73,8 @@ public sealed class CirclesGame : Game
     protected override void Update(GameTime gameTime)
     {
         float deltaSeconds = MathF.Min((float)gameTime.ElapsedGameTime.TotalSeconds, MaxDeltaSeconds);
-        _context.Input.Update();
+        _context.Input.Update(deltaSeconds);
+        _context.Music.Update(deltaSeconds);   // treibt die Überblendung zwischen zwei Stücken
         _context.Scenes.Update(deltaSeconds);
         base.Update(gameTime);
     }
@@ -89,6 +111,7 @@ public sealed class CirclesGame : Game
 
     protected override void UnloadContent()
     {
+        Exiting -= OnExiting;
         Window.TextInput -= OnTextInput;
         _context.Dispose();
         _canvas.Dispose();
