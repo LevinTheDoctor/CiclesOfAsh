@@ -32,6 +32,16 @@
     "error": "Audio/error.wav",
     "splash": "Audio/splash.wav"
   },
+  // Soundtrack: loopende Stücke, getrennt regelbar von den Effekten (Optionsmenü).
+  // Erzeugt von tools/assetgen/music.py – jede Datei darf durch echte Musik ersetzt werden.
+  "music": {
+    "music.title": "Audio/music_title.wav",
+    "music.hub": "Audio/music_hub.wav",
+    "music.limbo": "Audio/music_limbo.wav",
+    "music.greed": "Audio/music_greed.wav",
+    "music.wrath": "Audio/music_wrath.wav",
+    "music.boss": "Audio/music_boss.wav"
+  },
   "spriteSheets": {
     // ---------------- Spieler-Ebenen (Charakter-Editor): body, hair.*, outfit.<klasse>, accent.<klasse>
     "char.body": { "texture": "Textures/char_body.png", "frameWidth": 16, "frameHeight": 24,
@@ -68,6 +78,28 @@
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 6} } },
     "enemy.cultist": { "texture": "Textures/enemy_cultist.png", "frameWidth": 16, "frameHeight": 24,
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 4}, "cast": {"row": 1, "frames": 4, "fps": 10} } },
+    "enemy.skeleton": { "texture": "Textures/enemy_skeleton.png", "frameWidth": 16, "frameHeight": 18,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 4}, "run": {"row": 1, "frames": 4, "fps": 7} } },
+    "enemy.spider": { "texture": "Textures/enemy_spider.png", "frameWidth": 16, "frameHeight": 12,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 6}, "run": {"row": 1, "frames": 4, "fps": 12} } },
+    "enemy.imp": { "texture": "Textures/enemy_imp.png", "frameWidth": 16, "frameHeight": 16,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 8} } },
+    "enemy.swarm": { "texture": "Textures/enemy_swarm.png", "frameWidth": 10, "frameHeight": 10,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 10} } },
+    "enemy.knight": { "texture": "Textures/enemy_knight.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 3}, "run": {"row": 1, "frames": 4, "fps": 6}, "cast": {"row": 2, "frames": 4, "fps": 10} } },
+    "enemy.leech": { "texture": "Textures/enemy_leech.png", "frameWidth": 16, "frameHeight": 8,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 2}, "run": {"row": 1, "frames": 4, "fps": 8} } },
+    "enemy.golem": { "texture": "Textures/enemy_golem.png", "frameWidth": 24, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 3}, "run": {"row": 1, "frames": 4, "fps": 5} } },
+
+    // ---------------- NPCs
+    "npc.pilgrim": { "texture": "Textures/npc_pilgrim.png", "frameWidth": 16, "frameHeight": 20,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 2} } },
+    "npc.hermit": { "texture": "Textures/npc_hermit.png", "frameWidth": 16, "frameHeight": 20,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 2} } },
+    "npc.keeper": { "texture": "Textures/npc_keeper.png", "frameWidth": 16, "frameHeight": 22,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 2} } },
     "miniboss.warden": { "texture": "Textures/miniboss_warden.png", "frameWidth": 32, "frameHeight": 32,
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 4}, "run": {"row": 1, "frames": 4, "fps": 8}, "cast": {"row": 2, "frames": 4, "fps": 10} } },
     "boss.shepherd": { "texture": "Textures/boss_shepherd.png", "frameWidth": 48, "frameHeight": 48,
@@ -161,6 +193,18 @@
     "prop.banner": { "texture": "Textures/prop_banner.png", "frameWidth": 10, "frameHeight": 24,
       "animations": { "idle": {"row": 0, "frames": 2, "fps": 2} } },
     "prop.cobweb": { "texture": "Textures/prop_cobweb.png", "frameWidth": 16, "frameHeight": 16,
-      "animations": { "idle": {"row": 0, "frames": 1, "fps": 1} } }
+      "animations": { "idle": {"row": 0, "frames": 1, "fps": 1} } },
+    "prop.urn": { "texture": "Textures/prop_urn.png", "frameWidth": 12, "frameHeight": 16,
+      "animations": { "idle": {"row": 0, "frames": 1, "fps": 1} } },
+    "prop.barrel": { "texture": "Textures/prop_barrel.png", "frameWidth": 14, "frameHeight": 18,
+      "animations": { "idle": {"row": 0, "frames": 1, "fps": 1} } },
+    "prop.bone_pile": { "texture": "Textures/prop_bone_pile.png", "frameWidth": 16, "frameHeight": 10,
+      "animations": { "idle": {"row": 0, "frames": 1, "fps": 1} } },
+    "prop.bookshelf": { "texture": "Textures/prop_bookshelf.png", "frameWidth": 16, "frameHeight": 22,
+      "animations": { "idle": {"row": 0, "frames": 1, "fps": 1} } },
+    "prop.rat": { "texture": "Textures/prop_rat.png", "frameWidth": 10, "frameHeight": 6,
+      "animations": { "idle": {"row": 0, "frames": 2, "fps": 6} } },
+    "prop.moth": { "texture": "Textures/prop_moth.png", "frameWidth": 8, "frameHeight": 8,
+      "animations": { "idle": {"row": 0, "frames": 2, "fps": 10} } }
   }
 }

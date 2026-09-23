@@ -11,16 +11,18 @@ from .core import (ASH, BLACK, BLOOD, BONE, CLEAR, DARK_BLOOD, DARK_GOLD, DARK_S
 # Reihenfolge der Kacheln (muss zu TileMap.cs passen):
 # 0 Oberkante, 1 Mauer, 2 Plattform, 3 rissige Wand, 4 Hintergrund, 5 Hintergrund zerbrochen,
 # 6 Gittertor, 7 bröckelnde Plattform, 8 Wasser/Flüssigkeit, 9 Hintergrund-Nische
+# Tiefe-Progression: limbo = intakte Burg (ordentliche Ziegel, kaum Schäden),
+# greed = verfallende Ruine (Risse, Goldader, Brocken), wrath = rohe Höhle (organische Ränder, Glut).
 MATERIALS = {
-    "limbo": dict(base=(128, 126, 144), mortar=(78, 76, 94), light=(176, 172, 192), accent=(110, 150, 100),
-                  back=(60, 58, 76), back_mortar=(42, 40, 54), hole=(14, 12, 22), liquid=(60, 95, 125, 170),
-                  crack=(200, 190, 230), decay=0.15),
-    "greed": dict(base=(160, 134, 92), mortar=(98, 78, 50), light=(214, 186, 120), accent=(236, 196, 90),
-                  back=(78, 62, 44), back_mortar=(54, 42, 30), hole=(24, 16, 10), liquid=(170, 140, 60, 180),
-                  crack=(255, 220, 120), decay=0.45),
-    "wrath": dict(base=(96, 42, 44), mortar=(44, 16, 20), light=(140, 70, 64), accent=(255, 110, 50),
-                  back=(48, 22, 26), back_mortar=(30, 12, 16), hole=(150, 40, 16), liquid=(125, 18, 30, 200),
-                  crack=(255, 140, 60), decay=0.8),
+    "limbo": dict(base=(118, 116, 134), mortar=(70, 68, 86), light=(168, 164, 186), accent=(100, 138, 92),
+                  back=(56, 54, 72), back_mortar=(40, 38, 52), hole=(14, 12, 22), liquid=(60, 95, 125, 170),
+                  crack=(200, 190, 230), decay=0.1, wear=2),
+    "greed": dict(base=(138, 112, 76), mortar=(84, 66, 42), light=(186, 160, 104), accent=(214, 178, 82),
+                  back=(66, 52, 38), back_mortar=(46, 36, 26), hole=(20, 14, 8), liquid=(170, 140, 60, 180),
+                  crack=(255, 220, 120), decay=0.5, wear=7),
+    "wrath": dict(base=(84, 42, 44), mortar=(40, 18, 22), light=(122, 66, 60), accent=(235, 104, 48),
+                  back=(44, 22, 26), back_mortar=(28, 14, 18), hole=(140, 38, 16), liquid=(120, 18, 30, 200),
+                  crack=(255, 120, 48), decay=0.9, wear=13),
 }
 
 
@@ -57,10 +59,11 @@ def tileset(name):
     image = new_image(160, 16)
     draw = ImageDraw.Draw(image)
     damage = int(m["decay"] * 6)
-    bricks(draw, 0, m["base"], m["mortar"], m["light"], jitter=damage)                  # 0 Oberkante
-    for _ in range(4 + damage):
+    wear = m["wear"]
+    bricks(draw, 0, m["base"], m["mortar"], m["light"], jitter=wear)                     # 0 Oberkante
+    for _ in range(2 + damage):
         pixel(draw, rng.randrange(16), rng.randrange(0, 3), m["accent"])                 # Moos / Goldader / Glut
-    bricks(draw, 16, shift(m["base"] + (255,), -20)[:3], m["mortar"], jitter=damage)    # 1 Mauer
+    bricks(draw, 16, shift(m["base"] + (255,), -20)[:3], m["mortar"], jitter=wear)      # 1 Mauer
     cracks(draw, 16, m["mortar"], damage)
     rect(draw, 32, 0, 16, 4, m["light"])                                                 # 2 Plattform
     rect(draw, 32, 4, 16, 1, m["mortar"])
@@ -85,7 +88,7 @@ def tileset(name):
     for x in (114, 119, 125):
         rect(draw, x, 0, 1, 4, m["mortar"])
     for x, y in ((116, 6), (121, 8), (124, 6)):
-        rect(draw, x, y, 2, 2, m["base"])                                                # herabfallende Brocken
+        rect(draw, x, y, 2, 2, m["base"])                                                 # herabfallende Brocken
     liquid = m["liquid"]                                                                 # 8 Flüssigkeit
     rect(draw, 128, 0, 16, 16, liquid)
     rect(draw, 128, 0, 16, 2, tuple(min(255, c + 60) for c in liquid[:3]) + (220,))
@@ -94,6 +97,17 @@ def tileset(name):
     bricks(draw, 144, m["back"], m["back_mortar"])                                       # 9 Nische
     draw.rectangle([149, 4, 154, 15], fill=m["hole"])
     draw.pieslice([149, 1, 154, 7], 180, 360, fill=m["hole"])
+    if name == "wrath":
+        # Höhlen-Feeling: unregelmäßige Ränder auf der Mauer + mehr Glut
+        for _ in range(10):
+            draw.polygon([(rng.randrange(16), rng.randrange(16)) for _ in range(3)], fill=shift(m["base"] + (255,), -18))
+        for _ in range(6):
+            pixel(draw, rng.randrange(16), rng.randrange(16), (255, 90, 40, 180))
+    elif name == "greed":
+        # Ruinen-Feeling: abgeplatzte Putzstellen (dunkle Flecken) im Hintergrund
+        for _ in range(8):
+            x, y = rng.randrange(64, 112), rng.randrange(16)
+            rect(draw, x, y, rng.randrange(2, 4), rng.randrange(1, 3), m["hole"])
     return image
 
 
@@ -115,23 +129,54 @@ def background(name):
             pixel(draw, rng.randrange(width), rng.randrange(170), (200, 190, 220, rng.randrange(90, 255)))
         draw.ellipse([352, 30, 408, 86], fill=(225, 215, 200, 255))
         draw.ellipse([360, 40, 372, 52], fill=(200, 190, 175, 255))
-        spires = [(40, 90), (120, 140), (150, 170), (180, 140), (300, 110), (430, 80)]
+        # Burg: Türme mit Zinnen und Fenstern (intakte Festung des Limbus)
+        rect(draw, 0, 215, width, 55, silhouette)
+        for x, spire_height in [(40, 110), (120, 80), (180, 130), (300, 95), (430, 120)]:
+            tower_w = 34
+            top = 215 - spire_height
+            rect(draw, x - tower_w // 2, top, tower_w, spire_height, silhouette)
+            for z in range(x - tower_w // 2, x + tower_w // 2, 8):            # Zinnenkranz
+                rect(draw, z, top - 6, 5, 6, silhouette)
+            rect(draw, x - 4, top + 18, 8, 14, (28, 20, 40, 255))             # Fenster
+            rect(draw, x - 3, top + 48, 6, 10, (28, 20, 40, 255))
+            if spire_height > 100:                                            # Turmspitze
+                draw.polygon([(x - tower_w // 2 - 4, top), (x, top - 26), (x + tower_w // 2 + 4, top)], fill=silhouette)
     elif name == "greed":
         for x in range(0, width, 40):                                        # Höhlendecke mit Stalaktiten
             draw.polygon([(x, 0), (x + 40, 0), (x + 20 + rng.randrange(-6, 6), 30 + rng.randrange(40))], fill=silhouette)
         for _ in range(40):
             pixel(draw, rng.randrange(width), rng.randrange(60, 200), (240, 200, 90, rng.randrange(60, 200)))  # Goldglitzern
-        spires = [(60, 70), (200, 120), (260, 90), (390, 130)]
+        # Ruinen: halb eingestürzte Mauern mit Lücken
+        rect(draw, 0, 215, width, 55, silhouette)
+        for x, spire_height in [(60, 60), (200, 100), (260, 70), (390, 110)]:
+            top = 215 - spire_height
+            rect(draw, x - 10, top, 20, spire_height, silhouette)
+            draw.polygon([(x - 12, top + 6), (x, top), (x + 12, top + 8)], fill=silhouette)
+            for gap in range(top + 14, 215, 22):                              # herausgebrochene Lücken
+                draw.polygon([(x - 10, gap), (x + 10, gap + 8), (x - 10, gap + 14)], fill=top_color(name, gap))
     else:
         for _ in range(70):
             pixel(draw, rng.randrange(width), rng.randrange(height), (255, 120, 60, rng.randrange(60, 220)))  # Glut
         draw.ellipse([190, 150, 290, 250], fill=(160, 40, 20, 90))           # glühender Schlund
-        spires = [(30, 150), (110, 190), (360, 170), (450, 120)]
-    rect(draw, 0, 215, width, 55, silhouette)
-    for x, spire_height in spires:
-        rect(draw, x - 10, 215 - spire_height + 40, 20, spire_height, silhouette)
-        draw.polygon([(x - 12, 215 - spire_height + 42), (x, 215 - spire_height), (x + 12, 215 - spire_height + 42)], fill=silhouette)
+        # Höhle: Stalaktiten oben, unregelmäßige Stalagmiten unten
+        for x in range(0, width, 30):
+            draw.polygon([(x, 0), (x + 30, 0), (x + 15 + rng.randrange(-8, 8), 40 + rng.randrange(50))], fill=silhouette)
+        rect(draw, 0, 215, width, 55, silhouette)
+        for x in range(-20, width, 44):
+            spike_h = 30 + rng.randrange(70)
+            draw.polygon([(x, 270), (x + 22, 270), (x + 11 + rng.randrange(-6, 6), 270 - spike_h)], fill=silhouette)
     return image
+
+
+def top_color(name, y):
+    """Hintergrundfarbe an Höhe y (für "Löcher" in Ruinen-Silhouetten, damit sie durchsichtig wirken)."""
+    top, bottom = {
+        "limbo": ((42, 30, 66), (10, 8, 16)),
+        "greed": ((58, 40, 24), (14, 9, 6)),
+        "wrath": ((80, 18, 14), (12, 4, 6)),
+    }[name]
+    t = min(1.0, y / 270)
+    return tuple(int(top[i] * (1 - t) + bottom[i] * t) for i in range(3)) + (255,)
 
 
 def background_mid():
@@ -326,6 +371,72 @@ def props(textures):
         d.arc([-8, -8, 8, 8], 0, 90, fill=web)
         d.arc([-14, -14, 14, 14], 0, 90, fill=web)
     build_sheet(16, 16, [prop_frames(16, 16, 1, cobweb, do_polish=False)]).save(textures / "prop_cobweb.png")
+
+    # --- Zerstörbare Deko (v2)
+    def urn(d, f):                                      # Graburne 12x16, leichtes Geistern-Licht
+        d.polygon([(3, 3), (8, 1), (9, 3), (9, 13), (3, 13), (2, 5)], fill=(110, 118, 132, 255))
+        rect(d, 4, 0, 4, 3, (70, 74, 86, 255))
+        rect(d, 3, 12, 6, 1, DARK_STONE)
+        pixel(d, 5, 6, (160, 200, 208, 220))
+        pixel(d, 7, 8, (160, 200, 208, 180))
+        rect(d, 2, 5, 7, 1, (84, 90, 104, 255))
+    build_sheet(12, 16, [prop_frames(12, 16, 1, urn)]).save(textures / "prop_urn.png")
+
+    def barrel(d, f):                                   # Altes Fass 14x18
+        rect(d, 2, 1, 10, 16, WOOD)
+        rect(d, 2, 4, 10, 1, DARK_WOOD)
+        rect(d, 2, 12, 10, 1, DARK_WOOD)
+        for x in range(3, 12, 3):                       # vertikale Dauben
+            rect(d, x, 1, 1, 16, (74, 50, 34, 255))
+        rect(d, 1, 1, 1, 16, DARK_WOOD)
+        rect(d, 12, 1, 1, 16, DARK_WOOD)
+        pixel(d, 4, 8, (50, 60, 40, 255))               # Moos
+        pixel(d, 9, 9, (50, 60, 40, 255))
+    build_sheet(14, 18, [prop_frames(14, 18, 1, barrel)]).save(textures / "prop_barrel.png")
+
+    def bone_pile(d, f):                               # Knochenhaufen 16x10
+        d.polygon([(0, 9), (16, 9), (13, 4), (8, 2), (3, 5)], fill=(90, 86, 74, 255))
+        rect(d, 3, 5, 3, 1, BONE)
+        rect(d, 8, 3, 4, 1, BONE)
+        rect(d, 5, 7, 2, 1, BONE)
+        rect(d, 11, 6, 3, 1, shift(BONE, -30))
+        d.ellipse([6, 5, 9, 8], fill=BONE)              # Schädelrest
+        pixel(d, 7, 6, BLACK)
+    build_sheet(16, 10, [prop_frames(16, 10, 1, bone_pile)]).save(textures / "prop_bone_pile.png")
+
+    def bookshelf(d, f):                               # Morsches Regal 16x22
+        rect(d, 0, 0, 16, 22, DARK_WOOD)
+        for row in range(3):
+            y = 1 + row * 7
+            rect(d, 1, y, 14, 6, (30, 22, 16, 255))
+            for x, col in ((2, BLOOD), (5, DARK_GOLD), (8, (60, 80, 60, 255)), (11, DARK_BLOOD)):
+                rect(d, x, y + 1, 2, 5, col)
+        pixel(d, 3, 20, (50, 60, 40, 255))             # Schimmel
+        pixel(d, 12, 18, (50, 60, 40, 255))
+    build_sheet(16, 22, [prop_frames(16, 22, 1, bookshelf)]).save(textures / "prop_bookshelf.png")
+
+    # --- Fluchtkreaturen (v2)
+    def rat(d, f):                                      # Höhlenratte 10x6
+        fur = (74, 62, 58, 255)
+        step = f % 2
+        rect(d, 1, 2, 7, 3, fur)
+        rect(d, 0, 3, 2, 2, shift(fur, 25))            # Kopf
+        pixel(d, 0, 3, BLOOD)
+        rect(d, 8, 1 + step, 2, 1, (150, 130, 110, 255))   # Schwanz
+        rect(d, 2, 5 + (step == 0), 1, 1, BLACK)
+        rect(d, 5, 5 + (step == 1), 1, 1, BLACK)
+    build_sheet(10, 6, [prop_frames(10, 6, 2, rat)]).save(textures / "prop_rat.png")
+
+    def moth(d, f):                                     # Grabmotte 8x8
+        wing = (170, 160, 150, 235)
+        body = (60, 50, 46, 255)
+        up = f % 2
+        d.polygon([(3, 3 + up), (0, 1 + up), (1, 5 + up)], fill=wing)
+        d.polygon([(4, 3 + up), (7, 1 + up), (6, 5 + up)], fill=wing)
+        rect(d, 3, 2, 2, 4, body)
+        pixel(d, 3, 2, BONE)
+        pixel(d, 4, 2, BONE)
+    build_sheet(8, 8, [prop_frames(8, 8, 2, moth)]).save(textures / "prop_moth.png")
 
 
 # ------------------------------------------------------------------ Items (Icons 12x12, eine Spalte pro Item)

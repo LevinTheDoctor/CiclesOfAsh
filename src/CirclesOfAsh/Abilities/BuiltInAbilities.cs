@@ -52,6 +52,7 @@ public sealed class MeleeArcAbility : IAbilityBehavior
         // ToList(): Momentaufnahme, weil DamageEnemy Gegner töten (und markieren) kann
         foreach (Enemy enemy in world.EnemiesIntersecting(area).ToList())
             world.DamageEnemy(enemy, damage, owner.Center, ability.Definition.Knockback);
+        world.HitBreakables(new Vector2(area.Center.X, owner.Center.Y), reach);   // Hieb zerspringt auch Urnen & Fässer
 
         var effectBottom = new Vector2(area.Center.X, owner.Bounds.Bottom);
         world.Effects.PlaySprite(world.Context.Assets.GetSpriteSheet(ability.Definition.Sprite), effectBottom, flip: !toRight);
@@ -70,6 +71,7 @@ public sealed class NovaAbility : IAbilityBehavior
 
         float damage = ability.ComputeDamage(owner, owner.ConsumeStealthBonus());
         foreach (Enemy enemy in targets) world.DamageEnemy(enemy, damage, owner.Center, ability.Definition.Knockback);
+        world.HitBreakables(owner.Center, radius);   // Nova sprengt auch zerbrechliche Deko
         world.Effects.Ring(owner.Center, radius, Palette.Faith);
         return true;
     }

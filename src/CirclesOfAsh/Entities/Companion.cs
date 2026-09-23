@@ -45,6 +45,21 @@ public sealed class Companion : Entity
         if (Behavior.Act(this, world)) _actionTimer = 0f;
     }
 
+    /// <summary>
+    /// Hub-Variante: schwebt dem Spieler nach, OHNE Kampf-Verhalten (kein world nötig).
+    /// Im Tempel laufen die Seelen sichtbar herum = "Haustier"-Gefühl.
+    /// </summary>
+    public void UpdateHub(Player player, float deltaSeconds)
+    {
+        _animation.Update(deltaSeconds);
+        _bobTime += deltaSeconds;
+        float side = player.FacingRight ? -1f : 1f;
+        var target = new Vector2(
+            player.Center.X + side * (16f + _slotIndex * 11f),
+            player.Position.Y - 8f + MathF.Sin(_bobTime * 2.4f + _slotIndex) * 4f);
+        Position = MathUtil.Damp(Position, target - Size.ToVector2() / 2f, 4.5f, deltaSeconds);
+    }
+
     public override void Draw(SpriteBatch spriteBatch) =>
         _animation.Draw(spriteBatch, BottomCenter, flipHorizontally: false, Color.White);
 }

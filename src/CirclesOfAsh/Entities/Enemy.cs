@@ -35,6 +35,12 @@ public sealed class Enemy : Actor
     public IEnemyBrain Brain { get; }
     public float ContactDamage { get; }
     public float DamageMultiplier { get; }
+    /// <summary>Effektives Lauftempo (Basis * Schwierigkeits-Modifikator).</summary>
+    public float EffectiveMoveSpeed => Definition.MoveSpeed * _speedMultiplier;
+    private float _speedMultiplier = 1f;
+
+    public void ApplySpeedMultiplier(float multiplier) => _speedMultiplier = multiplier;
+
     public bool IsSpawning => _spawnTimer > 0f;
     public bool IsBoss => Definition.IsBoss;
     public bool IsMiniBoss => Definition.IsMiniBoss;

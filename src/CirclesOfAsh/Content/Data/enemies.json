@@ -12,6 +12,26 @@
     "maxHealth": 16, "contactDamage": 5, "moveSpeed": 35, "width": 10, "height": 22, "soulValue": 2,
     "projectileSprite": "projectile.enemy_orb", "projectileDamage": 7, "projectileSpeed": 120, "attackInterval": 2.6 },
 
+  // ---------------- Weitere Kreaturen der Kreise
+  { "id": "skeleton", "name": "Knochenwächter", "spriteSheet": "enemy.skeleton", "brain": "walker",
+    "maxHealth": 24, "contactDamage": 9, "moveSpeed": 32, "width": 10, "height": 18, "soulValue": 2, "knockbackResistance": 0.25 },
+  { "id": "spider", "name": "Grabspinne", "spriteSheet": "enemy.spider", "brain": "walker",
+    "maxHealth": 8, "contactDamage": 6, "moveSpeed": 75, "width": 12, "height": 8, "soulValue": 1 },
+  { "id": "imp", "name": "Feuerimp", "spriteSheet": "enemy.imp", "brain": "flyer",
+    "maxHealth": 12, "contactDamage": 7, "moveSpeed": 70, "width": 8, "height": 10, "isFlying": true, "soulValue": 2,
+    "projectileSprite": "projectile.ember", "projectileDamage": 5, "projectileSpeed": 110 },
+  { "id": "swarm", "name": "Seelensplitter", "spriteSheet": "enemy.swarm", "brain": "swarmer",
+    "maxHealth": 3, "contactDamage": 3, "moveSpeed": 95, "width": 6, "height": 6, "soulValue": 1 },
+  { "id": "knight", "name": "Verfluchter Ritter", "spriteSheet": "enemy.knight", "brain": "charger",
+    "maxHealth": 46, "contactDamage": 14, "moveSpeed": 28, "width": 12, "height": 22, "soulValue": 5,
+    "knockbackResistance": 0.6 },
+  { "id": "leech", "name": "Sumpfblutegel", "spriteSheet": "enemy.leech", "brain": "ambusher",
+    "maxHealth": 11, "contactDamage": 8, "moveSpeed": 40, "width": 14, "height": 6, "soulValue": 1,
+    "knockbackResistance": 0.3 },
+  { "id": "golem", "name": "Aschgolem", "spriteSheet": "enemy.golem", "brain": "walker",
+    "maxHealth": 70, "contactDamage": 13, "moveSpeed": 22, "width": 18, "height": 22, "soulValue": 8,
+    "knockbackResistance": 0.85, "tint": "#9AA0B0" },
+
   // ---------------- Bosse: Phasen wechseln bei healthBelow (Anteil der Lebenspunkte)
   { "id": "boss_shepherd", "name": "Der Namenlose Hirte", "spriteSheet": "boss.shepherd", "brain": "boss", "isBoss": true,
     "maxHealth": 420, "contactDamage": 12, "moveSpeed": 40, "width": 26, "height": 40, "soulValue": 25,

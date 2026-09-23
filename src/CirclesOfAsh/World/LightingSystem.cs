@@ -33,6 +33,12 @@ public sealed class LightingSystem : IDisposable
 
     public Color Ambient { get; set; } = Color.White;
 
+    /// <summary>
+    /// Globale Aufhellung 0..1: 0 = Umgebungsfarbe wie definiert, 1 = völlig hell.
+    /// Wird vom Optionsmenü gesteuert, damit jeder die Dunkelheit selbst dosieren kann.
+    /// </summary>
+    public float Brightness { get; set; }
+
     public void Clear() => _lights.Clear();
 
     public void Add(Vector2 center, float radius, Color color)
@@ -44,7 +50,11 @@ public sealed class LightingSystem : IDisposable
     public void Render(GraphicsDevice device, SpriteBatch spriteBatch, Matrix worldTransform)
     {
         device.SetRenderTarget(_lightMap);
-        device.Clear(Ambient);
+        // Brightness hebt die Umgebungsfarbe linear Richtung Weiß -> die Hölle bleibt düster,
+        // ist aber nie ganz schwarz (Standard 0.32 aus balance.json "ambientLift").
+        Color ambient = Ambient;
+        if (Brightness > 0f) ambient = Color.Lerp(Ambient, Color.White, Brightness);
+        device.Clear(ambient);
         spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.Additive, SamplerState.PointClamp, transformMatrix: worldTransform);
         foreach (var (center, radius, color) in _lights)
         {

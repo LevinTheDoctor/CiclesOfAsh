@@ -1,5 +1,5 @@
 [
-  // behavior: static | bats | lever | rune_pillar | mural | brazier | chest | cage   (siehe Props/PropBehaviors.cs)
+  // behavior: static | bats | lever | rune_pillar | mural | brazier | chest | cage | breakable | critter
   // width/height in Pixeln = Größe eines Frames. lightRadius > 0 = Lichtquelle.
   { "id": "lamp", "name": "Hängelaterne", "spriteSheet": "prop.lamp", "width": 12, "height": 20, "lightRadius": 64, "lightColor": "#FFC070" },
   { "id": "torch", "name": "Fackel", "spriteSheet": "prop.torch", "width": 8, "height": 16, "lightRadius": 58, "lightColor": "#FF9A50", "lightFlicker": 0.15 },
@@ -16,6 +16,16 @@
   { "id": "gold_pile", "name": "Goldhaufen", "spriteSheet": "prop.gold_pile", "width": 16, "height": 8, "lightRadius": 18, "lightColor": "#FFD060" },
   { "id": "banner", "name": "Banner", "spriteSheet": "prop.banner", "width": 10, "height": 24 },
   { "id": "cobweb", "name": "Spinnennetz", "spriteSheet": "prop.cobweb", "width": 16, "height": 16 },
+
+  // Zerstörbare Deko (springt in Scherben, manchmal Loot). behavior: breakable
+  { "id": "urn", "name": "Graburne", "spriteSheet": "prop.urn", "behavior": "breakable", "width": 12, "height": 16, "lightRadius": 12, "lightColor": "#A0C8D0" },
+  { "id": "barrel", "name": "Altes Fass", "spriteSheet": "prop.barrel", "behavior": "breakable", "width": 14, "height": 18 },
+  { "id": "bone_pile", "name": "Knochenhaufen", "spriteSheet": "prop.bone_pile", "behavior": "breakable", "width": 16, "height": 10 },
+  { "id": "bookshelf", "name": "Morsches Regal", "spriteSheet": "prop.bookshelf", "behavior": "breakable", "width": 16, "height": 22 },
+
+  // Kleine Fluchtkreaturen (reine Deko, fliehen vor dem Spieler). behavior: critter
+  { "id": "rat", "name": "Höhlenratte", "spriteSheet": "prop.rat", "behavior": "critter", "width": 10, "height": 6 },
+  { "id": "moth", "name": "Grabmotte", "spriteSheet": "prop.moth", "behavior": "critter", "width": 8, "height": 8 },
 
   // Interaktive Props (Taste F)
   { "id": "lever", "name": "Hebel", "spriteSheet": "prop.lever", "behavior": "lever", "width": 12, "height": 14, "interactable": true, "prompt": "Hebel umlegen" },

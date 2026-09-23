@@ -54,7 +54,7 @@ public sealed class WalkerBrain : IEnemyBrain
                 _wanderDirection = -_wanderDirection;
             direction = _wanderDirection * 0.5f;
         }
-        enemy.Velocity.X = direction * enemy.Definition.MoveSpeed;
+        enemy.Velocity.X = direction * enemy.EffectiveMoveSpeed;
 
         bool playerAbove = world.Player.Bounds.Bottom < enemy.Bounds.Top - 24;
         bool wantsJump = BrainHelpers.IsWallAhead(enemy, world.Map, direction) || (playerAbove && world.Random.NextSingle() < 0.02f);
@@ -79,11 +79,11 @@ public sealed class FlyerBrain : IEnemyBrain
         {
             Vector2 toPlayer = MathUtil.SafeNormalize(world.Player.Center - enemy.Center, Vector2.Zero);
             var perpendicular = new Vector2(-toPlayer.Y, toPlayer.X);   // 90°-gedrehter Vektor für die Welle
-            desired = (toPlayer + perpendicular * MathF.Sin(_time * 4f) * 0.6f) * enemy.Definition.MoveSpeed;
+            desired = (toPlayer + perpendicular * MathF.Sin(_time * 4f) * 0.6f) * enemy.EffectiveMoveSpeed;
         }
         else
         {
-            desired = new Vector2(MathF.Cos(_time), MathF.Sin(_time * 1.3f)) * enemy.Definition.MoveSpeed * 0.3f;
+            desired = new Vector2(MathF.Cos(_time), MathF.Sin(_time * 1.3f)) * enemy.EffectiveMoveSpeed * 0.3f;
         }
         enemy.Velocity = MathUtil.Damp(enemy.Velocity, desired, 3f, deltaSeconds);
     }
@@ -109,7 +109,7 @@ public sealed class CasterBrain : IEnemyBrain
         float deltaX = world.Player.Center.X - enemy.Center.X;
         float distance = MathF.Abs(deltaX);
         float direction = distance < PreferredMin ? -MathF.Sign(deltaX) : distance > PreferredMax ? MathF.Sign(deltaX) : 0f;
-        enemy.Velocity.X = direction * enemy.Definition.MoveSpeed;
+        enemy.Velocity.X = direction * enemy.EffectiveMoveSpeed;
         enemy.FacingRight = deltaX > 0f;
 
         _attackTimer -= deltaSeconds;
@@ -117,6 +117,141 @@ public sealed class CasterBrain : IEnemyBrain
         _attackTimer = enemy.Definition.AttackInterval;
         _castAnimationTimer = 0.4f;
         BrainHelpers.FireAtPlayer(enemy, world, enemy.Definition.ProjectileSpeed);
+    }
+}
+
+/// <summary>
+/// "charger": Telegraph-Angriff wie ein Boss: kurz ausholen (stehen bleiben, Glühen), dann
+/// Sturmangriff in Richtung Spieler. Danach kurze Erholung. Für Ritter & Keiler-artige Gegner.
+/// </summary>
+public sealed class ChargerBrain : IEnemyBrain
+{
+    private const float TelegraphSeconds = 0.65f;
+    private const float RecoverSeconds = 0.9f;
+
+    private enum Phase { Stalk, Telegraph, Charge, Recover }
+    private Phase _phase = Phase.Stalk;
+    private float _timer;
+    private float _chargeDirection;
+
+    public void Update(Enemy enemy, DungeonWorld world, float deltaSeconds)
+    {
+        _timer -= deltaSeconds;
+        switch (_phase)
+        {
+            case Phase.Stalk:
+            {
+                if (!BrainHelpers.CanSeePlayer(world))
+                {
+                    enemy.Velocity.X = 0f;
+                    return;
+                }
+                float deltaX = world.Player.Center.X - enemy.Center.X;
+                enemy.FacingRight = deltaX > 0f;
+                enemy.Velocity.X = MathF.Sign(deltaX) * enemy.EffectiveMoveSpeed;
+                // In Angriffsweite und auf gleicher Höhe? Dann ausholen.
+                if (MathF.Abs(deltaX) < 150f && MathF.Abs(world.Player.Center.Y - enemy.Center.Y) < 30f)
+                {
+                    _phase = Phase.Telegraph;
+                    _timer = TelegraphSeconds;
+                    _chargeDirection = MathF.Sign(deltaX);
+                    if (_chargeDirection == 0f) _chargeDirection = 1f;
+                    enemy.ForcedAnimation = "cast";
+                }
+                break;
+            }
+            case Phase.Telegraph:
+                enemy.Velocity.X = 0f;
+                if (_timer <= 0f)
+                {
+                    _phase = Phase.Charge;
+                    _timer = 0.55f;
+                    enemy.ForcedAnimation = null;
+                    world.Context.Audio.Play("roar", 0.25f, 0.5f);
+                }
+                break;
+            case Phase.Charge:
+                enemy.Velocity.X = _chargeDirection * enemy.EffectiveMoveSpeed * 3.2f;
+                if (_timer <= 0f)
+                {
+                    _phase = Phase.Recover;
+                    _timer = RecoverSeconds;
+                    enemy.Velocity.X *= 0.2f;
+                }
+                break;
+            case Phase.Recover:
+                enemy.Velocity.X *= 1f - MathF.Min(1f, 6f * deltaSeconds);   // sanft ausrollen
+                if (_timer <= 0f) _phase = Phase.Stalk;
+                break;
+        }
+    }
+}
+
+/// <summary>
+/// "swarmer": winzig, schnell, sehr zerbrechlich. Bewegt sich in Sprüngen auf den Spieler zu.
+/// Einzeln harmlos, in Gruppen (z. B. von einem Splitterer beschworen) gefährlich.
+/// </summary>
+public sealed class SwarmerBrain : IEnemyBrain
+{
+    private float _hopCooldown;
+
+    public void Update(Enemy enemy, DungeonWorld world, float deltaSeconds)
+    {
+        _hopCooldown -= deltaSeconds;
+        if (!BrainHelpers.CanSeePlayer(world))
+        {
+            enemy.Velocity.X = 0f;
+            return;
+        }
+        if (enemy.OnGround && _hopCooldown <= 0f)
+        {
+            float deltaX = world.Player.Center.X - enemy.Center.X;
+            enemy.Velocity.X = MathF.Sign(deltaX) * enemy.EffectiveMoveSpeed;
+            enemy.Velocity.Y = -260f;
+            bool playerAbove = world.Player.Center.Y < enemy.Center.Y - 40f;
+            if (playerAbove) enemy.Velocity.Y = -420f;
+            _hopCooldown = 0.35f;
+        }
+    }
+}
+
+/// <summary>
+/// "ambusher": liegt als Hügel getarnt am Boden und greift an, wenn der Spieler nah ist.
+/// Ideal für Blutegel in gefluteten Räumen. IsFlying=false, aber ohne Verfolgung bis zur Auslösung.
+/// </summary>
+public sealed class AmbusherBrain : IEnemyBrain
+{
+    private const float TriggerDistance = 60f;
+    private bool _wasTriggered;
+
+    public void Update(Enemy enemy, DungeonWorld world, float deltaSeconds)
+    {
+        if (!_wasTriggered)
+        {
+            enemy.Velocity.X = 0f;
+            float distance = Vector2.Distance(enemy.Center, world.Player.Center);
+            if (distance < TriggerDistance)
+            {
+                _wasTriggered = true;
+                enemy.ForcedAnimation = null;
+                float direction = MathF.Sign(world.Player.Center.X - enemy.Center.X);
+                enemy.Velocity.X = direction * enemy.EffectiveMoveSpeed * 2f;
+                enemy.Velocity.Y = -180f;   // Blutegel springt hoch
+            }
+            else
+            {
+                enemy.ForcedAnimation = "idle";   // getarnt: regungslos
+            }
+            return;
+        }
+        // Ausgelöst: kriecht zäh auf den Spieler zu und springt nach
+        if (BrainHelpers.CanSeePlayer(world))
+        {
+            float deltaX = world.Player.Center.X - enemy.Center.X;
+            enemy.Velocity.X = MathF.Abs(deltaX) < 3f ? 0f : MathF.Sign(deltaX) * enemy.EffectiveMoveSpeed;
+            bool playerAbove = world.Player.Bounds.Bottom < enemy.Bounds.Top - 20;
+            if (playerAbove && enemy.OnGround) enemy.Velocity.Y = -300f;
+        }
     }
 }
 
@@ -158,7 +293,7 @@ public sealed class BossBrain : IEnemyBrain
 
         // Zwischen Angriffen langsam auf den Spieler zugehen
         float deltaX = world.Player.Center.X - enemy.Center.X;
-        enemy.Velocity.X = MathF.Sign(deltaX) * enemy.Definition.MoveSpeed * 0.4f * phase.SpeedMultiplier;
+        enemy.Velocity.X = MathF.Sign(deltaX) * enemy.EffectiveMoveSpeed * 0.4f * phase.SpeedMultiplier;
 
         _pauseTimer -= deltaSeconds;
         if (_pauseTimer > 0f || phase.Attacks.Count == 0) return;

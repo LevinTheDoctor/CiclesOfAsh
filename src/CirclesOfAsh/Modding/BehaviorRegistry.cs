@@ -40,6 +40,9 @@ public sealed class BehaviorRegistry
         registry.RegisterEnemyBrain("flyer", () => new FlyerBrain());
         registry.RegisterEnemyBrain("caster", () => new CasterBrain());
         registry.RegisterEnemyBrain("boss", () => new BossBrain());
+        registry.RegisterEnemyBrain("charger", () => new ChargerBrain());
+        registry.RegisterEnemyBrain("swarmer", () => new SwarmerBrain());
+        registry.RegisterEnemyBrain("ambusher", () => new AmbusherBrain());
 
         registry.RegisterBossAttack("charge", () => new ChargeAttack());
         registry.RegisterBossAttack("projectile_ring", () => new ProjectileRingAttack());
@@ -58,6 +61,8 @@ public sealed class BehaviorRegistry
         registry.RegisterProp("brazier", () => new BrazierProp());
         registry.RegisterProp("chest", () => new ChestProp());
         registry.RegisterProp("cage", () => new CageProp());
+        registry.RegisterProp("breakable", () => new BreakableProp());
+        registry.RegisterProp("critter", () => new CritterProp());
 
         registry.RegisterPuzzle("levers", () => new LeverPuzzle());
         registry.RegisterPuzzle("rune_order", () => new RuneOrderPuzzle());

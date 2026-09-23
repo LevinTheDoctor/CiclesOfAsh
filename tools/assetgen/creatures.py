@@ -179,6 +179,221 @@ def boss(kind, anim, frame):
     return polish(image)
 
 
+# ------------------------------------------------------------------ Neue Kreaturen (v2)
+def skeleton(anim, frame):
+    """Knochenwächter 16x18: zäher Walker mit Schild-Rest."""
+    image = new_image(16, 18)
+    draw = ImageDraw.Draw(image)
+    step = frame % 2
+    rect(draw, 4, 3, 8, 6, BONE)                           # Schädel
+    rect(draw, 5, 5, 2, 2, BLACK)
+    rect(draw, 9, 5, 2, 2, BLACK)
+    pixel(draw, 6, 5, EMBER)
+    pixel(draw, 10, 5, EMBER)
+    rect(draw, 6, 8, 4, 1, BLACK)                           # Kiefer
+    for x in (5, 7, 9):
+        pixel(draw, x, 9, shift(BONE, -40))
+    rect(draw, 4, 10, 8, 3, BONE)                           # Brustkorb
+    rect(draw, 5, 11, 6, 1, shift(BONE, -50))
+    rect(draw, 6, 13, 1, 5, BONE)                           # Beine
+    rect(draw, 9, 13, 1, 5, BONE)
+    if anim == "run":
+        rect(draw, 4 + step * 2, 10, 2, 4, BONE)            # schwingende Arme
+        rect(draw, 10 - step * 2, 10, 2, 4, BONE)
+    else:
+        rect(draw, 2, 10, 2, 6, DARK_STEEL)                 # Schild
+        rect(draw, 3, 11, 1, 4, STEEL)
+    return polish(image)
+
+
+def spider(anim, frame):
+    """Grabspinne 16x12: flacher Körper, zappelnde Beine."""
+    image = new_image(16, 12)
+    draw = ImageDraw.Draw(image)
+    body = (52, 34, 40, 255)
+    rect(draw, 5, 4, 6, 5, body)                            # Hinterleib
+    rect(draw, 9, 5, 3, 3, shift(body, 25))                 # Kopf
+    pixel(draw, 11, 6, BLOOD)
+    pixel(draw, 12, 5, BLOOD)
+    lift = frame % 2
+    for i, dx in enumerate((-4, -2, 2, 4)):                 # 4 Beinpaare
+        left_y = 7 - lift if i % 2 == 0 else 8 + lift
+        rect(draw, 5 + dx, left_y, 2, 1, body)
+        rect(draw, 4 + dx, left_y + 1, 1, 2, body)
+        rect(draw, 9 + dx, left_y, 2, 1, body)
+        rect(draw, 10 + dx, left_y + 1, 1, 2, body)
+    pixel(draw, 7, 5, shift(body, 40))                      # Muster
+    pixel(draw, 8, 6, shift(body, 40)
+          )
+    return polish(image)
+
+
+def imp(anim, frame):
+    """Feuerimp 16x16: kleiner Flieger mit Glühkrone."""
+    image = new_image(16, 16)
+    draw = ImageDraw.Draw(image)
+    skin = (140, 52, 44, 255)
+    bob = frame % 2
+    rect(draw, 6, 5 + bob, 5, 6, skin)                      # Kopf + Leib
+    rect(draw, 7, 7 + bob, 1, 1, BLACK)
+    rect(draw, 9, 7 + bob, 1, 1, BLACK)
+    pixel(draw, 7, 6 + bob, FLAME)
+    pixel(draw, 9, 6 + bob, FLAME)
+    for x, spike in ((6, -2), (8, -3), (10, -2)):           # Hörner
+        rect(draw, x, 3 + bob + spike, 1, 2, DARK_GOLD)
+    rect(draw, 4, 6 + bob, 2, 2, skin)                      # Flügel
+    rect(draw, 11, 6 + bob, 2, 2, skin)
+    rect(draw, 3, 5 + bob - (frame % 2), 1, 3, shift(skin, -30))
+    rect(draw, 13, 5 + bob - (frame % 2), 1, 3, shift(skin, -30))
+    rect(draw, 7, 11 + bob, 2, 2, EMBER)                    # Glutschweif
+    pixel(draw, 7, 13 + bob, FLAME)
+    return polish(image)
+
+
+def swarm(anim, frame):
+    """Seelensplitter 10x10: winziger hüpfender Splitter."""
+    image = new_image(10, 10)
+    draw = ImageDraw.Draw(image)
+    core = (170, 190, 200, 230)
+    dark = (100, 110, 130, 230)
+    spread = frame % 3
+    rect(draw, 4 - spread // 2, 2, 3 + spread, 5, core)     # unruhiger Umriss
+    rect(draw, 3, 4 - spread // 2, 5, 2 + spread, dark)
+    pixel(draw, 5, 4, WHITE)
+    pixel(draw, 4 + frame % 3, 1, SOUL)
+    return polish(image, outline=(20, 24, 34, 200))
+
+
+def knight(anim, frame):
+    """Verfluchter Ritter 16x24: rostige Rüstung, Schild, chargt."""
+    image = new_image(16, 24)
+    draw = ImageDraw.Draw(image)
+    step = frame % 2
+    rust = (110, 92, 70, 255)
+    dark_rust = (70, 56, 44, 255)
+    rect(draw, 4, 2, 8, 6, rust)                            # Helm
+    rect(draw, 5, 4, 2, 2, BLACK)                           # Sehschlitz
+    rect(draw, 9, 4, 2, 2, BLACK)
+    pixel(draw, 6, 4, BLOOD)
+    pixel(draw, 10, 4, BLOOD)
+    rect(draw, 3, 8, 10, 8, rust)                           # Brustpanzer
+    rect(draw, 4, 9, 8, 2, dark_rust)
+    rect(draw, 7, 9, 2, 6, BLOOD)                           # Riss + Blut
+    rect(draw, 2, 10, 2, 5, dark_rust)                      # Schultern
+    rect(draw, 12, 10, 2, 5, dark_rust)
+    rect(draw, 5, 16, 2, 6, dark_rust)                      # Beine
+    rect(draw, 9, 16, 2, 6, dark_rust)
+    if anim == "cast":
+        # Telegraph: Schwert hochgehoben, glühende Runen
+        rect(draw, 13, 2, 1, 9, STEEL)
+        rect(draw, 12, 1, 3, 2, DARK_STEEL)
+        pixel(draw, 13, 0, FLAME)
+        rect(draw, 3, 9, 1, 6, FLAME)
+    else:
+        rect(draw, 13, 6 + step, 1, 8, STEEL)               # Schwert seitlich
+        rect(draw, 0, 8, 3, 8, dark_rust)                   # Schild vor sich
+        rect(draw, 1, 10, 1, 4, BLOOD)
+    return polish(image)
+
+
+def leech(anim, frame):
+    """Sumpfblutegel 16x8: flach, getarnt, springt hoch."""
+    image = new_image(16, 8)
+    draw = ImageDraw.Draw(image)
+    body = (70, 50, 66, 255)
+    squish = frame % 2
+    rect(draw, 2, 3 + squish, 12, 4 - squish, body)         # gedehnter Leib
+    rect(draw, 13, 3, 2, 2, shift(body, 30))                # Saugkopf
+    pixel(draw, 15, 4, BLOOD)
+    rect(draw, 5, 2 + squish, 2, 1, shift(body, -30))      # Rückenstreifen
+    rect(draw, 9, 2 + squish, 2, 1, shift(body, -30))
+    rect(draw, 3, 6 + (squish == 0), 1, 1, DARK_BLOOD)
+    return polish(image, outline=(18, 14, 22, 220))
+
+
+def golem(anim, frame):
+    """Aschgolem 24x24: kompakt, viel Risse, sehr zäh."""
+    image = new_image(24, 24)
+    draw = ImageDraw.Draw(image)
+    stone = (96, 92, 108, 255)
+    dark = (60, 56, 70, 255)
+    step = frame % 2
+    rect(draw, 5, 3, 14, 10, stone)                         # Kopf in den Schultern
+    rect(draw, 7, 6, 3, 2, EMBER)
+    rect(draw, 14, 6, 3, 2, EMBER)
+    rect(draw, 9, 9, 6, 1, BLACK)
+    rect(draw, 3, 12, 18, 9, stone)                          # Rumpf
+    rect(draw, 4, 13, 16, 7, dark)
+    rect(draw, 8, 13, 2, 7, BLACK)                          # Kernriss
+    rect(draw, 8, 15, 2, 2, EMBER)
+    rect(draw, 12, 17, 2, 2, EMBER)
+    rect(draw, 15, 14, 1, 4, BLACK)
+    rect(draw, 0, 13, 3, 7, dark)                           # Arme
+    rect(draw, 21, 13, 3, 7, dark)
+    rect(draw, 1, 20, 2, 2, stone)
+    rect(draw, 21, 20, 2, 2, stone)
+    rect(draw, 6, 21 + step, 4, 3, dark)                    # Beine
+    rect(draw, 14, 21 + (1 - step), 4, 3, dark)
+    return polish(image)
+
+
+# ------------------------------------------------------------------ NPCs (v2)
+def npc_pilgrim(frame):
+    """Betender Pilger 16x20: kniet, gefaltete Hände, warmes Licht."""
+    image = new_image(16, 20)
+    draw = ImageDraw.Draw(image)
+    robe = (96, 70, 62, 255)
+    robe_dark = (70, 50, 46, 255)
+    sway = frame % 2
+    rect(draw, 4, 12, 8, 8, robe)                          # kniende Robe
+    rect(draw, 4, 18, 8, 1, robe_dark)
+    rect(draw, 5, 4 + sway, 6, 8, robe)                    # Oberkörper leicht wiegend
+    rect(draw, 6, 5 + sway, 4, 3, BONE)                    # Gesicht
+    rect(draw, 7, 6 + sway, 1, 1, BLACK)
+    rect(draw, 9, 6 + sway, 1, 1, BLACK)
+    rect(draw, 7, 8 + sway, 3, 1, (60, 44, 40, 255))       # gefaltete Hände
+    rect(draw, 10, 3 + sway, 4, 5, (60, 44, 40, 255))      # Kapuze
+    return polish(image)
+
+
+def npc_hermit(frame):
+    """Eremit 16x20: hockt, dunkle Kapuze, bläuliches Licht."""
+    image = new_image(16, 20)
+    draw = ImageDraw.Draw(image)
+    cloak = (54, 52, 70, 255)
+    cloak_dark = (38, 36, 52, 255)
+    sway = frame % 2
+    rect(draw, 3, 10, 10, 10, cloak)                       # hockende Gestalt
+    rect(draw, 3, 18, 10, 1, cloak_dark)
+    rect(draw, 5, 4 + sway, 6, 7, cloak)                   # Kopf mit Kapuze
+    rect(draw, 6, 6 + sway, 4, 3, BLACK)
+    pixel(draw, 7, 7 + sway, (150, 220, 255, 255))         # leuchtende Augen
+    pixel(draw, 9, 7 + sway, (150, 220, 255, 255))
+    rect(draw, 1, 12 + sway, 2, 4, cloak_dark)             # Arm mit Stab
+    rect(draw, 0, 4 + sway, 1, 12, WOOD)
+    return polish(image)
+
+
+def npc_keeper(frame):
+    """Tempelwärtin 16x22: aufrecht, wallendes Gewand, kerzenwarm."""
+    image = new_image(16, 22)
+    draw = ImageDraw.Draw(image)
+    gown = (120, 96, 76, 255)
+    gown_dark = (88, 68, 54, 255)
+    sway = frame % 2
+    rect(draw, 4, 8, 8, 14, gown)                          # wallendes Gewand
+    rect(draw, 4, 20, 8, 1, gown_dark)
+    rect(draw, 5, 2 + sway, 6, 6, BONE)                    # Gesicht
+    rect(draw, 6, 4 + sway, 1, 1, BLACK)
+    rect(draw, 9, 4 + sway, 1, 1, BLACK)
+    rect(draw, 4, 1 + sway, 8, 3, (60, 44, 40, 255))       # Haar/Schleier
+    rect(draw, 2, 9 + sway, 2, 6, gown)                    # Arme
+    rect(draw, 12, 9 + sway, 2, 6, gown)
+    pixel(draw, 2, 15 + sway, FLAME)                       # Kerze
+    pixel(draw, 13, 15 + sway, FLAME)
+    return polish(image)
+
+
 def bat(anim, frame):
     image = new_image(10, 8)
     draw = ImageDraw.Draw(image)
@@ -227,6 +442,19 @@ def generate(textures):
     build_sheet(16, 16, [[hound("idle", i) for i in range(4)], [hound("run", i) for i in range(4)]]).save(textures / "enemy_hound.png")
     build_sheet(16, 16, [[wraith(i) for i in range(4)]]).save(textures / "enemy_wraith.png")
     build_sheet(16, 24, [[cultist("idle", i) for i in range(4)], [cultist("cast", i) for i in range(4)]]).save(textures / "enemy_cultist.png")
+    # --- Neue Kreaturen (v2): mehr Gegnervielfalt je Kreis
+    build_sheet(16, 18, [[skeleton("idle", i) for i in range(4)], [skeleton("run", i) for i in range(4)]]).save(textures / "enemy_skeleton.png")
+    build_sheet(16, 12, [[spider("idle", i) for i in range(4)], [spider("run", i) for i in range(4)]]).save(textures / "enemy_spider.png")
+    build_sheet(16, 16, [[imp("idle", i) for i in range(4)]]).save(textures / "enemy_imp.png")
+    build_sheet(10, 10, [[swarm("idle", i) for i in range(4)]]).save(textures / "enemy_swarm.png")
+    build_sheet(16, 24, [[knight("idle", i) for i in range(4)], [knight("run", i) for i in range(4)],
+                         [knight("cast", i) for i in range(4)]]).save(textures / "enemy_knight.png")
+    build_sheet(16, 8, [[leech("idle", i) for i in range(4)], [leech("run", i) for i in range(4)]]).save(textures / "enemy_leech.png")
+    build_sheet(24, 24, [[golem("idle", i) for i in range(4)], [golem("run", i) for i in range(4)]]).save(textures / "enemy_golem.png")
+    # --- NPCs (v2): Pilger, Eremit, Tempelwärtin
+    build_sheet(16, 20, [[npc_pilgrim(i) for i in range(4)]]).save(textures / "npc_pilgrim.png")
+    build_sheet(16, 20, [[npc_hermit(i) for i in range(4)]]).save(textures / "npc_hermit.png")
+    build_sheet(16, 22, [[npc_keeper(i) for i in range(4)]]).save(textures / "npc_keeper.png")
     build_sheet(32, 32, [[warden(a, i) for i in range(4)] for a in ("idle", "run", "cast")]).save(textures / "miniboss_warden.png")
     for kind in ("shepherd", "mammon", "titan"):
         build_sheet(48, 48, [[boss(kind, "idle", i) for i in range(4)], [boss(kind, "cast", i) for i in range(4)]]).save(textures / f"boss_{kind}.png")
