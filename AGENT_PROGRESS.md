@@ -172,6 +172,12 @@ ausdrückliche Cross-Builds.
 **Prüfen:** `./build/build.sh` ohne Argumente auf diesem Mac ausführen — es muss ohne Nachfrage ein
 lauffähiges `CirclesOfAsh.app` erzeugen.
 
+**Erledigt.** `build/build.sh` erkennt Darwin/Linux/MSYS × amd64/arm64 und leitet den RID ab.
+macOS delegiert an `macos-app.sh`; Linux bekommt `CirclesOfAsh.sh` (relativer Wrapper) und
+`circlesofash.desktop` (Menü-Eintrag); Windows fährt den Publish. Verifiziert auf diesem Mac:
+Bündel entsteht ohne Nachfrage, das Spiel startet (Log: „Daten geladen …"). `publish.sh` für
+Cross-Builds unangetastet.
+
 ---
 
 ## Paket 3 — Controller-Unterstützung über die SDL-Datenbank
