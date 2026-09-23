@@ -1,0 +1,111 @@
+name: Release
+
+# Ausgelöst von einem Versions-Tag ("git tag v1.0.0 && git push --tags").
+# workflow_dispatch erlaubt zusätzlich den Handstart über die Actions-Oberfläche.
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # nötig, damit der letzte Job das Release anlegen darf
+
+jobs:
+  package:
+    name: ${{ matrix.rid }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64 }
+          - { os: ubuntu-latest,  rid: linux-x64 }
+          - { os: ubuntu-latest,  rid: linux-arm64 }
+          - { os: macos-latest,   rid: osx-arm64 }
+          - { os: macos-13,       rid: osx-x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # Das Icon liegt nicht im Repository, sondern wird erzeugt – auch für das .app-Bündel.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow
+      - name: Icons erzeugen
+        run: python -c "import sys; sys.path.insert(0, 'tools'); from assetgen import icons; icons.generate()"
+
+      # ---------------------------------------------------------------- macOS: fertiges .app-Bündel
+      - name: Bündel bauen (macOS)
+        if: startsWith(matrix.rid, 'osx')
+        shell: bash
+        env:
+          VERSION: ${{ github.ref_type == 'tag' && github.ref_name || '0.0.0' }}
+        run: ./build/macos-app.sh ${{ matrix.rid }}
+
+      # ---------------------------------------------------------------- Windows und Linux: einfacher Publish
+      - name: Publish (Windows/Linux)
+        if: ${{ !startsWith(matrix.rid, 'osx') }}
+        shell: bash
+        run: |
+          dotnet publish src/CirclesOfAsh/CirclesOfAsh.csproj \
+            -c Release -r ${{ matrix.rid }} --self-contained true \
+            -o publish/${{ matrix.rid }}
+          # Unter Linux geht das Ausführbar-Bit beim Zippen sonst verloren.
+          if [ -f publish/${{ matrix.rid }}/CirclesOfAsh ]; then
+            chmod +x publish/${{ matrix.rid }}/CirclesOfAsh
+          fi
+
+      # ---------------------------------------------------------------- Archiv schnüren
+      # zip unter Windows (dort gibt es kein tar mit Rechten), sonst tar.gz: das erhält
+      # das Ausführbar-Bit und die Struktur des .app-Bündels.
+      - name: Archiv erstellen (Windows)
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath CirclesOfAsh-${{ matrix.rid }}.zip
+
+      - name: Archiv erstellen (macOS/Linux)
+        if: matrix.rid != 'win-x64'
+        shell: bash
+        run: tar -czf CirclesOfAsh-${{ matrix.rid }}.tar.gz -C publish/${{ matrix.rid }} .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CirclesOfAsh-${{ matrix.rid }}
+          path: CirclesOfAsh-${{ matrix.rid }}.*
+          if-no-files-found: error
+
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Release veröffentlichen
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          body: |
+            ## Circles of Ash ${{ github.ref_name }}
+
+            Alle Pakete sind eigenständig – .NET muss **nicht** installiert sein.
+
+            | System | Datei |
+            | --- | --- |
+            | Windows (64 Bit) | `CirclesOfAsh-win-x64.zip` |
+            | Linux (64 Bit) | `CirclesOfAsh-linux-x64.tar.gz` |
+            | Linux (ARM64) | `CirclesOfAsh-linux-arm64.tar.gz` |
+            | macOS (Apple Silicon) | `CirclesOfAsh-osx-arm64.tar.gz` |
+            | macOS (Intel) | `CirclesOfAsh-osx-x64.tar.gz` |
+
+            Die macOS-Pakete enthalten ein fertiges `CirclesOfAsh.app`. Es ist nicht signiert –
+            beim ersten Start einmal mit Rechtsklick auf „Öffnen" gehen oder im Terminal
+            `xattr -dr com.apple.quarantine CirclesOfAsh.app` ausführen.

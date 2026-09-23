@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
 
 jobs:
@@ -21,17 +21,21 @@ jobs:
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
 
-  publish-windows:
-    needs: build
-    runs-on: windows-latest
+  # Zweiter Wächter: Die Assets werden prozedural erzeugt: Bricht ein Generator, fällt es sonst
+  # erst auf, wenn jemand die Assets neu baut.
+  assets:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-python@v5
         with:
-          dotnet-version: 8.0.x
-      - name: Publish win-x64 (self-contained)
-        run: dotnet publish src/CirclesOfAsh/CirclesOfAsh.csproj -c Release -r win-x64 --self-contained true -o publish/win-x64
-      - uses: actions/upload-artifact@v4
-        with:
-          name: CirclesOfAsh-win-x64
-          path: publish/win-x64
+          python-version: '3.12'
+      - run: pip install pillow
+      - name: Alle Platzhalter-Assets erzeugen
+        run: python tools/generate_placeholder_assets.py
+      - name: Prüfen, dass Musik und Icons entstanden sind
+        shell: bash
+        run: |
+          test -f src/CirclesOfAsh/Content/Audio/music_hub.wav
+          test -f build/icons/CirclesOfAsh.ico
+          test -f build/icons/CirclesOfAsh.icns

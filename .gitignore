@@ -3,6 +3,11 @@ bin/
 obj/
 publish/
 artifacts/
+# App-Icons: werden von tools/assetgen/icons.py erzeugt, nicht von Hand gepflegt
+build/icons/
+
+# macOS
+.DS_Store
 
 # IDEs
 .vs/
