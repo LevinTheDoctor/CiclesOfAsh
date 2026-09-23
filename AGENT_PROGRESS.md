@@ -1,0 +1,166 @@
+# Arbeitsstand
+
+Diese Datei führt die offenen Arbeitspakete. **Sie wird gelöscht, sobald alles erledigt ist** —
+der Zustand gehört dann in die Git-Historie, nicht ins Repo.
+
+Zustände: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt (mit Commit-Kürzel)
+
+---
+
+## Paket 1 — Spielfehler
+
+Alle acht Punkte laufen auf dasselbe Grundproblem zu: Eine Arena gilt nur dann als geschafft, wenn
+**kein Gegner mehr lebt** (`WaveDirector.cs:69`), und nur `CompleteArena` öffnet die versiegelten
+Türen wieder. Es gibt keinen Notausgang. Jeder Gegner, der lebt aber nicht erreichbar oder nicht
+auffindbar ist, sperrt den Spieler dauerhaft ein.
+
+### [ ] 1.1 Gegner ihrem Ereignis zuordnen
+
+**Problem:** `DungeonWorld.AliveEnemyCount` zählt Gegner global über den ganzen Dungeon. Arena
+(`WaveDirector.Update`) und Rescue-Ereignis (`UpdateRescueEvent`) warten beide auf denselben
+Zähler. Lebt irgendwo noch eine Rescue-Wache, wird keine Arena je fertig — und die Türen bleiben zu.
+
+**Lösung:** Jeder Gegner bekommt beim Spawnen ein Besitzer-Kürzel (`Enemy.Owner`, Muster wie
+`Npc.Tag`). `WaveDirector` übergibt die Id des Arenaraums, `StartRescueFight` übergibt `"rescue"`.
+Neu: `AliveEnemyCount(string owner)`; beide Systeme fragen nur noch ihren eigenen Besitzer ab.
+
+**Prüfen:** Rescue-Kampf auslösen, Wachen am Leben lassen, Raum verlassen, eine Arena leerräumen —
+die Türen müssen sich öffnen.
+
+### [ ] 1.2 Flieger in der Arena halten
+
+**Problem:** `Enemy.Update` überspringt für fliegende Gegner jede Kachelkollision („Geister schweben
+durch Wände"). Das gilt auch für die versiegelten Türkacheln. `wraith` und `imp` können aus der
+Arena fliegen — auch durch einen kräftigen Rückstoß — und sind draußen unerreichbar, leben aber.
+
+**Lösung:** Solange eine Arena versiegelt ist, wird die Position aller ihrer Gegner auf die
+Raumgrenzen geklemmt. Das Durchschweben durch Wände innerhalb des Raums bleibt erhalten.
+
+**Prüfen:** Flieger am Rand der Arena mit einem Dash-Angriff wegstoßen — er darf den Raum nicht
+verlassen.
+
+### [ ] 1.3 Den Egel auffindbar machen
+
+**Problem:** `leech` benutzt das `ambusher`-Hirn und bewegt sich getarnt **überhaupt nicht**, bis
+der Spieler auf 60 px herankommt. Er steht im normalen Gegnerpool. Liegt er in einer Ecke, an der
+man nicht vorbeiläuft, sinkt der Zähler nie auf 0. Das ist die wahrscheinlichste Ursache des
+gemeldeten Fehlers „Welle besiegt und nichts passiert".
+
+**Lösung:** Ist er der letzte lebende Gegner seines Besitzers, weckt er sich selbst und geht auf den
+Spieler zu. Zusätzlich zeigt die HUD die Zahl der verbliebenen Gegner, damit sichtbar ist, dass
+überhaupt noch etwas lebt.
+
+**Prüfen:** Arena mit Egel leerräumen, ohne in seine Ecke zu laufen — er muss von selbst kommen.
+
+### [ ] 1.4 Notausgang gegen Einmauern
+
+**Problem:** Auch mit 1.1 bis 1.3 kann ein unvorhergesehener Fall den Spieler einsperren. Es gibt
+keine Rückfallebene.
+
+**Lösung:** Ein Wächter im `WaveDirector`: Passiert in einer Arena 45 Sekunden lang nichts (kein
+Spawn, kein Tod), werden die verbliebenen Gegner entfernt, die Arena abgeschlossen und eine Zeile
+ins Log geschrieben. Bewusst *auffällig* im Log — der Wächter soll eine verbleibende Ursache
+sichtbar machen, nicht still überdecken.
+
+**Prüfen:** Log nach längeren Testläufen auf die Meldung durchsehen.
+
+### [ ] 1.5 Spawnpunkte gegen die Geometrie prüfen
+
+**Problem:** `SpawnWaveEnemy` würfelt eine Position und prüft nur den Abstand zum Spieler, nie ob
+dort eine Wand ist. Dieselbe Lücke haben Prison-Wachen, Boss-Spawn und Rescue-Wachen. Ein Gegner
+kann in Geometrie stecken bleiben.
+
+**Lösung:** Gemeinsame Hilfsfunktion in `DungeonWorld`, die eine Kandidatenposition gegen die
+`TileMap` prüft (dieselbe Idee wie `WarnIfSpawnBlocked` in `HubScene`, aber wiederverwendbar). Alle
+vier Spawn-Stellen benutzen sie; schlägt sie fehl, wird auf die Bodenmitte des Raums zurückgefallen.
+
+**Prüfen:** Log auf Meldungen über verworfene Spawnpunkte ansehen.
+
+### [ ] 1.6 NPC-Bewegung mit Physik
+
+**Problem:** `Npc.Update` ist die einzige Bewegungslogik im Spiel ohne Physik — keine Schwerkraft,
+keine Kollision, keine Kartengrenze. Die befreite Seele läuft auf konstanter Höhe stur in
+X-Richtung und damit durch Wände aus der Karte heraus.
+
+**Lösung:** Dasselbe Muster wie `Enemy.Update`: Schwerkraft, dann
+`TilePhysics.MoveAndCollide(this, world.Map, …)`. Bleibt sie an einer Wand stehen, darf sie
+springen, damit sie nicht dauerhaft hängt.
+
+**Prüfen:** Eine Seele befreien und zum Ausgang begleiten — sie muss auf dem Boden laufen und die
+Karte nicht verlassen.
+
+### [ ] 1.7 Tempel: Brett und Schrein freistellen
+
+**Problem:** Der Pilger steht exakt auf dem Missionsbrett (beide bei x = 72) und wird **nach** dem
+Brett gezeichnet, verdeckt es also. Die NPC-Schleife überschreibt außerdem den Hotspot
+bedingungslos — am Brett stehend öffnet Interagieren den NPC-Dialog statt das Brett. Nebenbefund:
+`OpenNpcDialog` benutzt für jeden NPC die feste Dialog-Id der Tempelwärtin.
+
+**Lösung:** Pilger und Eremit auf den Tempelboden versetzen, die Podeste bleiben Brett und Schrein
+vorbehalten. Hotspot-Erkennung wählt den **nächstgelegenen** Kandidaten statt des letzten Treffers.
+`npc.Definition.DialogId` statt der festen Id. Beschriftungen an den Stationen, damit man sie
+findet.
+
+**Prüfen:** Im Tempel Brett und Schrein sehen und öffnen können; Pilger und Eremit führen ihren
+eigenen Dialog.
+
+### [ ] 1.8 Erzeugung prüfbar machen
+
+**Problem:** Der Nutzer beschreibt die Dungeon-Erzeugung als „komisch"; die Beispiel-Layouts sind
+auffällig linear. Ob tatsächlich Räume unerreichbar erzeugt werden, ist bisher nicht messbar.
+
+**Lösung:** Erst messen, nicht raten. Nach `DungeonGenerator.Generate` eine Erreichbarkeitsprüfung
+(Flutfüllung vom Spielerstart über begehbare Kacheln, Sprunghöhe ≈ 96 px). Sie meldet ins Log, wenn
+Siegeltor, Arena, Kerker oder Schatzraum nicht erreichbar sind.
+
+**Prüfen:** Mehrere Seeds starten und das Log auswerten. Schlägt die Prüfung regelmäßig an, wird
+der Generator selbst überarbeitet — das ist dann ein eigenes Paket.
+
+---
+
+## Paket 2 — Ein Build-Skript für alle Systeme
+
+**Problem:** Es gibt kein Skript, das für das gerade laufende System das passende Paket baut.
+`build/publish.sh` hat `win-x64` als Vorgabe, egal worauf es läuft; `publish-windows.ps1` ist fest
+auf Windows; `macos-app.sh` baut nur macOS-Bündel. Für Linux existiert überhaupt kein Bündel.
+
+**Lösung:** Ein `build/build.sh`, das über `uname -s`/`uname -m` den Runtime Identifier bestimmt,
+für macOS das vorhandene `macos-app.sh` aufruft (keine Logik doppeln), für Linux zusätzlich
+Startskript und `.desktop`-Datei erzeugt und für Windows den Publish fährt. `publish.sh` bleibt für
+ausdrückliche Cross-Builds.
+
+**Prüfen:** `./build/build.sh` ohne Argumente auf diesem Mac ausführen — es muss ohne Nachfrage ein
+lauffähiges `CirclesOfAsh.app` erzeugen.
+
+---
+
+## Paket 3 — Controller-Unterstützung über die SDL-Datenbank
+
+**Problem:** Erkannt werden Controller nur über Textbausteine im Gerätenamen, und die Tastenbelegung
+selbst ist fest im Code verdrahtet (`InputState._bindings`). Unbekannte Pads fallen auf das
+Xbox-Profil zurück oder werden von SDL gar nicht als Controller erkannt.
+
+**Lösung:** Geprüft: MonoGame 3.8.2 sucht beim Start selbst eine `gamecontrollerdb.txt` im
+Programmverzeichnis (`InitDatabase` in `MonoGame.Framework.dll`). Es genügt also, die Datei aus dem
+SDL_GameControllerDB-Projekt mitzuliefern und über die `.csproj` ins Ausgabeverzeichnis kopieren zu
+lassen — damit werden nahezu alle handelsüblichen Controller korrekt belegt. Dazu weitere
+Beschriftungsprofile in `controllers.json` (8BitDo, Logitech, generische DirectInput-Pads) und ein
+Eintrag in `THIRD_PARTY_NOTICES.md`.
+
+**Prüfen:** Mit verschiedenen Controllern starten und im Log den erkannten Namen und das gewählte
+Profil ablesen.
+
+---
+
+## Paket 4 — Optionsmenü mit Reitern
+
+**Problem:** `SettingsScene` ist eine flache Liste aus elf Zeilen. Es gibt keine Kategorie und
+keinen Platz für Steuerungs-Einstellungen.
+
+**Lösung:** Vier Reiter — Bildschirm · Audio · Steuerung · Gameplay. Links/Rechts wechselt den
+Reiter, Hoch/Runter die Zeile, Werte über die Schultertasten. Der Reiter „Steuerung" zeigt den
+erkannten Controller und ist später der Ort für frei belegbare Tasten
+(`Content/Data/input.json`, bisher nur Roadmap).
+
+**Prüfen:** Jeden Reiter mit Tastatur **und** Controller durchsteuern; alle Werte müssen einen
+Neustart überleben.
