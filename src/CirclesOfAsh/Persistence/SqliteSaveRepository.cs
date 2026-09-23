@@ -68,6 +68,30 @@ public sealed class SqliteSaveRepository : ISaveRepository
             value TEXT NOT NULL
         );
         """,
+        // Version 3: Optionsmenü, Heimwelt (Deko + Haustiere) und Sammelobjekt-Zähler
+        """
+        CREATE TABLE settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        CREATE TABLE hub_deco (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            prop_id  TEXT    NOT NULL,
+            tile_x   INTEGER NOT NULL,
+            tile_y   INTEGER NOT NULL
+        );
+        CREATE TABLE pets (
+            companion_id TEXT PRIMARY KEY,
+            name         TEXT NOT NULL,
+            loyalty      INTEGER NOT NULL,
+            fed          INTEGER NOT NULL,
+            petted_at    TEXT NOT NULL
+        );
+        CREATE TABLE collectibles (
+            item_id TEXT PRIMARY KEY,
+            count   INTEGER NOT NULL
+        );
+        """,
     };
     // """ ... """ = Raw String Literal (C# 11): mehrzeiliger Text ohne Escape-Zeichen, ideal für SQL
 
@@ -131,8 +155,14 @@ public sealed class SqliteSaveRepository : ISaveRepository
             while (reader.Read())
             {
                 // Enum.TryParse: unbekannte Status-Texte (z. B. aus einer neueren Version) werden übersprungen
-                if (!Enum.TryParse(reader.GetString(1), out MissionStatus status)) continue;
-                meta.Missions[reader.GetString(0)] = new MissionProgress { Status = status, Progress = reader.GetInt32(2) };
+                string status = reader.GetString(1);
+                if (status.Equals("pending", StringComparison.OrdinalIgnoreCase))
+                {
+                    meta.PendingMissionProgress[reader.GetString(0)] = reader.GetInt32(2);
+                    continue;
+                }
+                if (!Enum.TryParse(status, out MissionStatus missionStatus)) continue;
+                meta.Missions[reader.GetString(0)] = new MissionProgress { Status = missionStatus, Progress = reader.GetInt32(2) };
             }
         }
         return meta;
@@ -179,6 +209,16 @@ public sealed class SqliteSaveRepository : ISaveRepository
             command.Parameters.AddWithValue("$id", id);
             command.Parameters.AddWithValue("$status", progress.Status.ToString());
             command.Parameters.AddWithValue("$progress", progress.Progress);
+            command.ExecuteNonQuery();
+        }
+
+        // Vorgemerkter Fortschritt (Status "pending" statt Active/Completed)
+        const string upsertPending = "INSERT INTO missions (id, status, progress) VALUES ($id, 'pending', $progress) ON CONFLICT(id) DO UPDATE SET progress = excluded.progress;";
+        foreach (var (id, progress) in meta.PendingMissionProgress)
+        {
+            SqliteCommand command = CreateCommand(connection, upsertPending, transaction);
+            command.Parameters.AddWithValue("$id", id);
+            command.Parameters.AddWithValue("$progress", progress);
             command.ExecuteNonQuery();
         }
 
@@ -302,6 +342,151 @@ public sealed class SqliteSaveRepository : ISaveRepository
         transaction.Commit();
     }
 
+    // ------------------------------------------------------------------ Einstellungen
+    public GameSettings LoadSettings()
+    {
+        var settings = new GameSettings();
+        var values = new Dictionary<string, string>();
+        using SqliteConnection connection = Open();
+        using (SqliteDataReader reader = CreateCommand(connection, "SELECT key, value FROM settings;").ExecuteReader())
+        {
+            while (reader.Read()) values[reader.GetString(0)] = reader.GetString(1);
+        }
+        // Fehlt ein Schlüssel (frische Installation, neu hinzugekommene Option), bleibt der
+        // Standardwert aus GameSettings stehen. Ohne diese Rückfallwerte wäre ein neues Spiel
+        // stumm, weil ein fehlender Lautstärkewert sonst als 0 gelesen würde.
+        // Ausnahme screen_scale: 0 heißt bewusst "nicht gesetzt" – GameContext setzt dann
+        // die in balance.json hinterlegte Standardgröße ein.
+        settings.ScreenScale = (int)ReadLong(values, "screen_scale", 0);
+        settings.Fullscreen = ReadLong(values, "fullscreen", settings.Fullscreen ? 1 : 0) != 0;
+        settings.VSync = ReadLong(values, "vsync", settings.VSync ? 1 : 0) != 0;
+        settings.MasterVolume = ReadFloat(values, "master_volume", settings.MasterVolume);
+        settings.MusicVolume = ReadFloat(values, "music_volume", settings.MusicVolume);
+        settings.SfxVolume = ReadFloat(values, "sfx_volume", settings.SfxVolume);
+        settings.AmbientLift = ReadFloat(values, "ambient_lift", settings.AmbientLift);
+        settings.RumbleIntensity = ReadFloat(values, "rumble", settings.RumbleIntensity);
+        settings.ShowDamageNumbers = ReadLong(values, "damage_numbers", settings.ShowDamageNumbers ? 1 : 0) != 0;
+        if (values.TryGetValue("difficulty", out string? difficulty) && difficulty.Length > 0) settings.DifficultyId = difficulty;
+        // Bewusst KEIN Sanitize() hier: es würde die 0 bei screen_scale auf 1 klemmen und damit
+        // die Unterscheidung "nicht gesetzt" zerstören. Der Aufrufer (GameContext) setzt erst den
+        // Standard aus balance.json ein und klemmt danach.
+        return settings;
+    }
+
+    public void SaveSettings(GameSettings settings)
+    {
+        using SqliteConnection connection = Open();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        const string upsert = "INSERT INTO settings (key, value) VALUES ($key, $value) ON CONFLICT(key) DO UPDATE SET value = excluded.value;";
+        void Write(string key, string value)
+        {
+            SqliteCommand command = CreateCommand(connection, upsert, transaction);
+            command.Parameters.AddWithValue("$key", key);
+            command.Parameters.AddWithValue("$value", value);
+            command.ExecuteNonQuery();
+        }
+        Write("screen_scale", settings.ScreenScale.ToString(CultureInfo.InvariantCulture));
+        Write("fullscreen", settings.Fullscreen ? "1" : "0");
+        Write("vsync", settings.VSync ? "1" : "0");
+        Write("master_volume", settings.MasterVolume.ToString("0.###", CultureInfo.InvariantCulture));
+        Write("music_volume", settings.MusicVolume.ToString("0.###", CultureInfo.InvariantCulture));
+        Write("sfx_volume", settings.SfxVolume.ToString("0.###", CultureInfo.InvariantCulture));
+        Write("ambient_lift", settings.AmbientLift.ToString("0.###", CultureInfo.InvariantCulture));
+        Write("rumble", settings.RumbleIntensity.ToString("0.###", CultureInfo.InvariantCulture));
+        Write("damage_numbers", settings.ShowDamageNumbers ? "1" : "0");
+        Write("difficulty", settings.DifficultyId);
+        transaction.Commit();
+    }
+
+    // ------------------------------------------------------------------ Heimwelt
+    public List<HubDecoPlacement> LoadHubDeco()
+    {
+        var placements = new List<HubDecoPlacement>();
+        using SqliteConnection connection = Open();
+        using SqliteDataReader reader = CreateCommand(connection, "SELECT prop_id, tile_x, tile_y FROM hub_deco ORDER BY id;").ExecuteReader();
+        {
+            while (reader.Read())
+                placements.Add(new HubDecoPlacement(reader.GetString(0), reader.GetInt32(1), reader.GetInt32(2)));
+        }
+        return placements;
+    }
+
+    public void SaveHubDeco(IEnumerable<HubDecoPlacement> placements)
+    {
+        using SqliteConnection connection = Open();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        CreateCommand(connection, "DELETE FROM hub_deco;", transaction).ExecuteNonQuery();
+        const string insert = "INSERT INTO hub_deco (prop_id, tile_x, tile_y) VALUES ($prop, $x, $y);";
+        foreach (HubDecoPlacement placement in placements)
+        {
+            SqliteCommand command = CreateCommand(connection, insert, transaction);
+            command.Parameters.AddWithValue("$prop", placement.PropId);
+            command.Parameters.AddWithValue("$x", placement.TileX);
+            command.Parameters.AddWithValue("$y", placement.TileY);
+            command.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    public List<PetState> LoadPets()
+    {
+        var pets = new List<PetState>();
+        using SqliteConnection connection = Open();
+        using SqliteDataReader reader = CreateCommand(connection, "SELECT companion_id, name, loyalty, fed FROM pets;").ExecuteReader();
+        {
+            while (reader.Read())
+                pets.Add(new PetState(reader.GetString(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3)));
+        }
+        return pets;
+    }
+
+    public void SavePets(IEnumerable<PetState> pets)
+    {
+        using SqliteConnection connection = Open();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        CreateCommand(connection, "DELETE FROM pets;", transaction).ExecuteNonQuery();
+        const string insert = "INSERT INTO pets (companion_id, name, loyalty, fed, petted_at) VALUES ($id, $name, $loyalty, $fed, $at);";
+        string now = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        foreach (PetState pet in pets)
+        {
+            SqliteCommand command = CreateCommand(connection, insert, transaction);
+            command.Parameters.AddWithValue("$id", pet.CompanionId);
+            command.Parameters.AddWithValue("$name", pet.Name);
+            command.Parameters.AddWithValue("$loyalty", pet.Loyalty);
+            command.Parameters.AddWithValue("$fed", pet.Fed);
+            command.Parameters.AddWithValue("$at", now);
+            command.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
+    public Dictionary<string, int> LoadCollectibles()
+    {
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        using SqliteConnection connection = Open();
+        using SqliteDataReader reader = CreateCommand(connection, "SELECT item_id, count FROM collectibles;").ExecuteReader();
+        {
+            while (reader.Read()) counts[reader.GetString(0)] = reader.GetInt32(1);
+        }
+        return counts;
+    }
+
+    public void SaveCollectibles(IReadOnlyDictionary<string, int> counts)
+    {
+        using SqliteConnection connection = Open();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        CreateCommand(connection, "DELETE FROM collectibles;", transaction).ExecuteNonQuery();
+        const string insert = "INSERT INTO collectibles (item_id, count) VALUES ($id, $count);";
+        foreach (var (itemId, count) in counts)
+        {
+            SqliteCommand command = CreateCommand(connection, insert, transaction);
+            command.Parameters.AddWithValue("$id", itemId);
+            command.Parameters.AddWithValue("$count", count);
+            command.ExecuteNonQuery();
+        }
+        transaction.Commit();
+    }
+
     // ------------------------------------------------------------------ Helfer
     private SqliteConnection Open()
     {
@@ -318,8 +503,13 @@ public sealed class SqliteSaveRepository : ISaveRepository
         return command;
     }
 
-    private static long ReadLong(Dictionary<string, string> values, string key) =>
+    private static long ReadLong(Dictionary<string, string> values, string key, long fallback = 0L) =>
         values.TryGetValue(key, out string? raw) && long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed)
             ? parsed
-            : 0L;
+            : fallback;
+
+    private static float ReadFloat(Dictionary<string, string> values, string key, float fallback = 0f) =>
+        values.TryGetValue(key, out string? raw) && float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out float parsed)
+            ? parsed
+            : fallback;
 }

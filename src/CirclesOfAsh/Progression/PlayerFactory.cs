@@ -56,4 +56,27 @@ public static class PlayerFactory
                 context.Behaviors.CreateCompanion(definition.Behavior), slot++, spawn);
         }
     }
+
+    /// <summary>
+    /// Spieler für den Heimwelt-Hub: nutzt den gespeicherten Lauf (falls vorhanden) oder einen
+    /// schlichten "Wandler"-Look. Ohne Kampf-Stats-Wirrwarr: Basiswerte + Gläubigen-Bonus reicht.
+    /// </summary>
+    /// <param name="bottomCenter">
+    /// Standpunkt in PIXELN: Mitte der Füße, also der Punkt, auf dem die Figur steht.
+    /// Bewusst nicht die linke obere Ecke – die hängt von der Figurgröße ab und lud zum
+    /// Verwechseln mit Kachelkoordinaten ein. Gleiche Konvention wie bei <see cref="Npc"/>.
+    /// </param>
+    public static Player CreateHubPlayer(GameContext context, Vector2 bottomCenter)
+    {
+        ClassDefinition playerClass = context.Progression.CurrentRun is { } run
+            ? context.Definitions.Classes.Get(run.ClassId)
+            : context.Definitions.Classes.All.First();
+        CharacterAppearance appearance = context.Progression.CurrentRun?.Appearance ?? CharacterAppearance.Default;
+        var stats = new StatSheet(StatSheet.ParseAll(playerClass.BaseStats));
+        stats.AddPercent(StatType.Might, context.Progression.BelieverBonus(context.Definitions.Balance.MightPerHundredBelievers));
+        var player = new Player(playerClass, CharacterVisuals.Create(context, playerClass, appearance), stats, Vector2.Zero);
+        // Erst jetzt ist die Größe der Kollisionsbox bekannt -> Ecke daraus ableiten.
+        player.Position = bottomCenter - new Vector2(player.Size.X / 2f, player.Size.Y);
+        return player;
+    }
 }

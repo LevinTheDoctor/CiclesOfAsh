@@ -7,7 +7,10 @@ namespace CirclesOfAsh.Scenes;
 
 /// <summary>
 /// Kreis-Übersicht nach Dante: Höllentrichter mit aktueller Tiefe, Lore, Fortschritt der Verliese
-/// und ein Menü (hinabsteigen, Inventar, Bitten). Je tiefer der Kreis, desto dunkler der Bildschirm.
+/// und ein Menü (hinabsteigen, Inventar). Je tiefer der Kreis, desto dunkler der Bildschirm.
+///
+/// Wird vom Höllentor in der <see cref="HubScene"/> geöffnet und liegt deshalb immer ÜBER dem Tempel:
+/// "Zurück" ist ein Pop, kein Szenenwechsel. Die Bitten der Gläubigen hängen am Missionsbrett im Tempel.
 /// </summary>
 public sealed class CircleIntroScene : SceneBase
 {
@@ -23,14 +26,13 @@ public sealed class CircleIntroScene : SceneBase
     {
         _menu.Add("Hinabsteigen", () => Context.Scenes.Replace(LoadingScene.ForDungeon(Context, Run)));
         _menu.Add("Inventar", () => Context.Scenes.Push(new InventoryScene(Context, Run, player: null)));
-        _menu.Add("Bitten der Gläubigen", () => Context.Scenes.Push(new MissionBoardScene(Context)));
-        _menu.Add("Zum Titel", () => Context.Scenes.Replace(new TitleScene(Context)));
+        _menu.Add("Zurück in den Tempel", () => Context.Scenes.Pop());
     }
 
     public override void Update(float deltaSeconds)
     {
         _time += deltaSeconds;
-        if (Context.Input.WasPressed(GameAction.Cancel)) Context.Scenes.Replace(new TitleScene(Context));
+        if (Context.Input.WasPressed(GameAction.Cancel)) Context.Scenes.Pop();
         else _menu.Update(Context.Input, Context.Audio);
     }
 

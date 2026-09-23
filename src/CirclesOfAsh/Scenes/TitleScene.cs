@@ -13,10 +13,11 @@ public sealed class TitleScene : SceneBase
 
     public override void OnEnter()
     {
+        Context.Music.Play("music.title");
         ProgressionService progression = Context.Progression;
         if (progression.CurrentRun is not null)
         {
-            _menu.Add("Abstieg fortsetzen", () => Context.Scenes.Replace(new CircleIntroScene(Context)));
+            _menu.Add("Abstieg fortsetzen", () => Context.Scenes.Replace(new HubScene(Context)));
             _menu.Add("Lauf aufgeben (zählt als Tod)", () =>
                 Context.Scenes.Replace(new GameOverScene(Context, progression.HandleDeath())));
         }
@@ -24,7 +25,10 @@ public sealed class TitleScene : SceneBase
         {
             _menu.Add("Neuer Lauf", () => Context.Scenes.Replace(new CharacterCreatorScene(Context)));
         }
-        _menu.Add("Tempel der Gläubigen", () => Context.Scenes.Push(new MissionBoardScene(Context)));
+        // Ohne laufenden Abstieg gibt es keinen begehbaren Tempel (kein Spielerfigur-Zustand) –
+        // dann bleibt das Missionsbrett als Menü erreichbar.
+        if (progression.CurrentRun is null)
+            _menu.Add("Bitten der Gläubigen", () => Context.Scenes.Push(new MissionBoardScene(Context)));
         _menu.Add("Beenden", Context.RequestExit);
     }
 
@@ -48,7 +52,13 @@ public sealed class TitleScene : SceneBase
         MetaState meta = Context.Progression.Meta;
         Context.Font.DrawCentered(spriteBatch, $"Gläubige: {meta.Believers}   ·   Tode: {meta.Deaths}   ·   Ewige Gaben: {meta.UnlockedAbilities.Count}",
             centerX, CirclesGame.VirtualHeight - 30, Palette.Faith);
-        Context.Font.DrawCentered(spriteBatch, "A/D laufen · Leertaste springen · Shift Dash · Q/E Gaben · F benutzen · Esc Pause",
+        InputState input = Context.Input;
+        string controls = input.HasGamePad
+            ? $"Stick laufen · {input.Glyph(GameAction.Jump)} springen · {input.Glyph(GameAction.Dash)} Dash · "
+              + $"{input.Glyph(GameAction.AbilityOne)}/{input.Glyph(GameAction.AbilityTwo)} Gaben · "
+              + $"{input.Glyph(GameAction.Interact)} benutzen · {input.Glyph(GameAction.Pause)} Pause"
+            : "A/D laufen · Leertaste springen · Shift Dash · Q/E Gaben · F benutzen · Esc Pause";
+        Context.Font.DrawCentered(spriteBatch, controls,
             centerX, CirclesGame.VirtualHeight - 16, Palette.Ash);
         spriteBatch.End();
     }

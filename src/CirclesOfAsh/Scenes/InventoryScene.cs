@@ -81,7 +81,9 @@ public sealed class InventoryScene : SceneBase
             string hint = _menu.Selected?.Hint ?? "";
             Context.Font.DrawCenteredLines(spriteBatch, Context.Font.Wrap(hint, panel.Width - 24), centerX, panel.Bottom - 44, Palette.Bone * 0.85f);
         }
-        Context.Font.DrawCentered(spriteBatch, "Enter anlegen/ablegen · Esc zurück", centerX, panel.Bottom - 12, Palette.Ash);
+        Context.Font.DrawCentered(spriteBatch,
+            $"{Context.Input.Glyph(GameAction.Confirm)} anlegen/ablegen · {Context.Input.Glyph(GameAction.Cancel)} zurück",
+            centerX, panel.Bottom - 12, Palette.Ash);
         spriteBatch.End();
     }
 

@@ -158,7 +158,7 @@ public sealed class CharacterCreatorScene : SceneBase
     private void StartRun(IEnumerable<string> companionIds)
     {
         Context.Progression.StartNewRun(SelectedClass.Id, Look, companionIds);
-        Context.Scenes.Replace(new CircleIntroScene(Context));
+        Context.Scenes.Replace(new HubScene(Context));
     }
 
     // ------------------------------------------------------------------ Darstellung
@@ -190,9 +190,14 @@ public sealed class CharacterCreatorScene : SceneBase
             font.DrawCentered(spriteBatch, "Befreie Gefangene in den Kerkern für weitere Seelen.", panel.Center.X, panel.Bottom - 14, Palette.Ash);
         }
 
+        string confirmGlyph = Context.Input.Glyph(GameAction.Confirm),
+               cancelGlyph = Context.Input.Glyph(GameAction.Cancel),
+               randomGlyph = Context.Input.Glyph(GameAction.Randomize);
         string help = _step == Step.Look
-            ? (CurrentRow == Row.Name ? "Tippen: Name · Runter/Enter weiter · F5 Zufall · Esc zurück" : "Hoch/Runter Zeile · Links/Rechts ändern · Enter weiter · F5 Zufall · Esc zurück")
-            : "Enter wählen · Esc zurück";
+            ? (CurrentRow == Row.Name
+                ? $"Tippen: Name · Runter/{confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück"
+                : $"Hoch/Runter Zeile · Links/Rechts ändern · {confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück")
+            : $"{confirmGlyph} wählen · {cancelGlyph} zurück";
         font.DrawCentered(spriteBatch, help, centerX, CirclesGame.VirtualHeight - 14, Palette.Ash);
         spriteBatch.End();
     }

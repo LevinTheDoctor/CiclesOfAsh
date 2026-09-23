@@ -34,7 +34,7 @@ public sealed class MessageScene : SceneBase
         var panel = new Rectangle(60, 84, CirclesGame.VirtualWidth - 120, 130);
         UiDraw.Panel(spriteBatch, Context.Assets.Pixel, panel);
         Context.Font.DrawShadowed(spriteBatch, Context.Font.Wrap(_body, panel.Width - 20), new Vector2(panel.Left + 10, panel.Top + 10), Palette.Bone);
-        Context.Font.DrawCentered(spriteBatch, "Enter: weiter", centerX, CirclesGame.VirtualHeight - 20, Palette.Ash);
+        Context.Font.DrawCentered(spriteBatch, $"{Context.Input.Glyph(GameAction.Confirm)}: weiter", centerX, CirclesGame.VirtualHeight - 20, Palette.Ash);
         spriteBatch.End();
     }
 }
@@ -60,7 +60,7 @@ public sealed class GameOverScene : SceneBase
         Context.Font.DrawCentered(spriteBatch, $"Die Gestalt des {_report.ClassName} ist vergessen. Dein Abstieg endete im {_report.ReachedCircle}. Kreis.", centerX, 100, Palette.Bone);
         Context.Font.DrawCentered(spriteBatch, $"Gläubige: {_report.BelieversBefore}  ›  {_report.BelieversAfter} bleiben dir treu.", centerX, 120, Palette.Faith);
         Context.Font.DrawCentered(spriteBatch, "Deine ewigen Gaben und Begleitseelen bleiben erhalten.", centerX, 140, Palette.Soul);
-        Context.Font.DrawCentered(spriteBatch, "Enter: zurück zum Titel", centerX, CirclesGame.VirtualHeight - 20, Palette.Ash);
+        Context.Font.DrawCentered(spriteBatch, $"{Context.Input.Glyph(GameAction.Confirm)}: zurück zum Titel", centerX, CirclesGame.VirtualHeight - 20, Palette.Ash);
         spriteBatch.End();
     }
 }
@@ -88,7 +88,7 @@ public static class ResultSceneFactory
         // Lambda wählt das Ziel erst beim Bestätigen -> kein unnötiger Szenenaufbau vorab
         Action next = outcome.GameCompleted
             ? () => context.Scenes.Replace(new TitleScene(context))
-            : () => context.Scenes.Replace(new CircleIntroScene(context));
+            : () => context.Scenes.Replace(new HubScene(context));
         return new MessageScene(context, title, string.Join("\n\n", lines), Palette.Gold, next);
     }
 }

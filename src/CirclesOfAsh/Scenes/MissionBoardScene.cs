@@ -21,16 +21,17 @@ public sealed class MissionBoardScene : SceneBase
     private void Rebuild(int selectedIndex)
     {
         _menu = new MenuList();
+        string confirm = Context.Input.Glyph(GameAction.Confirm);
         foreach (MissionDefinition mission in Missions.Active)
         {
             MissionDefinition captured = mission;
             _menu.Add($"{mission.Title}  {Missions.ProgressOf(mission)}/{mission.Count}", () => Change(() => Missions.Abandon(captured)),
-                hint: $"{mission.Giver}: \"{mission.Text}\"\nBelohnung: {mission.RewardBelievers} Gläubige · Enter: Bitte aufgeben");
+                hint: $"{mission.Giver}: \"{mission.Text}\"\nBelohnung: {mission.RewardBelievers} Gläubige · {confirm}: Bitte aufgeben");
         }
         foreach (MissionDefinition mission in Missions.Available)
         {
             MissionDefinition captured = mission;
-            string hintSuffix = Missions.CanAccept ? "Enter: annehmen" : $"Du kannst höchstens {Missions.MaxActive} Bitten tragen.";
+            string hintSuffix = Missions.CanAccept ? $"{confirm}: annehmen" : $"Du kannst höchstens {Missions.MaxActive} Bitten tragen.";
             _menu.Add($"Neu: {mission.Title}", () => Change(() => Missions.Accept(captured)), Missions.CanAccept,
                 hint: $"{mission.Giver}: \"{mission.Text}\"\nBelohnung: {mission.RewardBelievers} Gläubige · {hintSuffix}");
         }

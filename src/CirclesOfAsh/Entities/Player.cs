@@ -213,7 +213,8 @@ public sealed class Player : Actor
         Flash();
         ApplyKnockback(source, knockback);
         world.Effects.Burst(Center, Palette.Blood, 12, 90f);
-        world.Effects.Text(new Vector2(Center.X, Position.Y - 4), $"-{(int)MathF.Ceiling(reduced)}", Palette.Blood);
+        if (world.Context.Settings.ShowDamageNumbers)
+            world.Effects.Text(new Vector2(Center.X, Position.Y - 4), $"-{(int)MathF.Ceiling(reduced)}", Palette.Blood);
         world.Context.Audio.Play("hurt", 0.7f);
         world.ShakeCamera(3f);
         if (Health.IsDead) world.NotifyPlayerDied();
@@ -260,6 +261,23 @@ public sealed class Player : Actor
             ability.CooldownRemaining = ability.EffectiveCooldown(Stats);
             world.Context.Audio.Play(definition.Sound, 0.35f);
         }
+    }
+
+    // ------------------------------------------------------------------ Heimwelt-Hub
+    /// <summary>Bewegung im Hub: gleiche Plattformer-Physik, aber ohne Kampf/Fähigkeiten/Mana.</summary>
+    public void UpdateHub(World.TileMap map, InputState input, float deltaSeconds)
+    {
+        float horizontal = input.Horizontal;
+        float targetSpeed = horizontal * Stats[StatType.MoveSpeed];
+        float rate = (MathF.Abs(horizontal) > 0.01f ? Acceleration : Deceleration) * (OnGround ? 1f : AirControl);
+        Velocity.X = MoveTowards(Velocity.X, targetSpeed, rate * deltaSeconds);
+        if (MathF.Abs(horizontal) > 0.1f) FacingRight = horizontal > 0f;
+
+        if (input.WasPressed(GameAction.Jump) && OnGround) Velocity.Y = -Stats[StatType.JumpPower];
+        Velocity.Y = MathF.Min(Velocity.Y + TilePhysics.Gravity * deltaSeconds, TilePhysics.MaxFallSpeed);
+        LastCollision = TilePhysics.MoveAndCollide(this, map, deltaSeconds, ignorePlatforms: false);
+        OnGround = LastCollision.HasFlag(CollisionResult.Landed);
+        UpdateAnimation(deltaSeconds);
     }
 
     // ------------------------------------------------------------------ Darstellung
