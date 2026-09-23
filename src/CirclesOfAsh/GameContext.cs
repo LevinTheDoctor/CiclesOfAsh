@@ -112,8 +112,9 @@ public sealed class GameContext : IDisposable
     /// <summary>
     /// Sucht zum Gerätenamen eines Controllers das passende Profil aus controllers.json und
     /// übersetzt dessen Beschriftungen in GameActions. Kein Treffer -> das Auffangprofil (leeres "match").
+    /// Public, damit der Steuerungs-Reiter im Optionsmenü das erkannte Profil anzeigen kann.
     /// </summary>
-    private IReadOnlyDictionary<GameAction, string>? ResolveControllerLabels(string deviceName)
+    public IReadOnlyDictionary<GameAction, string>? ResolveControllerLabels(string deviceName)
     {
         List<ControllerProfileDefinition> profiles = Definitions.ControllerProfiles.All.ToList();
         if (profiles.Count == 0) return null;

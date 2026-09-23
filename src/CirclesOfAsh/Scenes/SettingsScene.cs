@@ -7,99 +7,148 @@ using CirclesOfAsh.UI;
 namespace CirclesOfAsh.Scenes;
 
 /// <summary>
-/// Optionsmenü: Bildschirm (Größe/Vollbild), Audio (Master/Musik/SFX getrennt),
-/// Gameplay (Licht, Vibration, Schadenszahlen, Schwierigkeit). Alles sofort persistent.
+/// Optionsmenü mit vier Reitern: Bildschirm · Audio · Steuerung · Gameplay.
+/// Links/Rechts wechselt den Reiter, Hoch/Runter die Zeile, Werte über die Schultertasten.
+/// Der Reiter „Steuerung" zeigt den erkannten Controller samt Profil und ist der spätere Ort für
+/// frei belegbare Tasten (Content/Data/input.json, Roadmap). Alles sofort persistent.
 /// Steuerung komplett per GameAction -> Tastatur UND Controller.
 /// </summary>
 public sealed class SettingsScene : SceneBase
 {
-    private enum Row { ScreenScale, Fullscreen, VSync, Master, Music, Sfx, AmbientLift, Rumble, DamageNumbers, Difficulty, Back }
-    private readonly Row[] _rows = Enum.GetValues<Row>();
-    private int _rowIndex;
+    private enum Tab { Screen, Audio, Control, Gameplay }
+    private enum ScreenRow { Scale, Fullscreen, VSync }
+    private enum AudioRow { Master, Music, Sfx }
+    private enum GameplayRow { AmbientLift, Rumble, DamageNumbers, Difficulty }
+
     private readonly List<DifficultyDefinition> _difficulties;
+    private Tab _tab;
+    private int _rowIndex;
+
+    private readonly record struct TabLayout(string Title, int RowCount);
+    private static TabLayout LayoutOf(Tab tab) => tab switch
+    {
+        Tab.Screen => new TabLayout("Bildschirm", 3),
+        Tab.Audio => new TabLayout("Audio", 3),
+        Tab.Control => new TabLayout("Steuerung", 3),
+        _ => new TabLayout("Gameplay", 4),
+    };
 
     public SettingsScene(GameContext context) : base(context)
     {
         _difficulties = context.Definitions.Difficulties.All.ToList();
     }
 
-    private Row CurrentRow => _rows[_rowIndex];
     private GameSettings Settings => Context.Settings;
+    private int RowCount => LayoutOf(_tab).RowCount;
+    private int RowIndex
+    {
+        get => _rowIndex;
+        set => _rowIndex = Math.Clamp(value, 0, RowCount - 1);
+    }
 
     public override bool IsOverlay => true;
 
     public override void Update(float deltaSeconds)
     {
         InputState input = Context.Input;
+
         if (input.WasPressed(GameAction.Cancel))
         {
-            Context.SaveSettings();
-            Context.Scenes.Pop();
+            Leave();
             return;
         }
 
-        if (input.WasPressed(GameAction.Down)) Move(1);
-        if (input.WasPressed(GameAction.Up)) Move(-1);
-
-        int change = input.WasPressed(GameAction.Right) ? 1 : input.WasPressed(GameAction.Left) ? -1 : 0;
-        if (change != 0) ChangeValue(change);
-
-        if (input.WasPressed(GameAction.Confirm) && CurrentRow == Row.Back)
+        // Links/Rechts: Reiter wechseln (Zeilenindex wird beim Wechsel auf den neuen Reiter geklemmt)
+        if (input.WasPressed(GameAction.Left) && _tab > Tab.Screen)
         {
-            Context.SaveSettings();
-            Context.Scenes.Pop();
+            _tab--;
+            RowIndex = Math.Min(RowIndex, RowCount - 1);
+            Context.Audio.Play("pickup", 0.2f, 0.4f);
+            return;
         }
+        if (input.WasPressed(GameAction.Right) && _tab < Tab.Gameplay)
+        {
+            _tab++;
+            RowIndex = Math.Min(RowIndex, RowCount - 1);
+            Context.Audio.Play("pickup", 0.2f, 0.4f);
+            return;
+        }
+
+        // Hoch/Runter: Zeile; Schultertasten (AbilityOne/Two) ändern Werte
+        if (input.WasPressed(GameAction.Down)) RowIndex = (RowIndex + 1) % RowCount;
+        if (input.WasPressed(GameAction.Up)) RowIndex = (RowIndex - 1 + RowCount) % RowCount;
+
+        int change = input.WasPressed(GameAction.AbilityTwo) ? 1 : input.WasPressed(GameAction.AbilityOne) ? -1 : 0;
+        if (change != 0) ChangeValue(change);
     }
 
-    private void Move(int step)
+    private void Leave()
     {
-        _rowIndex = (_rowIndex + step + _rows.Length) % _rows.Length;
-        Context.Audio.Play("pickup", 0.2f, 0.4f);
+        Context.SaveSettings();
+        Context.Scenes.Pop();
     }
 
+    /// <summary>Ändert den Wert der aktuellen Zeile im aktuellen Reiter.</summary>
     private void ChangeValue(int step)
     {
-        switch (CurrentRow)
+        switch (_tab)
         {
-            case Row.ScreenScale:
-                Settings.ScreenScale = Math.Clamp(Settings.ScreenScale + step, 1, 6);
-                ApplyScreenSettings();
+            case Tab.Screen:
+                switch ((ScreenRow)RowIndex)
+                {
+                    case ScreenRow.Scale:
+                        Settings.ScreenScale = Math.Clamp(Settings.ScreenScale + step, 1, 6);
+                        ApplyScreenSettings();
+                        break;
+                    case ScreenRow.Fullscreen:
+                        Settings.Fullscreen = !Settings.Fullscreen;
+                        ApplyScreenSettings();
+                        break;
+                    case ScreenRow.VSync:
+                        Settings.VSync = !Settings.VSync;
+                        ApplyScreenSettings();
+                        break;
+                }
                 break;
-            case Row.Fullscreen:
-                Settings.Fullscreen = !Settings.Fullscreen;
-                ApplyScreenSettings();
+            case Tab.Audio:
+                switch ((AudioRow)RowIndex)
+                {
+                    case AudioRow.Master:
+                        Settings.MasterVolume = Math.Clamp(Settings.MasterVolume + step * 0.05f, 0f, 1f);
+                        break;
+                    case AudioRow.Music:
+                        Settings.MusicVolume = Math.Clamp(Settings.MusicVolume + step * 0.05f, 0f, 1f);
+                        break;
+                    case AudioRow.Sfx:
+                        Settings.SfxVolume = Math.Clamp(Settings.SfxVolume + step * 0.05f, 0f, 1f);
+                        Context.Audio.Play("pickup", 0.5f, 0.3f);   // Probe-Sound
+                        break;
+                }
                 break;
-            case Row.VSync:
-                Settings.VSync = !Settings.VSync;
-                ApplyScreenSettings();
+            case Tab.Gameplay:
+                switch ((GameplayRow)RowIndex)
+                {
+                    case GameplayRow.AmbientLift:
+                        Settings.AmbientLift = Math.Clamp(Settings.AmbientLift + step * 0.05f, 0f, 1f);
+                        break;
+                    case GameplayRow.Rumble:
+                        Settings.RumbleIntensity = Math.Clamp(Settings.RumbleIntensity + step * 0.1f, 0f, 1f);
+                        break;
+                    case GameplayRow.DamageNumbers:
+                        Settings.ShowDamageNumbers = !Settings.ShowDamageNumbers;
+                        break;
+                    case GameplayRow.Difficulty:
+                    {
+                        int index = Math.Max(0, _difficulties.FindIndex(candidate => candidate.Id == Settings.DifficultyId));
+                        index = (index + step + _difficulties.Count) % _difficulties.Count;
+                        Settings.DifficultyId = _difficulties[index].Id;
+                        Context.Progression.SetDifficulty(Settings.DifficultyId);
+                        break;
+                    }
+                }
                 break;
-            case Row.Master:
-                Settings.MasterVolume = Math.Clamp(Settings.MasterVolume + step * 0.05f, 0f, 1f);
-                break;
-            case Row.Music:
-                Settings.MusicVolume = Math.Clamp(Settings.MusicVolume + step * 0.05f, 0f, 1f);
-                break;
-            case Row.Sfx:
-                Settings.SfxVolume = Math.Clamp(Settings.SfxVolume + step * 0.05f, 0f, 1f);
-                Context.Audio.Play("pickup", 0.5f, 0.3f);   // Probe-Sound
-                break;
-            case Row.AmbientLift:
-                Settings.AmbientLift = Math.Clamp(Settings.AmbientLift + step * 0.05f, 0f, 1f);
-                break;
-            case Row.Rumble:
-                Settings.RumbleIntensity = Math.Clamp(Settings.RumbleIntensity + step * 0.1f, 0f, 1f);
-                break;
-            case Row.DamageNumbers:
-                Settings.ShowDamageNumbers = !Settings.ShowDamageNumbers;
-                break;
-            case Row.Difficulty:
-            {
-                int index = Math.Max(0, _difficulties.FindIndex(candidate => candidate.Id == Settings.DifficultyId));
-                index = (index + step + _difficulties.Count) % _difficulties.Count;
-                Settings.DifficultyId = _difficulties[index].Id;
-                Context.Progression.SetDifficulty(Settings.DifficultyId);
-                break;
-            }
+            case Tab.Control:
+                break;   // Reiter ist rein informell, bis input.json umsetzbar ist
         }
         Context.SaveSettings();
         Context.Audio.Play("pickup", 0.25f, 0.2f);
@@ -123,45 +172,14 @@ public sealed class SettingsScene : SceneBase
         UiDraw.Panel(spriteBatch, pixel, panel);
         Context.TitleFont.DrawCentered(spriteBatch, "Optionen", centerX, panel.Top + 4, Palette.Gold);
 
-        float y = panel.Top + 26;
-        foreach (Row row in _rows)
-        {
-            if (row == Row.Back)
-            {
-                font.DrawCentered(spriteBatch, CurrentRow == row ? "· Zurück ·" : "Zurück", centerX, panel.Bottom - 14,
-                    CurrentRow == row ? Palette.Gold : Palette.Bone);
-                break;
-            }
+        DrawTabs(spriteBatch, font, pixel, centerX, panel);
 
-            string label = row switch
-            {
-                Row.ScreenScale => "Bildschirmgröße",
-                Row.Fullscreen => "Vollbild",
-                Row.VSync => "VSync",
-                Row.Master => "Lautstärke",
-                Row.Music => "Musik",
-                Row.Sfx => "Effekte",
-                Row.AmbientLift => "Helligkeit",
-                Row.Rumble => "Vibration",
-                Row.DamageNumbers => "Schadenszahlen",
-                Row.Difficulty => "Schwierigkeit",
-                _ => "",
-            };
-            string value = row switch
-            {
-                Row.ScreenScale => $"{Settings.ScreenScale}x ({CirclesGame.VirtualWidth * Settings.ScreenScale}x{CirclesGame.VirtualHeight * Settings.ScreenScale})",
-                Row.Fullscreen => Settings.Fullscreen ? "An" : "Aus",
-                Row.VSync => Settings.VSync ? "An" : "Aus",
-                Row.Master => Bar(Settings.MasterVolume),
-                Row.Music => Bar(Settings.MusicVolume),
-                Row.Sfx => Bar(Settings.SfxVolume),
-                Row.AmbientLift => Bar(Settings.AmbientLift),
-                Row.Rumble => Bar(Settings.RumbleIntensity),
-                Row.DamageNumbers => Settings.ShowDamageNumbers ? "An" : "Aus",
-                Row.Difficulty => _difficulties.FirstOrDefault(d => d.Id == Settings.DifficultyId)?.Name ?? "?",
-                _ => "",
-            };
-            bool isSelected = CurrentRow == row;
+        // Zeilen des aktiven Reiters
+        float y = panel.Top + 40;
+        for (int index = 0; index < RowCount; index++)
+        {
+            (string label, string value) = RowTexts(_tab, index);
+            bool isSelected = index == RowIndex;
             Color color = isSelected ? Palette.Gold : Palette.Bone * 0.85f;
             font.DrawShadowed(spriteBatch, label, new Vector2(panel.Left + 12, y), color);
             font.DrawShadowed(spriteBatch, isSelected ? $"‹ {value} ›" : value, new Vector2(panel.Left + 130, y),
@@ -169,20 +187,95 @@ public sealed class SettingsScene : SceneBase
             y += font.LineHeight + 3;
         }
 
-        // Beschreibung der gewählten Zeile
-        string? hint = CurrentRow switch
+        DrawTabHint(spriteBatch, font, centerX, panel);
+        font.DrawCentered(spriteBatch, "Links/Rechts: Reiter · Hoch/Runter: Zeile · Schultertasten: ändern · Esc: zurück",
+            centerX, CirclesGame.VirtualHeight - 12, Palette.Ash);
+        spriteBatch.End();
+    }
+
+    /// <summary>Reiterleiste: aktiver Reiter hervorgehoben, Rest schlicht.</summary>
+    private void DrawTabs(SpriteBatch spriteBatch, BitmapFont font, Texture2D pixel, float centerX, Rectangle panel)
+    {
+        float y = panel.Top + 24;
+        string[] titles = { "Bildschirm", "Audio", "Steuerung", "Gameplay" };
+        float totalWidth = titles.Sum(title => font.MeasureWidth(title) + 24);
+        float x = centerX - totalWidth / 2f;
+        for (int index = 0; index < titles.Length; index++)
         {
-            Row.Difficulty => _difficulties.FirstOrDefault(d => d.Id == Settings.DifficultyId)?.Description,
-            Row.AmbientLift => "Hellt die Grundhelligkeit der Verliese auf – gegen zu starke Dunkelheit.",
-            Row.Music => "Nur der Soundtrack. Wirkt sofort.",
-            Row.Sfx => "Nur Soundeffekte. Wirkt sofort.",
+            var tab = (Tab)index;
+            int width = font.MeasureWidth(titles[index]) + 24;
+            bool active = tab == _tab;
+            if (active) UiDraw.Rect(spriteBatch, pixel, new Rectangle((int)x - 4, (int)y - 2, width + 8, font.LineHeight + 4), Palette.Gold * 0.18f);
+            font.DrawShadowed(spriteBatch, titles[index], new Vector2(x, y), active ? Palette.Gold : Palette.Bone * 0.7f);
+            x += width + 8;
+        }
+    }
+
+    /// <summary>Beschriftung + Wert der Zeile (Reiter, Index).</summary>
+    private (string Label, string Value) RowTexts(Tab tab, int row) => tab switch
+    {
+        Tab.Screen => (ScreenRow)row switch
+        {
+            ScreenRow.Scale => ("Bildschirmgröße", $"{Settings.ScreenScale}x ({CirclesGame.VirtualWidth * Settings.ScreenScale}x{CirclesGame.VirtualHeight * Settings.ScreenScale})"),
+            ScreenRow.Fullscreen => ("Vollbild", Settings.Fullscreen ? "An" : "Aus"),
+            ScreenRow.VSync => ("VSync", Settings.VSync ? "An" : "Aus"),
+            _ => ("", ""),
+        },
+        Tab.Audio => (AudioRow)row switch
+        {
+            AudioRow.Master => ("Lautstärke", Bar(Settings.MasterVolume)),
+            AudioRow.Music => ("Musik", Bar(Settings.MusicVolume)),
+            AudioRow.Sfx => ("Effekte", Bar(Settings.SfxVolume)),
+            _ => ("", ""),
+        },
+        Tab.Control => (ControlRow)row switch
+        {
+            ControlRow.Controller => ("Controller", Context.Input.HasGamePad ? ControllerName() : "keiner"),
+            ControlRow.Profile => ("Profil", Context.Input.HasGamePad ? ControllerProfile() : "–"),
+            ControlRow.Bindings => ("Belegung", "fest (Roadmap: frei)"),
+            _ => ("", ""),
+        },
+        _ => (GameplayRow)row switch
+        {
+            GameplayRow.AmbientLift => ("Helligkeit", Bar(Settings.AmbientLift)),
+            GameplayRow.Rumble => ("Vibration", Bar(Settings.RumbleIntensity)),
+            GameplayRow.DamageNumbers => ("Schadenszahlen", Settings.ShowDamageNumbers ? "An" : "Aus"),
+            GameplayRow.Difficulty => ("Schwierigkeit", _difficulties.FirstOrDefault(d => d.Id == Settings.DifficultyId)?.Name ?? "?"),
+            _ => ("", ""),
+        },
+    };
+
+    private enum ControlRow { Controller, Profile, Bindings }
+
+    /// <summary>Gerätename des Controllers, gekürzt, damit er in die Zeile passt.</summary>
+    private string ControllerName()
+    {
+        string? name = Context.Input.CurrentPadName;
+        if (string.IsNullOrEmpty(name)) return "verbunden";
+        return name.Length > 26 ? name[..23] + "…" : name;
+    }
+
+    private string ControllerProfile()
+    {
+        string? name = Context.Input.CurrentPadName;
+        if (string.IsNullOrEmpty(name)) return "–";
+        IReadOnlyDictionary<GameAction, string>? labels = Context.ResolveControllerLabels(name);
+        return labels is not null ? "erkannt" : "Standard";
+    }
+
+    /// <summary>Kurzhinweis unten im Panel, passend zum Reiter.</summary>
+    private void DrawTabHint(SpriteBatch spriteBatch, BitmapFont font, float centerX, Rectangle panel)
+    {
+        string? hint = _tab switch
+        {
+            Tab.Screen => "Fenstergröße in Faktoren der virtuellen Auflösung. Wirkt sofort.",
+            Tab.Audio => "Alle Regler wirken sofort. Effekte spielen beim Ändern einen Probe-Sound.",
+            Tab.Control => "Zeigt den erkannten Controller und sein Beschriftungsprofil (controllers.json).",
+            Tab.Gameplay => _difficulties.FirstOrDefault(d => d.Id == Settings.DifficultyId)?.Description,
             _ => null,
         };
         if (hint is not null)
             font.DrawCenteredLines(spriteBatch, font.Wrap(hint, panel.Width - 30), centerX, panel.Bottom - 44, Palette.Ash);
-
-        font.DrawCentered(spriteBatch, "Hoch/Runter: Zeile · Links/Rechts: ändern · Esc: zurück", centerX, CirclesGame.VirtualHeight - 12, Palette.Ash);
-        spriteBatch.End();
     }
 
     private static string Bar(float ratio)

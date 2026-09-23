@@ -217,3 +217,11 @@ erkannten Controller und ist später der Ort für frei belegbare Tasten
 
 **Prüfen:** Jeden Reiter mit Tastatur **und** Controller durchsteuern; alle Werte müssen einen
 Neustart überleben.
+
+**Erledigt (Code).** `SettingsScene` in vier Reiter gegliedert: Bildschirm (3 Zeilen), Audio (3),
+Steuerung (3: Controller-Name, Profil, Belegungsstatus), Gameplay (4). Links/Rechts (Tastatur
+Pfeile, Pad-Stick/D-Pad) wechselt den Reiter, Hoch/Runter die Zeile, Q/E bzw. X/Y ändern Werte,
+Esc verlässt und speichert. `InputState.CurrentPadName` und public
+`GameContext.ResolveControllerLabels` speisen den Steuerungs-Reiter. Spielstart verifiziert;
+**manuell zu prüfen:** Reiter-Durchsteuerung mit Pad + Persistenz über Neustart (SQLite liegt in
+`~/Library/Application Support/CirclesOfAsh/save.db`).

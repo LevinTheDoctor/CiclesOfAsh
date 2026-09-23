@@ -70,6 +70,9 @@ public sealed class InputState
     /// <summary>true, sobald ein Gamepad angeschlossen ist. Steuert, ob Glyphen oder Tasten angezeigt werden.</summary>
     public bool HasGamePad { get; private set; }
 
+    /// <summary>Gerätename des angeschlossenen Controllers (leer = keiner). Für die Anzeige im Optionsmenü.</summary>
+    public string CurrentPadName => HasGamePad ? _padName : "";
+
     /// <summary>Im aktuellen Frame getippte Zeichen (inkl. '\b' für Rücktaste). Für Namenseingaben.</summary>
     public string TypedText { get; private set; } = "";
 
