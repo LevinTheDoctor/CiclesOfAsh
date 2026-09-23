@@ -1,3 +1,4 @@
+using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 
 namespace CirclesOfAsh.World;
@@ -19,6 +20,15 @@ public sealed class WaveDirector
     private int _remainingToSpawn;
     private float _spawnTimer;
     private float _breakTimer;
+    /// <summary>
+    /// Notausgang-Wächter: Sekunden seit der letzten spürbaren Kampfhandlung (Spawn, Treffer,
+    /// Tod). Passiert 45 Sekunden lang nichts, obwohl noch Gegner leben, wird der Kampf
+    /// zwangsweise abgeschlossen – lieber ein sichtbarer Log-Eintrag als ein eingesperrter Spieler.
+    /// </summary>
+    private const float StalemateSeconds = 45f;
+    private float _stalemateTimer;
+    /// <summary>Gesundheitssumme der Kampfgegner beim letzten Wächter-Tick (Taktgeber des Wächters).</summary>
+    private float _lastKnownThreat;
 
     public WaveDirector(DungeonPlan plan, BalanceDefinition balance, IEnumerable<RoomNode> rooms, float waveSizeMultiplier)
     {
@@ -52,6 +62,7 @@ public sealed class WaveDirector
         if (_arena.Type is RoomType.Boss or RoomType.Prison)
         {
             if (world.AliveEnemyCountOf(_arena.OwnerKey) == 0) CompleteArena(world);
+            else CheckStalemate(world, deltaSeconds);
             return;
         }
 
@@ -70,7 +81,11 @@ public sealed class WaveDirector
             _spawnTimer = _balance.SpawnInterval;
         }
 
-        if (_remainingToSpawn > 0 || world.AliveEnemyCountOf(_arena.OwnerKey) > 0) return;
+        if (_remainingToSpawn > 0 || world.AliveEnemyCountOf(_arena.OwnerKey) > 0)
+        {
+            CheckStalemate(world, deltaSeconds);
+            return;
+        }
 
         _waveIndex++;
         if (_waveIndex >= _plan.WavesPerArena)
@@ -80,6 +95,38 @@ public sealed class WaveDirector
         }
         _breakTimer = _balance.WaveBreakSeconds;
         world.Announce($"Welle {_waveIndex + 1} naht …");
+    }
+
+    /// <summary>
+    /// Notausgang: Steht der Kampf 45 Sekunden lang still — kein Gegner stirbt, nimmt Schaden
+    /// oder wird beschworen —, werden die Verbliebenen entfernt und die Arena abgeschlossen.
+    /// Gemessen wird die Gesundheitssumme aller Gegner des Kampfes: Jeder Spawn erhöht sie,
+    /// jeder Treffer oder Tod senkt sie. So greift der Wächter nicht mitten in einem
+    /// ordentlichen, nur langen Boss-Kampf. Der Log-Eintrag ist bewusst laut – er soll eine
+    /// verbleibende Ursache sichtbar machen, nicht still überdecken.
+    /// </summary>
+    private void CheckStalemate(DungeonWorld world, float deltaSeconds)
+    {
+        float threat = world.ThreatOf(_arena!.OwnerKey);
+        if (MathF.Abs(threat - _lastKnownThreat) > 0.5f)
+        {
+            _lastKnownThreat = threat;
+            _stalemateTimer = 0f;
+            return;
+        }
+
+        _stalemateTimer += deltaSeconds;
+        if (_stalemateTimer < StalemateSeconds) return;
+
+        int alive = world.AliveEnemyCountOf(_arena.OwnerKey);
+        int removed = world.RemoveEnemiesOf(_arena.OwnerKey);
+        Log.Warn($"NOTAUSGANG: Kampf in Raum {_arena.OwnerKey} ({_arena.Type}) ging {StalemateSeconds:0} s "
+               + $"lang nicht vorwärts ({alive} Gegner lebten, niemand nahm Schaden). {removed} Gegner "
+               + "wurden entfernt und die Arena abgeschlossen. Bitte melden, wenn das regulär vorkommt.");
+        world.Announce("Ein Fluch löst sich – die Tore öffnen sich.");
+        _stalemateTimer = 0f;
+        _lastKnownThreat = 0f;
+        CompleteArena(world);
     }
 
     private void TryBeginArena(DungeonWorld world)
@@ -93,6 +140,8 @@ public sealed class WaveDirector
         if (!inner.Contains(world.Player.Bounds)) return;
 
         _arena = room;
+        _stalemateTimer = 0f;
+        _lastKnownThreat = 0f;
         SealDoors(world.Map, room);
         world.Context.Audio.Play("roar", 0.6f);
         world.ShakeCamera(4f);

@@ -64,7 +64,7 @@ Spieler zu. Zusätzlich zeigt die HUD die Zahl der verbliebenen Gegner, damit si
 `AliveEnemyCountOf(owner) <= 1`. HUD: „Verdammte: N" unter dem Wellenstatus, solange ein Kampf
 läuft und Gegner übrig sind.
 
-### [ ] 1.4 Notausgang gegen Einmauern
+### [x] 1.4 Notausgang gegen Einmauern
 
 **Problem:** Auch mit 1.1 bis 1.3 kann ein unvorhergesehener Fall den Spieler einsperren. Es gibt
 keine Rückfallebene.
@@ -75,6 +75,11 @@ ins Log geschrieben. Bewusst *auffällig* im Log — der Wächter soll eine verb
 sichtbar machen, nicht still überdecken.
 
 **Prüfen:** Log nach längeren Testläufen auf die Meldung durchsehen.
+
+**Erledigt.** `WaveDirector.CheckStalemate` misst die Gesundheitssumme des Kampfes
+(`DungeonWorld.ThreatOf(owner)`) statt nur den Zähler: Jeder Spawn erhöht sie, jeder Treffer senkt
+sie — ein laufender, nur langsamer Boss-Kampf löst den Wächter also nicht aus. Stillstand über
+45 s → Gegner entfernen, Arena abschließen, `Log.Warn("NOTAUSGANG: …")`.
 
 ### [ ] 1.5 Spawnpunkte gegen die Geometrie prüfen
 

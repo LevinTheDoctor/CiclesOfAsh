@@ -131,6 +131,14 @@ public sealed class DungeonWorld : IDisposable
         _enemies.Count(enemy => !enemy.IsRemoved && enemy.Owner == owner)
         + _spawnQueue.Count(entity => entity is Enemy queued && queued.Owner == owner);
 
+    /// <summary>
+    /// Summe der restlichen Lebenspunkte aller Gegner eines Ereignisses. Jeder Spawn erhöht sie,
+    /// jeder Treffer oder Tod senkt sie – der Notausgang-Wächter im WaveDirector nutzt sie als
+    /// Taktgeber: Bleibt sie 45 Sekunden unverändert, ist der Kampf stehen geblieben.
+    /// </summary>
+    public float ThreatOf(string owner) =>
+        _enemies.Where(enemy => !enemy.IsRemoved && enemy.Owner == owner).Sum(enemy => enemy.Health.Current);
+
     /// <summary>Entfernt alle noch lebenden Gegner eines Ereignisses (Notausgang, siehe WaveDirector).</summary>
     public int RemoveEnemiesOf(string owner)
     {
