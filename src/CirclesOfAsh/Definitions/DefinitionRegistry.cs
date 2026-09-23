@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using CirclesOfAsh.Assets;
 using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
@@ -29,6 +30,10 @@ public sealed class DefinitionSet<T> where T : class, IDefinition
     public T Get(string id) => _byId.TryGetValue(id, out T? definition)
         ? definition
         : throw new KeyNotFoundException($"{typeof(T).Name} mit der ID '{id}' ist nicht definiert.");
+
+    /// <summary>Nicht-wurfende Variante für optionale Daten (z. B. Schwierigkeits-Fallback).</summary>
+    /// <remarks>NotNullWhen(true): im Erfolgsfall ist "definition" garantiert gesetzt – der Aufrufer braucht kein "!".</remarks>
+    public bool TryGet(string id, [NotNullWhen(true)] out T? definition) => _byId.TryGetValue(id, out definition);
 }
 
 /// <summary>
@@ -47,6 +52,10 @@ public sealed class DefinitionRegistry
     public DefinitionSet<PropDefinition> Props { get; } = new();
     public DefinitionSet<RoomThemeDefinition> Themes { get; } = new();
     public DefinitionSet<MissionDefinition> Missions { get; } = new();
+    public DefinitionSet<DialogDefinition> Dialogs { get; } = new();
+    public DefinitionSet<NpcDefinition> Npcs { get; } = new();
+    public DefinitionSet<DifficultyDefinition> Difficulties { get; } = new();
+    public DefinitionSet<ControllerProfileDefinition> ControllerProfiles { get; } = new();
     public BalanceDefinition Balance { get; private set; } = new();
     public AppearanceDefinition Appearance { get; private set; } = new();
     public IReadOnlyList<string> Tips { get; private set; } = Array.Empty<string>();
@@ -64,6 +73,10 @@ public sealed class DefinitionRegistry
         LoadInto(locator, "Data/props.json", registry.Props);
         LoadInto(locator, "Data/themes.json", registry.Themes);
         LoadInto(locator, "Data/missions.json", registry.Missions);
+        LoadInto(locator, "Data/dialogs.json", registry.Dialogs);
+        LoadInto(locator, "Data/npcs.json", registry.Npcs);
+        LoadInto(locator, "Data/difficulties.json", registry.Difficulties);
+        LoadInto(locator, "Data/controllers.json", registry.ControllerProfiles);
         // Einzelobjekte: die Datei mit der höchsten Priorität gewinnt komplett
         foreach (string path in locator.FindAllLayered("Data/balance.json")) registry.Balance = JsonDefaults.Load<BalanceDefinition>(path);
         foreach (string path in locator.FindAllLayered("Data/appearance.json")) registry.Appearance = JsonDefaults.Load<AppearanceDefinition>(path);
@@ -177,6 +190,27 @@ public sealed class DefinitionRegistry
 
         foreach (MissionDefinition mission in Missions.All)
             Require(mission.Count > 0, $"Mission '{mission.Id}': Count muss größer als 0 sein.");
+
+        foreach (DialogDefinition dialog in Dialogs.All)
+        {
+            Require(dialog.Lines.Count > 0, $"Dialog '{dialog.Id}': keine Zeilen definiert.");
+            foreach (DialogLineDefinition line in dialog.Lines)
+            foreach (DialogChoiceDefinition choice in line.Choices)
+                Require(choice.Next.Length == 0 || dialog.Lines.Any(candidate => candidate.Id == choice.Next),
+                    $"Dialog '{dialog.Id}': Ziel '{choice.Next}' existiert nicht.");
+        }
+
+        foreach (NpcDefinition npc in Npcs.All)
+        {
+            WarnIfSpriteMissing(npc.SpriteSheet, $"NPC '{npc.Id}'");
+            Require(!string.IsNullOrEmpty(npc.DialogId) && Dialogs.Contains(npc.DialogId), $"NPC '{npc.Id}': Dialog '{npc.DialogId}' existiert nicht.");
+        }
+
+        Require(Difficulties.Contains("devout"), "difficulties.json: die Standard-Stufe 'devout' fehlt.");
+
+        // Genau ein Auffangprofil (leeres "match") – sonst hinge die Wahl von der Dateireihenfolge ab.
+        Require(ControllerProfiles.All.Count(profile => profile.Match.Count == 0) == 1,
+            "controllers.json: es muss genau ein Profil ohne \"match\" geben (Auffangprofil).");
 
         Require(Appearance.SkinTones.Count > 0 && Appearance.HairStyles.Count > 0, "appearance.json: Hauttöne und Frisuren dürfen nicht leer sein.");
         WarnIfSpriteMissing(Appearance.BodySprite, "Aussehen (Körper)");

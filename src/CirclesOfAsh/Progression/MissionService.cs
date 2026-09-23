@@ -6,6 +6,8 @@ namespace CirclesOfAsh.Progression;
 /// Bitten der Gläubigen. Spielsysteme melden Ereignisse (Report), der Service zählt Fortschritt
 /// für passende AKTIVE Missionen und vergibt die Belohnung. Fortschritt ist Meta-Fortschritt:
 /// er bleibt auch nach dem Tod erhalten.
+/// Fortschritt für noch nicht angenommene Bitten wird vorgemerkt: Wer vorher 10 Ghule erlegt
+/// und die Bitte dann annimmt, startet nicht bei 0 (häufiger "kaputt"-Eindruck).
 /// </summary>
 public sealed class MissionService
 {
@@ -38,7 +40,14 @@ public sealed class MissionService
     public bool Accept(MissionDefinition mission)
     {
         if (!CanAccept || _meta.Missions.ContainsKey(mission.Id)) return false;
-        _meta.Missions[mission.Id] = new MissionProgress { Status = MissionStatus.Active };
+        var progress = new MissionProgress { Status = MissionStatus.Active };
+        // Vorgemerkten Fortschritt übernehmen: Vor der Annahme erlegte Gegner/Gesammeltes zählt.
+        if (_meta.PendingMissionProgress.TryGetValue(mission.Id, out int pending))
+        {
+            progress.Progress = Math.Min(mission.Count, pending);
+            _meta.PendingMissionProgress.Remove(mission.Id);
+        }
+        _meta.Missions[mission.Id] = progress;
         return true;
     }
 
@@ -65,7 +74,20 @@ public sealed class MissionService
             _meta.Believers += mission.RewardBelievers;
             completed.Add(mission);
         }
+        PendingReport(type, target, amount);
         return completed;
+    }
+
+    /// <summary>Zählt Fortschritt für verfügbare (noch nicht angenommene) Bitten vor. Beim Annehmen übernommen.</summary>
+    private void PendingReport(MissionType type, string target, int amount)
+    {
+        foreach (MissionDefinition mission in Available)
+        {
+            bool targetMatches = mission.Target == "*" || string.Equals(mission.Target, target, StringComparison.OrdinalIgnoreCase);
+            if (mission.Type != type || !targetMatches) continue;
+            _meta.PendingMissionProgress[mission.Id] =
+                Math.Min(mission.Count, _meta.PendingMissionProgress.GetValueOrDefault(mission.Id) + amount);
+        }
     }
 
     private IEnumerable<MissionDefinition> WithStatus(MissionStatus status) => _definitions.Missions.All

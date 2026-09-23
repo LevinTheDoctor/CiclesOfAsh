@@ -68,6 +68,8 @@ public sealed class MetaState
     public HashSet<string> LiberatedWorlds { get; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>Bitten der Gläubigen: Id -> Fortschritt. Nicht enthalten = noch nicht angenommen.</summary>
     public Dictionary<string, MissionProgress> Missions { get; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Vorgemerkter Fortschritt für verfügbare Bitten (wird bei Annahme übernommen).</summary>
+    public Dictionary<string, int> PendingMissionProgress { get; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>Schon befreite Kerker ("seed:kreis:dungeon") -> Belohnung nur einmal pro Lauf.</summary>
     public HashSet<string> RescuedPrisons { get; } = new(StringComparer.OrdinalIgnoreCase);
 }

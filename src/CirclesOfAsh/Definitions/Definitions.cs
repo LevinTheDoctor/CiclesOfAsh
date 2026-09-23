@@ -1,4 +1,5 @@
 using CirclesOfAsh.Core;
+using Microsoft.Xna.Framework;
 
 namespace CirclesOfAsh.Definitions;
 
@@ -141,6 +142,10 @@ public sealed class CircleDefinition
     public string BackgroundTint { get; init; } = "#FFFFFF";
     public string Tileset { get; init; } = "tiles.limbo";
     public string Background { get; init; } = "background.limbo";
+    /// <summary>Musikstück dieses Kreises (Id aus dem "music"-Abschnitt von manifest.json).</summary>
+    public string Music { get; init; } = "music.limbo";
+    /// <summary>Musik im Thronsaal. Leer = dasselbe Stück wie im übrigen Kreis.</summary>
+    public string BossMusic { get; init; } = "music.boss";
     /// <summary>Grundhelligkeit ohne Lichtquellen. Je tiefer der Kreis, desto dunkler (#RRGGBB).</summary>
     public string AmbientLight { get; init; } = "#9090A0";
     /// <summary>Verfall 0..1: mehr zerbrochene Wände und bröckelnde Plattformen.</summary>
@@ -203,6 +208,10 @@ public sealed class BalanceDefinition
     public float CrumbleDelay { get; init; } = 0.45f;
     public float CrumbleRespawnSeconds { get; init; } = 4f;
     public float BrazierTimeLimit { get; init; } = 14f;
+    /// <summary>Hebt die Grundhelligkeit aller Kreise an (0 = wie definiert, 1 = ganz hell). Gegen "zu dunkel".</summary>
+    public float AmbientLift { get; init; } = 0.32f;
+    /// <summary>Standard-Bildschirmgröße (Skalierungsfaktor der virtuellen 480x270-Auflösung).</summary>
+    public int DefaultScreenScale { get; init; } = 3;
 }
 
 // ================================================================= Neu in v2
@@ -313,6 +322,102 @@ public sealed class HairStyleDefinition
     public string Name { get; init; } = "";
     /// <summary>Leer = kahl.</summary>
     public string Sprite { get; init; } = "";
+}
+
+/// <summary>Ein einzelner Schritt (Knoten) eines Dialogs: was der NPC sagt.</summary>
+public sealed class DialogLineDefinition
+{
+    public string Id { get; init; } = "";
+    /// <summary>Optionale Bedingung, damit derselbe NPC je nach Fortschritt anders spricht.</summary>
+    public string? If { get; init; }
+    public string Text { get; init; } = "";
+    /// <summary>Antwort-Möglichkeiten des Spielers. Leer = "Weiter"-Text.</summary>
+    public List<DialogChoiceDefinition> Choices { get; init; } = new();
+}
+
+/// <summary>Ein Dialog-Knoten.</summary>
+public sealed class DialogChoiceDefinition
+{
+    public string Label { get; init; } = "";
+    /// <summary>Nächster Knoten. Leer = Dialog beenden.</summary>
+    public string Next { get; init; } = "";
+    /// <summary>Einmaliger Effekt beim Wählen: blessing | accept_mission | feed_pet.</summary>
+    public string Effect { get; init; } = "";
+    /// <summary>Id des Missions-/Haustier-Effekts (MissionId bzw. PetId).</summary>
+    public string Target { get; init; } = "";
+}
+
+/// <summary>Ganzer Dialog eines NPC-Typs: Einstiegs-Knoten + alle Zeilen.</summary>
+public sealed class DialogDefinition : IDefinition
+{
+    public string Id { get; init; } = "";
+    /// <summary>Bedingung: erste Zeile, deren "If" passt, beginnt den Dialog.</summary>
+    public string Root { get; init; } = "start";
+    public List<DialogLineDefinition> Lines { get; init; } = new();
+}
+
+/// <summary>
+/// NPC in der Welt: Gläubiger, Pilger, Eremit. Interagierbar, spricht einen Dialog,
+/// kann einen Segen geben oder eine Bitte anbieten. Reine data-driven Definition.
+/// </summary>
+public sealed class NpcDefinition : IDefinition
+{
+    public string Id { get; init; } = "";
+    public string Name { get; init; } = "";
+    public string SpriteSheet { get; init; } = "";
+    public string DialogId { get; init; } = "";
+    /// <summary>Kann dieser NPC im Dungeon auftauchen (sonst nur im Hub)?</summary>
+    public bool SpawnsInDungeon { get; init; }
+    /// <summary>Kann dieser NPC eine Bitte (Mission) anbieten? (Für Rescue-/Bitt-NPCs.)</summary>
+    public bool OffersMissions { get; init; }
+    /// <summary>Gibt dieser NPC einen einmaligen Segen (Buff für den Lauf)?</summary>
+    public bool GivesBlessing { get; init; }
+    /// <summary>Licht um den NPC, damit man ihn im Dunkel findet.</summary>
+    public float LightRadius { get; init; } = 26f;
+    public string LightColor { get; init; } = "#FFE8A0";
+}
+
+/// <summary>Wo ein NPC im Dungeon steht (sichere Nische) bzw. im Hub.</summary>
+public sealed class NpcPlacement
+{
+    public string NpcId { get; init; } = "";
+    public Vector2 BottomCenter { get; init; }
+    public string Tag { get; init; } = "";
+}
+
+/// <summary>
+/// Schwierigkeitsstufe (Content/Data/difficulties.json). Alle Werte sind Multiplikatoren.
+/// Wirkt auf SpawnEnemy/Wellen/Heilung/Tod-Strafe – Auswahl im Optionsmenü, in MetaState persistiert.
+/// </summary>
+public sealed class DifficultyDefinition : IDefinition
+{
+    public string Id { get; init; } = "";
+    public string Name { get; init; } = "";
+    public string Description { get; init; } = "";
+    public float EnemyHealth { get; init; } = 1f;
+    public float EnemyDamage { get; init; } = 1f;
+    public float EnemySpeed { get; init; } = 1f;
+    public float WaveSize { get; init; } = 1f;
+    public float BelieverRetention { get; init; } = 0.25f;
+    public float HealMultiplier { get; init; } = 1f;
+    public float XpMultiplier { get; init; } = 1f;
+    public float RumbleMultiplier { get; init; } = 1f;
+    public float RewardMultiplier { get; init; } = 1f;
+}
+
+/// <summary>
+/// Beschriftungen eines Controller-Typs (Content/Data/controllers.json).
+/// Der Code kennt nur <see cref="CirclesOfAsh.Core.GameAction"/>; welche Taste das auf dem Gerät
+/// des Spielers ist, steht allein hier – neue Controller brauchen keinen Codeeingriff.
+/// </summary>
+public sealed class ControllerProfileDefinition : IDefinition
+{
+    public string Id { get; init; } = "";
+    public string Name { get; init; } = "";
+    /// <summary>Textbausteine, die im Gerätenamen gesucht werden. Leer = Auffangprofil.</summary>
+    public List<string> Match { get; init; } = new();
+    /// <summary>Spielaktion (Name aus GameAction) -> Tastenbeschriftung, z. B. "Jump" -> "A".</summary>
+    public Dictionary<string, string> Labels { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>Auswahlmöglichkeiten des Charakter-Editors (Content/Data/appearance.json).</summary>

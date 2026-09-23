@@ -14,6 +14,7 @@ public sealed class DungeonScene : SceneBase
     private readonly RunState _run;   // Arbeitskopie – wird nur bei Erfolg übernommen
     private readonly DungeonWorld _world;
     private readonly Hud _hud;
+    private readonly string _musicId;
     private bool _isFinished;
 
     public DungeonScene(GameContext context, RunState committedRun) : base(context)
@@ -30,7 +31,19 @@ public sealed class DungeonScene : SceneBase
         // Events abonnieren: "+=" hängt eine Methode an das Event an
         _world.PlayerDied += OnPlayerDied;
         _world.GoalReached += OnGoalReached;
+        _world.DialogRequested += OnDialogRequested;
+        // Musik nach Kreis (worlds.json); der Thronsaal bekommt sein eigenes Stück.
+        _musicId = plan.IsBossDungeon && plan.Circle.BossMusic.Length > 0 ? plan.Circle.BossMusic : plan.Circle.Music;
         Log.Info($"Dungeon erzeugt: Kreis {plan.CircleIndex + 1}, Verlies {plan.DungeonIndex + 1}, Seed {plan.Seed}, Boss {plan.IsBossDungeon}");
+    }
+
+    public override void OnEnter() => Context.Music.Play(_musicId);
+
+    private void OnDialogRequested(Entities.Npc npc)
+    {
+        var pending = _world.ConsumePendingDialog();
+        if (pending is not { } value) return;
+        Context.Scenes.Push(new DialogScene(Context, value.Dialog, value.Entry, value.Npc));
     }
 
     public override void OnExit()
@@ -38,6 +51,7 @@ public sealed class DungeonScene : SceneBase
         // "-=" meldet ab -> keine Referenzen bleiben hängen (Speicherleck-Vorsorge)
         _world.PlayerDied -= OnPlayerDied;
         _world.GoalReached -= OnGoalReached;
+        _world.DialogRequested -= OnDialogRequested;
         _world.Dispose();   // Render-Target der Lichtkarte freigeben (GPU-Speicher)
     }
 

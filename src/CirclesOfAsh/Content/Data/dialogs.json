@@ -1,0 +1,96 @@
+[
+  // Dialoge: Bedingungsfelder sind bewusst einfach gehalten (String-Vergleich im DialogService):
+  //   "start" (immer), "blessed" (Segen noch nicht genommen), "poor" (weniger als 50 Gläubige).
+  {
+    "id": "pilgrim_limbo",
+    "root": "start",
+    "lines": [
+      {
+        "id": "start",
+        "if": "blessed",
+        "text": "Herr ... ich habe gebetet, dass du kommst. Nimm meinen Segen mit in die Tiefe. Er wird dich schützen.",
+        "choices": [ { "label": "Segen annehmen", "next": "", "effect": "blessing" }, { "label": "Höflich ablehnen", "next": "declined" } ]
+      },
+      {
+        "id": "start",
+        "if": "poor",
+        "text": "So wenige glauben noch an dich ... Ich sehe es an deinen Augen. Aber ich glaube. Auch wenn ich der Letzte bin.",
+        "choices": [ { "label": "Weiter", "next": "blessing_offer" } ]
+      },
+      {
+        "id": "start",
+        "text": "Ich warte hier seit Ewigkeiten. Die Ghule trauen sich nicht an meine Nische – das Licht hält sie fern.",
+        "choices": [ { "label": "Weiter", "next": "blessing_offer" } ]
+      },
+      { "id": "blessing_offer", "text": "Mein Gebet möge dir Stärke geben, Herr.", "choices": [ { "label": "Segen annehmen", "next": "", "effect": "blessing" } ] },
+      { "id": "declined", "text": "Wie du willst, Herr. Ich bete weiter für dich." }
+    ]
+  },
+  {
+    "id": "hermit_wrath",
+    "root": "start",
+    "lines": [
+      {
+        "id": "start",
+        "text": "Der Zorn dieses Kreises frisst meine Seele. Aber deine Gegenwart ... sie brennt wärmer als die Glut.",
+        "choices": [ { "label": "Weiter", "next": "offer" } ]
+      },
+      {
+        "id": "offer",
+        "text": "Es gibt Seelen hier unten, die niemand mehr sucht. Hörst du sie rufen? Rette sie, und ihre Dankbarkeit wird dich tragen.",
+        "choices": [ { "label": "Ich werde sie suchen", "next": "farewell" } ]
+      },
+      { "id": "farewell", "text": "Geh mit ihrem Gesang, Herr. Und komm zurück, wenn du müde bist." }
+    ]
+  },
+  {
+    "id": "believer_rescue",
+    "root": "start",
+    "lines": [
+      {
+        "id": "start",
+        "text": "Sie haben mich eingesperrt! Die Wachen ... sie sind noch da. Bitte, befreie mich!",
+        "choices": [ { "label": "Ich kämpfe für dich", "next": "wait" } ]
+      },
+      { "id": "wait", "text": "Ich fliehe zum Ausgang, sobald die Luft rein ist. Vergiss mich nicht!" }
+    ]
+  },
+  {
+    "id": "temple_keeper",
+    "root": "start",
+    "lines": [
+      {
+        "id": "start",
+        "text": "Willkommen im Tempel, Herr. Hier sammeln sich jene, die dir noch vertrauen.",
+        "choices": [ { "label": "Weiter", "next": "hints" } ]
+      },
+      {
+        "id": "hints",
+        "text": "Am Brett hängen die Bitten der Gläubigen. Am Schrein siehst du, welche Reliquien du geborgen hast. Deine Seelen wachen über dich.",
+        "choices": [ { "label": "Weiter", "next": "pets" } ]
+      },
+      {
+        "id": "pets",
+        "text": "Deine Begleitseelen lieben es, gestreichelt und gefüttert zu werden. Treue Seelen kämpfen stärker.",
+        "choices": [ { "label": "Danke", "next": "" } ]
+      }
+    ]
+  },
+  {
+    "id": "pet_talk",
+    "root": "start",
+    "lines": [
+      {
+        "id": "start",
+        "if": "loyal",
+        "text": "Die Seele umkreist dich glücklich und summt leise. Sie wirkt rundum zufrieden.",
+        "choices": [ { "label": "Streicheln", "next": "", "effect": "pet_pet" }, { "label": "Füttern (5 Seelen)", "next": "", "effect": "feed_pet" } ]
+      },
+      {
+        "id": "start",
+        "text": "Die Seele flackert unruhig. Sie sehnt sich nach Zuwendung – oder nach einem Snack.",
+        "choices": [ { "label": "Streicheln", "next": "", "effect": "pet_pet" }, { "label": "Füttern (5 Seelen)", "next": "", "effect": "feed_pet" } ]
+      }
+    ]
+  }
+]

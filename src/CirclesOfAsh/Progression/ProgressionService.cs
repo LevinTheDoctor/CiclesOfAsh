@@ -35,6 +35,19 @@ public sealed class ProgressionService
     public RunState? CurrentRun { get; private set; }
     private BalanceDefinition Balance => _definitions.Balance;
 
+    /// <summary>Aktuell gewählte Schwierigkeit (aus difficulties.json; Fallback = "devout").</summary>
+    public DifficultyDefinition Difficulty =>
+        _definitions.Difficulties.TryGet(_difficultyId, out DifficultyDefinition? difficulty) ? difficulty
+            : _definitions.Difficulties.Get("devout");
+
+    private string _difficultyId = "devout";
+
+    public void SetDifficulty(string difficultyId)
+    {
+        if (!_definitions.Difficulties.Contains(difficultyId)) return;
+        _difficultyId = difficultyId;
+    }
+
     public WorldDefinition WorldOf(RunState run) => _definitions.Worlds.Get(run.WorldId);
     public CircleDefinition CircleOf(RunState run) => WorldOf(run).Circles[run.CircleIndex];
 
@@ -75,6 +88,13 @@ public sealed class ProgressionService
         // Unsigned-Modulo: (uint) macht negative Seeds positiv -> gültiger Listenindex
         string puzzle = isBoss || circle.Puzzles.Count == 0 ? "" : circle.Puzzles[(int)((uint)seed % (uint)circle.Puzzles.Count)];
         bool hasPrison = !isBoss && circle.Prison is not null && circle.Prison.DungeonIndex == index;
+        // Rescue-Zuverlässigkeit: Läuft eine aktive Rescue-Bitte, ALLE Kerkerdungeons bekommen einen Kerker
+        // (statt nur dem festen DungeonIndex). "free_the_captives" ist so immer fortsetzbar.
+        if (!isBoss && circle.Prison is not null && HasActiveRescueMission())
+        {
+            int prisonIndex = Math.Min(circle.Prison.DungeonIndex, Balance.DungeonsPerCircle - 2);
+            hasPrison = index == prisonIndex || index == Balance.DungeonsPerCircle - 2;
+        }
 
         return new DungeonPlan(
             Circle: circle,
@@ -133,6 +153,8 @@ public sealed class ProgressionService
             finishedRun.DungeonIndex++;
         }
 
+        // Härtere Stufen zahlen mehr Gläubige – das Risiko soll sich lohnen (rewardMultiplier).
+        outcome.BelieversGained = (int)MathF.Round(outcome.BelieversGained * Difficulty.RewardMultiplier);
         Meta.Believers += outcome.BelieversGained;
         outcome.UnlockedCompanionIds.AddRange(UnlockCompanionsByBelievers());
 
@@ -159,7 +181,8 @@ public sealed class ProgressionService
         RunState? run = CurrentRun;
         string className = run is null ? "?" : _definitions.Classes.Get(run.ClassId).Name;
         long before = Meta.Believers;
-        Meta.Believers = (long)MathF.Floor(before * Balance.BelieverRetentionOnDeath);
+        // Die Schwierigkeitsstufe bestimmt, wie viele Gläubige den Tod überdauern (Balance = Rückfall für alte Stände).
+        Meta.Believers = (long)MathF.Floor(before * Difficulty.BelieverRetention);
         Meta.Deaths++;
         CurrentRun = null;
         _saves.DeleteRun();
@@ -189,6 +212,10 @@ public sealed class ProgressionService
     }
 
     public void SaveMeta() => _saves.SaveMeta(Meta);
+
+    /// <summary>Gibt es eine aktive Bitte vom Typ Rescue (z. B. "Öffnet die Käfige")?</summary>
+    public bool HasActiveRescueMission() =>
+        Missions.Active.Any(mission => mission.Type == MissionType.Rescue);
 
     /// <summary>Speichert Änderungen am festgeschriebenen Lauf (z. B. Ausrüstung im Kreis-Menü).</summary>
     public void SaveRun(RunState run)

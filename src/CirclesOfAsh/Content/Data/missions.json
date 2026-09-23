@@ -26,5 +26,22 @@
     "text": "Zeige uns, dass selbst Mammons Gold dich nicht halten kann." },
   { "id": "wardens_bane", "giver": "Ein namenloser Gefangener", "title": "Schlüssel der Kerkermeister", "type": "Slay",
     "target": "warden_greed", "count": 1, "rewardBelievers": 45, "requiredBelievers": 80,
-    "text": "Der Schuldeneintreiber trägt die Schlüssel zu hundert Zellen. Nimm sie ihm." }
+    "text": "Der Schuldeneintreiber trägt die Schlüssel zu hundert Zellen. Nimm sie ihm." },
+
+  // ---------------- v2: Seelen in Not (Rescue-Events in Verliesen) und tiefere Jagden
+  { "id": "lost_souls", "giver": "Der Chor der Geretteten", "title": "Verlorene Seelen", "type": "Rescue",
+    "target": "*", "count": 5, "rewardBelievers": 60, "requiredBelievers": 30,
+    "text": "Manche Seelen sind nirgendwo eingesperrt – sie werden mitten im Verlies bedroht. Rette, wen du findest." },
+  { "id": "bone_kings", "giver": "Totengräber Wendel", "title": "Knochenkönige", "type": "Slay",
+    "target": "skeleton", "count": 25, "rewardBelievers": 35, "requiredBelievers": 50,
+    "text": "Die Knochenwächter stehen wieder auf, so oft ich sie begrabe. Zerstreue sie endgültig." },
+  { "id": "cleanse_the_swarm", "giver": "Jägerin Veit", "title": "Den Schwarm lichten", "type": "Slay",
+    "target": "swarm", "count": 60, "rewardBelievers": 40, "requiredBelievers": 70,
+    "text": "Seelensplitter wimmeln wie Fliegen. Jeder zertrampelte ist eine erlöste Seele." },
+  { "id": "break_the_knight", "giver": "Schwester Irmina", "title": "Gebrochene Klingen", "type": "Slay",
+    "target": "knight", "count": 12, "rewardBelievers": 55, "requiredBelievers": 90,
+    "text": "Verfluchte Ritter, einst treu und nun entstellt. Gib ihnen den Frieden ihres Schwures." },
+  { "id": "golem_bane", "giver": "Der Chor der Gläubigen", "title": "Steinerne Last", "type": "Slay",
+    "target": "golem", "count": 10, "rewardBelievers": 70, "requiredBelievers": 120,
+    "text": "Was die Hölle formt, ist nicht unbezwingbar. Zeige es diesen Kolossen aus Asche." }
 ]

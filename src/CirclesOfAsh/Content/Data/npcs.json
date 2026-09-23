@@ -1,0 +1,39 @@
+[
+  {
+    "id": "pilgrim",
+    "name": "Betender Pilger",
+    "spriteSheet": "npc.pilgrim",
+    "dialogId": "pilgrim_limbo",
+    "spawnsInDungeon": true,
+    "givesBlessing": true,
+    "lightRadius": 30,
+    "lightColor": "#FFE8A0"
+  },
+  {
+    "id": "hermit",
+    "name": "Eremit der Tiefe",
+    "spriteSheet": "npc.hermit",
+    "dialogId": "hermit_wrath",
+    "spawnsInDungeon": true,
+    "givesBlessing": true,
+    "lightRadius": 26,
+    "lightColor": "#A0E0FF"
+  },
+  {
+    "id": "captive_believer",
+    "name": "Eingesperrter Gläubiger",
+    "spriteSheet": "npc.pilgrim",
+    "dialogId": "believer_rescue",
+    "spawnsInDungeon": true,
+    "lightRadius": 22,
+    "lightColor": "#FFD090"
+  },
+  {
+    "id": "temple_keeper",
+    "name": "Tempelwärtin",
+    "spriteSheet": "npc.keeper",
+    "dialogId": "temple_keeper",
+    "lightRadius": 34,
+    "lightColor": "#FFE8A0"
+  }
+]

@@ -4,6 +4,7 @@ using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
 using CirclesOfAsh.Progression;
+using CirclesOfAsh.Props;
 using CirclesOfAsh.Puzzles;
 
 namespace CirclesOfAsh.World;
@@ -23,6 +24,7 @@ public sealed class DungeonWorld : IDisposable
     private readonly List<Projectile> _projectiles = new();
     private readonly List<Pickup> _pickups = new();
     private readonly List<Prop> _props = new();
+    private readonly List<Npc> _npcs = new();
     private readonly List<Companion> _companions;
     private readonly List<Entity> _spawnQueue = new();
     private readonly Queue<string> _announcements = new();
@@ -54,10 +56,11 @@ public sealed class DungeonWorld : IDisposable
         Random = new Random(plan.Seed ^ 0x5EED);   // "^" = XOR: leitet einen zweiten, unabhängigen Seed ab
         Effects = new EffectSystem(Random);
         Camera = new Camera2D(CirclesGame.VirtualWidth, CirclesGame.VirtualHeight);
-        Waves = new WaveDirector(plan, context.Definitions.Balance, layout.Rooms);
+        Waves = new WaveDirector(plan, context.Definitions.Balance, layout.Rooms, context.Progression.Difficulty.WaveSize);
         Lighting = new LightingSystem(context.GraphicsDevice, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight)
         {
             Ambient = ColorUtil.FromHex(plan.Circle.AmbientLight, Color.Gray),   // Objekt-Initialisierer nach dem Konstruktor
+            Brightness = context.Settings.AmbientLift,   // globale Aufhellung (Optionsmenü), gegen zu starke Dunkelheit
         };
         _crumble = new CrumbleSystem(context.Definitions.Balance);
 
@@ -69,6 +72,7 @@ public sealed class DungeonWorld : IDisposable
         _sigil = new AnimationPlayer(context.Assets.GetSpriteSheet("exit.sigil"));
 
         CreateProps();
+        CreateNpcs();
         foreach (CollectiblePlacement collectible in layout.Collectibles) SpawnItemPickup(collectible.ItemId, collectible.Center, floating: true);
 
         if (layout.Puzzle is { } puzzleSpec)
@@ -86,6 +90,8 @@ public sealed class DungeonWorld : IDisposable
     // "event Action?" = Beobachter-Muster (Observer): Die Szene abonniert, die Welt meldet.
     public event Action? PlayerDied;
     public event Action? GoalReached;
+    /// <summary>Szene will einen Dialog öffnen (NPC + Startzeile). Welt kennt keine Szenen (lose Kopplung).</summary>
+    public event Action<Npc>? DialogRequested;
 
     public GameContext Context { get; }
     public DungeonPlan Plan { get; }
@@ -106,6 +112,11 @@ public sealed class DungeonWorld : IDisposable
     public Prop? InteractionTarget { get; private set; }
     public int PendingLevelUps { get; set; }
     public IReadOnlyList<Companion> Companions => _companions;
+    public IReadOnlyList<Npc> Npcs => _npcs;
+    /// <summary>NPC in Interaktionsreichweite (für den Benutzen-Hinweis).</summary>
+    public Npc? NpcInteractionTarget { get; private set; }
+    /// <summary>Rescue-Events: "Seele in Not"-Nische. Nach Befreiung läuft die Seele zum Ausgang.</summary>
+    public IReadOnlyList<Npc> RescueSouls => _npcs.Where(npc => npc.Tag == "rescue").ToList();
 
     public int AliveEnemyCount =>
         _enemies.Count(enemy => !enemy.IsRemoved) + _spawnQueue.Count(entity => entity is Enemy);
@@ -125,6 +136,53 @@ public sealed class DungeonWorld : IDisposable
         foreach (Prop prop in _props) prop.Behavior.Initialize(prop, this);
     }
 
+    /// <summary>
+    /// NPCs platzieren: betende Pilger in sicheren Korridor-Nischen + pro Dungeon 0-1
+    /// "Seele in Not" (Rescue-Event: von 2-3 Ghulen umstellt, Befreiung zählt als Rescue-Mission).
+    /// </summary>
+    private void CreateNpcs()
+    {
+        IEnumerable<NpcDefinition> dungeonNpcs = Context.Definitions.Npcs.All.Where(npc => npc.SpawnsInDungeon);
+        if (!dungeonNpcs.Any()) return;
+
+        // Pilger: in 1-2 zufälligen Korridorräumen, fern vom Start
+        List<RoomNode> corridors = Layout.Rooms
+            .Where(room => room.Type is RoomType.Corridor or RoomType.Treasure && room.TileBounds.X > 2)
+            .OrderBy(_ => Random.Next())
+            .ToList();
+        int pilgrimCount = Math.Min(corridors.Count, Random.Next(1, 3));
+        NpcDefinition? pilgrim = dungeonNpcs.FirstOrDefault(npc => npc.Id == "pilgrim");
+        for (int index = 0; index < pilgrimCount && pilgrim is not null; index++)
+        {
+            RoomNode room = corridors[index];
+            Vector2 spot = new(room.PixelBounds.Left + 40, DungeonGenerator.FloorPixelY(room));
+            _npcs.Add(new Npc(pilgrim, Context.Assets.GetSpriteSheet(pilgrim.SpriteSheet), spot, "pilgrim"));
+        }
+
+        // Rescue-Event "Seele in Not": 55% Wahrscheinlichkeit in einem freien Korridor
+        if (Random.NextSingle() < 0.55f)
+        {
+            NpcDefinition? captive = dungeonNpcs.FirstOrDefault(npc => npc.Id == "captive_believer");
+            RoomNode? rescueRoom = corridors.Skip(pilgrimCount).FirstOrDefault();
+            if (captive is not null && rescueRoom is not null)
+            {
+                var soul = new Npc(captive, Context.Assets.GetSpriteSheet(captive.SpriteSheet),
+                    new Vector2(rescueRoom.PixelBounds.Center.X, DungeonGenerator.FloorPixelY(rescueRoom)), "rescue")
+                {
+                    // Merken, wo die Seele steht: nach dem Sieg laufen wir zum Ausgang
+                };
+                _npcs.Add(soul);
+                RescueRoom = rescueRoom;
+                // Umstehende Wachen spawnen (erwachen beim Betreten des Raums -> WaveDirector-artig)
+            }
+        }
+    }
+
+    /// <summary>Raum des aktiven Rescue-Events (null = keins). Wachen spawnen beim Betreten.</summary>
+    public RoomNode? RescueRoom { get; private set; }
+    public bool RescueTriggered { get; private set; }
+    public bool RescueCompleted { get; private set; }
+
     // ------------------------------------------------------------------ Game-Loop
     public void Update(float deltaSeconds)
     {
@@ -140,8 +198,10 @@ public sealed class DungeonWorld : IDisposable
         foreach (Projectile projectile in _projectiles) if (!projectile.IsRemoved) projectile.Update(this, deltaSeconds);
         foreach (Pickup pickup in _pickups) if (!pickup.IsRemoved) pickup.Update(this, deltaSeconds);
         foreach (Prop prop in _props) if (!prop.IsRemoved) prop.Update(this, deltaSeconds);
+        foreach (Npc npc in _npcs) npc.Update(this, deltaSeconds);
 
         UpdateInteraction();
+        UpdateRescueEvent();
         ApplyContactDamage();
         Effects.Ambient(Plan.Circle.AmbientParticles, Camera.VisibleArea, deltaSeconds);
         Effects.Update(deltaSeconds);
@@ -182,8 +242,108 @@ public sealed class DungeonWorld : IDisposable
             bestDistance = distance;
             InteractionTarget = prop;
         }
-        if (InteractionTarget is not null && Context.Input.WasPressed(GameAction.Interact))
+        // NPC-Interaktion: nächstliegender NPC gewinnt gegen weiter entfernte Props
+        NpcInteractionTarget = null;
+        foreach (Npc npc in _npcs)
+        {
+            if (npc.IsRemoved || npc.Tag == "rescued") continue;
+            Rectangle area = npc.Bounds;
+            area.Inflate(InteractionRange, 6);
+            if (!area.Intersects(Player.Bounds)) continue;
+            float distance = MathF.Abs(npc.Center.X - Player.Center.X);
+            if (distance >= bestDistance) continue;
+            bestDistance = distance;
+            NpcInteractionTarget = npc;
+        }
+
+        bool interactPressed = Context.Input.WasPressed(GameAction.Interact);
+        if (interactPressed && NpcInteractionTarget is { } targetNpc)
+        {
+            if (targetNpc.Tag == "rescue")
+            {
+                // Rescue-Event zünden: Wachen erscheinen, Seele fleht um Hilfe
+                StartRescueFight(targetNpc);
+            }
+            else
+            {
+                OpenDialog(targetNpc);
+            }
+            return;
+        }
+        if (InteractionTarget is not null && interactPressed)
             InteractionTarget.Behavior.Interact(InteractionTarget, this);
+    }
+
+    private void OpenDialog(Npc npc)
+    {
+        if (!Context.Definitions.Dialogs.Contains(npc.Definition.DialogId)) return;
+        DialogDefinition dialog = Context.Definitions.Dialogs.Get(npc.Definition.DialogId);
+        DialogLineDefinition? entry = Context.Dialogs.ResolveEntry(dialog, npc);
+        if (entry is null) return;
+        Context.Audio.Play("unseal", 0.25f, 0.5f);
+        DialogRequested?.Invoke(npc);
+        _pendingDialog = (npc, dialog, entry);
+    }
+
+    private (Npc Npc, DialogDefinition Dialog, DialogLineDefinition Entry)? _pendingDialog;
+
+    /// <summary>Von der Szene abzuholen, sobald DialogRequested gefeuert hat (Render-Kontext nötig).</summary>
+    public (Npc Npc, DialogDefinition Dialog, DialogLineDefinition Entry)? ConsumePendingDialog() =>
+        _pendingDialog is { } value ? value : null;
+
+    private void ClearPendingDialog() => _pendingDialog = null;
+
+    // ------------------------------------------------------------------ Rescue-Event
+    /// <summary>Startet den Kampf um die eingeschlossene Seele.</summary>
+    private void StartRescueFight(Npc soul)
+    {
+        if (RescueTriggered || RescueRoom is not { } room) return;
+        RescueTriggered = true;
+        Announce("Eine Seele fleht um Hilfe!");
+        Context.Audio.Play("roar", 0.5f, 0.2f);
+
+        // 2-3 Wachen aus dem Kreis-Gegnerpool
+        List<SpawnWeight> pool = Plan.Circle.EnemyPool;
+        for (int guard = 0; guard < 2 + Random.Next(2); guard++)
+        {
+            SpawnWeight pick = pool[Random.Next(pool.Count)];
+            float offsetX = 30 + guard * 26;
+            Vector2 spot = new(soul.Center.X + (guard % 2 == 0 ? offsetX : -offsetX),
+                DungeonGenerator.FloorPixelY(room));
+            SpawnEnemy(Context.Definitions.Enemies.Get(pick.Enemy), spot);
+        }
+    }
+
+    /// <summary>Prüft das Rescue-Event: Wachen besiegt? -> Seele läuft los, Fortschritt + Belohnung.</summary>
+    private void UpdateRescueEvent()
+    {
+        if (RescueTriggered && !RescueCompleted && AliveEnemyCount == 0)
+        {
+            RescueCompleted = true;
+            Npc? soul = _npcs.FirstOrDefault(npc => npc.Tag == "rescue");
+            if (soul is null) return;
+            soul.Tag = "rescued";
+            soul.FleeTarget = Layout.GoalBottomCenter;
+            Announce("Die Seele ist frei! Eskortiere sie zum Ausgang.");
+
+            // Gläubigen-Dank + Missionsfortschritt (Rescue, Ziel "*" zählt)
+            int believers = 8 + (int)(Plan.DifficultyMultiplier * 2f);
+            Context.Progression.Meta.Believers += believers;
+            AnnounceMissions(Context.Progression.Missions.Report(MissionType.Rescue, "*", 1));
+            Announce($"+{believers} Gläubige");
+        }
+
+        // Gerettete Seele hat den Ausgang erreicht? -> Despawn + Abschluss-Meldung
+        foreach (Npc npc in _npcs)
+        {
+            if (npc.Tag != "rescued" || npc.FleeTarget is not { } target) continue;
+            if (MathF.Abs(npc.Center.X - target.X) < 24f && MathF.Abs(npc.Center.Y - target.Y) < 40f)
+            {
+                npc.Remove();
+                Effects.Ring(npc.Center, 40f, Palette.Faith, 32);
+                Announce("Die Seele ist in Sicherheit. Ihre Dankbarkeit stärkt deinen Glauben.");
+            }
+        }
     }
 
     private void ApplyContactDamage()
@@ -210,6 +370,7 @@ public sealed class DungeonWorld : IDisposable
         _projectiles.RemoveAll(entity => entity.IsRemoved);
         _pickups.RemoveAll(entity => entity.IsRemoved);
         _props.RemoveAll(entity => entity.IsRemoved);
+        _npcs.RemoveAll(entity => entity.IsRemoved);
 
         foreach (Entity entity in _spawnQueue)
         {
@@ -269,15 +430,35 @@ public sealed class DungeonWorld : IDisposable
 
     public IEnumerable<Prop> PropsWithTag(string tag) => _props.Where(prop => prop.Tag == tag);
 
+    /// <summary>
+    /// Flächenangriff einer Fähigkeit auf zerbrechliche Deko (Urnen, Fässer ...).
+    /// Gibt zurück, wie viele Props dabei zerplatzt sind (für Sound-Polsterung).
+    /// </summary>
+    public int HitBreakables(Vector2 center, float radius)
+    {
+        int broken = 0;
+        foreach (Prop prop in _props)
+        {
+            if (prop.IsRemoved || prop.Behavior is not BreakableProp breakable) continue;
+            if (Vector2.DistanceSquared(prop.Center, center) > radius * radius) continue;
+            breakable.OnHitArea(prop, this, center, radius);
+            broken++;
+        }
+        return broken;
+    }
+
     // ------------------------------------------------------------------ Aktionen
     public void Spawn(Entity entity) => _spawnQueue.Add(entity);
 
     public Enemy SpawnEnemy(EnemyDefinition definition, Vector2 bottomCenter)
     {
-        float healthMultiplier = Plan.DifficultyMultiplier;
-        float damageMultiplier = 1f + (Plan.DifficultyMultiplier - 1f) * 0.5f;
+        DifficultyDefinition difficulty = Context.Progression.Difficulty;
+        float healthMultiplier = Plan.DifficultyMultiplier * difficulty.EnemyHealth;
+        float damageMultiplier = (1f + (Plan.DifficultyMultiplier - 1f) * 0.5f) * difficulty.EnemyDamage;
         var enemy = new Enemy(definition, Context.Assets.GetSpriteSheet(definition.SpriteSheet),
             Context.Behaviors.CreateEnemyBrain(definition.Brain), bottomCenter, healthMultiplier, damageMultiplier);
+        // Tempo-Modifier der Schwierigkeit: WalkerBrains lesen die effektive Geschwindigkeit direkt.
+        enemy.ApplySpeedMultiplier(difficulty.EnemySpeed);
         if (definition.IsBoss || definition.IsMiniBoss) ActiveBoss = enemy;
         Spawn(enemy);
         return enemy;
@@ -293,7 +474,8 @@ public sealed class DungeonWorld : IDisposable
         bool isHeavy = enemy.IsBoss || enemy.IsMiniBoss;
         enemy.ApplyKnockback(source, knockback, isHeavy ? 1f : enemy.Definition.KnockbackResistance);
         Effects.Burst(enemy.Center, Palette.Blood, 5, 70f);
-        Effects.Text(new Vector2(enemy.Center.X, enemy.Position.Y - 2), ((int)MathF.Ceiling(applied)).ToString(), Palette.Bone);
+        if (Context.Settings.ShowDamageNumbers)
+            Effects.Text(new Vector2(enemy.Center.X, enemy.Position.Y - 2), ((int)MathF.Ceiling(applied)).ToString(), Palette.Bone);
         Context.Audio.Play("hit", 0.3f, Random.NextSingle() * 0.4f - 0.2f);
         if (enemy.Health.IsDead) KillEnemy(enemy);
     }
@@ -349,8 +531,9 @@ public sealed class DungeonWorld : IDisposable
                 Context.Audio.Play("pickup", 0.15f, Random.NextSingle() * 0.3f);
                 break;
             case PickupKind.Heart:
-                Player.Health.Heal(pickup.Value);
-                Effects.Text(Player.Center - new Vector2(0, 16), $"+{pickup.Value:0}", Palette.Soul);
+                float healed = pickup.Value * Context.Progression.Difficulty.HealMultiplier;
+                Player.Health.Heal(healed);
+                Effects.Text(Player.Center - new Vector2(0, 16), $"+{healed:0}", Palette.Soul);
                 break;
             case PickupKind.ManaShard:
                 Player.RestoreMana(pickup.Value);
@@ -421,7 +604,7 @@ public sealed class DungeonWorld : IDisposable
 
     public void GainExperience(float amount)
     {
-        Run.Experience += amount;
+        Run.Experience += amount * Context.Progression.Difficulty.XpMultiplier;
         // while statt if: große Seelenmengen können mehrere Level auf einmal bringen
         while (Run.Experience >= Context.Progression.ExperienceForNextLevel(Run.Level))
         {
@@ -503,7 +686,18 @@ public sealed class DungeonWorld : IDisposable
         PlayerDied?.Invoke();
     }
 
-    public void ShakeCamera(float strength) => _shakeStrength = MathF.Max(_shakeStrength, strength);
+    /// <summary>
+    /// Erschüttert die Kamera – und lässt den Controller im gleichen Maß vibrieren.
+    /// Bewusst hier gebündelt: jeder wuchtige Moment (Treffer, Boss-Brüllen, berstendes Tor)
+    /// ruft ohnehin schon ShakeCamera, so bleibt Bild und Haptik automatisch im Gleichtakt.
+    /// </summary>
+    public void ShakeCamera(float strength)
+    {
+        _shakeStrength = MathF.Max(_shakeStrength, strength);
+        // 8 = stärkste im Spiel vorkommende Erschütterung (Boss-Tod) -> darauf normieren.
+        float intensity = Math.Clamp(strength / 8f, 0f, 1f);
+        Context.Input.Rumble(intensity * 0.85f, intensity * 0.5f, 0.12f + strength * 0.02f);
+    }
 
     public void Announce(string text)
     {
@@ -528,6 +722,7 @@ public sealed class DungeonWorld : IDisposable
         // Schwaches Glühen um Gegner: In tiefen Kreisen bleiben sie so erkennbar (Fairness trotz Dunkelheit)
         foreach (Enemy enemy in _enemies) Lighting.Add(enemy.Center, enemy.IsBoss || enemy.IsMiniBoss ? 44f : 20f, new Color(130, 50, 50));
         foreach (Pickup pickup in _pickups) Lighting.Add(pickup.Center, pickup.GlowRadius, new Color(200, 255, 230) * 0.6f);
+        foreach (Npc npc in _npcs) if (!npc.IsRemoved) Lighting.Add(npc.Center, npc.LightRadius, npc.LightColor);
         if (IsGoalActive) Lighting.Add(Layout.GoalBottomCenter - new Vector2(0, 16), 70f, Palette.Faith);
         Lighting.Render(Context.GraphicsDevice, spriteBatch, WorldTransform);
     }
@@ -544,6 +739,7 @@ public sealed class DungeonWorld : IDisposable
         spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointClamp, transformMatrix: WorldTransform);
         Map.Draw(spriteBatch, _tileset, Camera.VisibleArea, _tileTint, Plan.Circle.Decay, _time);
         foreach (Prop prop in _props) prop.Draw(spriteBatch);
+        foreach (Npc npc in _npcs) if (!npc.IsRemoved) npc.Draw(spriteBatch);
         if (!IsGoalActive) _sigil.Draw(spriteBatch, Layout.GoalBottomCenter, false, Color.White * 0.5f);
         foreach (Pickup pickup in _pickups) pickup.Draw(spriteBatch);
         foreach (Enemy enemy in _enemies) enemy.Draw(spriteBatch);
@@ -566,8 +762,16 @@ public sealed class DungeonWorld : IDisposable
 
     private void DrawInteractionPrompt(SpriteBatch spriteBatch)
     {
+        if (NpcInteractionTarget is { } npc)
+        {
+            string npcPrompt = npc.Tag == "rescue" ? "Seele ansprechen" : npc.Definition.Name;
+            string npcText = $"{Context.Input.Prompt(GameAction.Interact)} {npcPrompt}";
+            int npcWidth = Context.Font.MeasureWidth(npcText);
+            float npcBob = MathF.Sin(_time * 4f) * 1.5f;
+            Context.Font.DrawShadowed(spriteBatch, npcText, new Vector2(npc.Center.X - npcWidth / 2f, npc.Position.Y - 12 + npcBob), Palette.Faith);
+        }
         if (InteractionTarget is not { } target || string.IsNullOrEmpty(target.Definition.Prompt)) return;
-        string text = $"[F] {target.Definition.Prompt}";
+        string text = $"{Context.Input.Prompt(GameAction.Interact)} {target.Definition.Prompt}";
         int width = Context.Font.MeasureWidth(text);
         float bob = MathF.Sin(_time * 4f) * 1.5f;
         Context.Font.DrawShadowed(spriteBatch, text, new Vector2(target.Center.X - width / 2f, target.Position.Y - 12 + bob), Palette.Faith);
