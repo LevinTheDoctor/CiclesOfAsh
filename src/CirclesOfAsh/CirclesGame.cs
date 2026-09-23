@@ -25,6 +25,10 @@ public sealed class CirclesGame : Game
 
     public CirclesGame()
     {
+        // Controller-Mappings VOR allen SDL-Initialisierungen laden (siehe SdlControllerMappings):
+        // MonoGame öffnet Pads erst nach SDL_Init, und SDL kombiniert beide Datenbanken.
+        SdlControllerMappings.Load(Path.Combine(AppContext.BaseDirectory, "Content", "gamecontrollerdb.txt"));
+
         _graphics = new GraphicsDeviceManager(this)
         {
             PreferredBackBufferWidth = VirtualWidth * 3,

@@ -90,14 +90,18 @@ public sealed class SummonAttack : IBossAttack
         boss.ForcedAnimation = "cast";
         if (string.IsNullOrEmpty(boss.Definition.SummonEnemy)) return;
         var minion = world.Context.Definitions.Enemies.Get(boss.Definition.SummonEnemy);
+        RoomNode room = world.CurrentRoom
+            ?? throw new InvalidOperationException("Boss-Diener ohne Raum: Der Thronsaal muss beim Beschwören aktiv sein.");
         int count = intensity > 1.2f ? 4 : 3;
         for (int index = 0; index < count; index++)
         {
             float offsetX = (index - (count - 1) / 2f) * 40f;
+            Vector2 preferred = new(boss.BottomCenter.X + offsetX, boss.BottomCenter.Y - (minion.IsFlying ? 40f : 0f));
             // Diener erben den Besitzer des Bosses – sonst zaehlt der Thronsaal sie nicht mit
-            // und die Tuer oeffnet sich, waehrend noch Diener leben.
-            world.SpawnEnemy(minion, new Vector2(boss.BottomCenter.X + offsetX, boss.BottomCenter.Y - (minion.IsFlying ? 40f : 0f)),
-                boss.Owner);
+            // und die Tuer oeffnet sich, waehrend noch Diener leben. FindSpawnSpot haelt sie
+            // aus der Geometrie (Podeste im Thronsaal) und versetzt sie im Ring statt zu stapeln.
+            Vector2 spot = world.FindSpawnSpot(minion, preferred, room);
+            world.SpawnEnemy(minion, spot, boss.Owner);
         }
         world.Announce("Diener werden beschworen!");
     }

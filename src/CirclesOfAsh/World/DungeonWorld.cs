@@ -150,21 +150,59 @@ public sealed class DungeonWorld : IDisposable
     }
 
     /// <summary>
-    /// Prüft eine Kandidatenposition (Unterkante, Mitte) für einen Gegner gegen die Karte: Steckt
-    /// der spätere Körper in einer massiven Kachel, wird auf die Bodenmitte des Raums
-    /// zurückgefallen. Ein Gegner im Fels ist unerreichbar – und hielt sonst Kämpfe für immer offen.
-    /// Alle Spawn-Stellen (Welle, Boss, Kerker, Rettung) benutzen diese Prüfung.
+    /// Sucht einen sauberen Spawnpunkt (Unterkante, Mitte) für einen Gegner. Reihenfolge:
+    ///   1. der Wunschkandidat,
+    ///   2. Versatz-Versuche in wachsenden Ringen um den Kandidaten (Wachen bleiben so an
+    ///      ihrem Posten statt alle in der Raummitte zu stapeln),
+    ///   3. zufällige Versuche über den ganzen Raum,
+    ///   4. als letzte Rückfallebene die Bodenmitte.
+    /// Blockiert heißt: Der spätere Körper steckt in massiven Kacheln – ein Gegner im Fels ist
+    /// unerreichbar und hielt sonst Kämpfe für immer offen. Optionaler Mindestabstand zum
+    /// Spieler verhindert Spawns direkt auf ihm. Alle Spawn-Stellen benutzen diese Funktion.
     /// </summary>
-    public Vector2 SafeSpawnBottomCenter(EnemyDefinition definition, Vector2 candidate, RoomNode room)
+    public Vector2 FindSpawnSpot(EnemyDefinition definition, Vector2 preferred, RoomNode room, float minPlayerDistance = 0f)
     {
         var size = new Point(definition.Width, definition.Height);
-        if (!IsBodyBlocked(candidate - new Vector2(size.X / 2f, size.Y), size)) return candidate;
+        bool IsFree(Vector2 spot) => !IsBodyBlocked(spot - new Vector2(size.X / 2f, size.Y), size)
+            && (minPlayerDistance <= 0f
+                || MathF.Abs(spot.X - Player.Center.X) >= minPlayerDistance
+                || MathF.Abs(spot.Y - Player.Center.Y) > definition.Height + 16f);   // über/unter dem Spieler ist erlaubt
 
-        Log.Warn($"Spawn von '{definition.Id}' in Geometrie verworfen (Kandidat ({candidate.X:0}, {candidate.Y:0})) "
-               + $"– Rückfall auf die Bodenmitte von Raum {room.OwnerKey}.");
-        var fallback = new Vector2(room.PixelBounds.Center.X, DungeonGenerator.FloorPixelY(room));
-        if (IsBodyBlocked(fallback - new Vector2(size.X / 2f, size.Y), size))
-            Log.Warn($"Auch die Raummitte von {room.OwnerKey} ist blockiert – der Notausgang-Wächter ist jetzt die letzte Linie.");
+        if (IsFree(preferred)) return preferred;
+
+        // 2) Ringe um den Kandidaten: erst schmal, dann breit (Flieger versetzen nur horizontal)
+        float[] ringOffsets = definition.IsFlying ? new[] { 24f, 48f, 72f } : new[] { 20f, 40f, 60f };
+        foreach (float offset in ringOffsets)
+        {
+            foreach (float direction in new[] { -1f, 1f })
+            {
+                var spot = new Vector2(preferred.X + direction * offset, preferred.Y);
+                if (room.PixelBounds.Contains(spot) && IsFree(spot)) return spot;
+            }
+            if (!definition.IsFlying)
+            {
+                // Bodengegner: ein paar Kacheln höher probieren (über Hügeln/Deko)
+                var higher = new Vector2(preferred.X, preferred.Y - offset);
+                if (room.PixelBounds.Contains(higher) && IsFree(higher)) return higher;
+            }
+        }
+
+        // 3) Zufällige Versuche über den Raum (Flieger in der oberen Hälfte, Bodengegner am Boden)
+        float floorY = DungeonGenerator.FloorPixelY(room);
+        for (int attempt = 0; attempt < 12; attempt++)
+        {
+            float x = room.PixelBounds.Left + 24 + (float)Random.NextDouble() * (room.PixelBounds.Width - 48);
+            float y = definition.IsFlying
+                ? room.PixelBounds.Top + 30 + (float)Random.NextDouble() * (room.PixelBounds.Height * 0.4f)
+                : floorY;
+            var spot = new Vector2(x, y);
+            if (IsFree(spot)) return spot;
+        }
+
+        // 4) Letzte Rückfallebene: Bodenmitte
+        var fallback = new Vector2(room.PixelBounds.Center.X, floorY);
+        if (!IsFree(fallback))
+            Log.Warn($"Kein freier Spawnpunkt in Raum {room.OwnerKey} für '{definition.Id}' – der Notausgang-Wächter ist jetzt die letzte Linie.");
         return fallback;
     }
 
@@ -374,7 +412,9 @@ public sealed class DungeonWorld : IDisposable
             float offsetX = 30 + guard * 26;
             Vector2 spot = new(soul.Center.X + (guard % 2 == 0 ? offsetX : -offsetX),
                 DungeonGenerator.FloorPixelY(room));
-            spot = SafeSpawnBottomCenter(guardDefinition, spot, room);
+            // Ring-Versatz statt harter Raummitte: Wachen bleiben um die Seele herum stehen,
+            // auch wenn der erste Posten durch Deko blockiert ist.
+            spot = FindSpawnSpot(guardDefinition, spot, room, 24f);
             SpawnEnemy(guardDefinition, spot, RescueOwner);
         }
     }

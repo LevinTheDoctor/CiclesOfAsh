@@ -16,6 +16,8 @@
     <AssemblyName>CirclesOfAsh</AssemblyName>
     <TieredPGO>true</TieredPGO>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Nur fuer SdlControllerMappings: Zeiger-Delegates an die native SDL-Bibliothek -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <!--

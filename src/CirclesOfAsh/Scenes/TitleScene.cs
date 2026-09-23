@@ -29,6 +29,9 @@ public sealed class TitleScene : SceneBase
         // dann bleibt das Missionsbrett als Menü erreichbar.
         if (progression.CurrentRun is null)
             _menu.Add("Bitten der Gläubigen", () => Context.Scenes.Push(new MissionBoardScene(Context)));
+        // Optionen gehören auch ins Hauptmenü: Schwierigkeit, Audio und Controller-Profile sollen
+        // vor dem ersten Abstieg einstellbar sein – nicht erst über die Pause im Tempel.
+        _menu.Add("Optionen", () => Context.Scenes.Push(new SettingsScene(Context)));
         _menu.Add("Beenden", Context.RequestExit);
     }
 

@@ -149,7 +149,7 @@ public sealed class WaveDirector
         if (room.Type == RoomType.Boss)
         {
             var bossPosition = new Vector2(room.PixelBounds.Center.X + 96, DungeonGenerator.FloorPixelY(room));
-            bossPosition = world.SafeSpawnBottomCenter(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss), bossPosition, room);
+            bossPosition = world.FindSpawnSpot(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss), bossPosition, room);
             world.SpawnEnemy(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss), bossPosition, room.OwnerKey);
             world.Announce(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss).Name);
             return;
@@ -169,7 +169,7 @@ public sealed class WaveDirector
     {
         EnemyDefinition warden = world.Context.Definitions.Enemies.Get(prison.MiniBoss);
         float floorY = DungeonGenerator.FloorPixelY(room);
-        Vector2 wardenSpot = world.SafeSpawnBottomCenter(warden, new Vector2(room.PixelBounds.Center.X + 64, floorY), room);
+        Vector2 wardenSpot = world.FindSpawnSpot(warden, new Vector2(room.PixelBounds.Center.X + 64, floorY), room);
         world.SpawnEnemy(warden, wardenSpot, room.OwnerKey);
         world.Announce($"{warden.Name} bewacht die Gefangenen!");
         if (string.IsNullOrEmpty(prison.Guards)) return;
@@ -178,7 +178,9 @@ public sealed class WaveDirector
         {
             float x = room.PixelBounds.Left + 60 + index * (room.PixelBounds.Width - 120) / Math.Max(1, prison.GuardCount - 1);
             float y = guard.IsFlying ? room.PixelBounds.Top + 60 : floorY;
-            Vector2 spot = world.SafeSpawnBottomCenter(guard, new Vector2(x, y), room);
+            // Mindestabstand 24 px: Blockiert der Posten, versetzt FindSpawnSpot ihn um den
+            // nächsten freien Platz – statt alle Wachen in derselben Raummitte zu stapeln.
+            Vector2 spot = world.FindSpawnSpot(guard, new Vector2(x, y), room, 24f);
             world.SpawnEnemy(guard, spot, room.OwnerKey);
         }
     }
@@ -198,16 +200,11 @@ public sealed class WaveDirector
         Rectangle room = _arena!.PixelBounds;   // "!" = Null-Forgiving: wir wissen, dass _arena hier gesetzt ist
         float floorY = DungeonGenerator.FloorPixelY(_arena);
 
-        Vector2 position = default;
-        for (int attempt = 0; attempt < 6; attempt++)
-        {
-            float x = room.Left + 40 + world.Random.NextSingle() * (room.Width - 80);
-            float y = definition.IsFlying ? room.Top + 40 + world.Random.NextSingle() * 90f : floorY;
-            position = new Vector2(x, y);
-            if (MathF.Abs(x - world.Player.Center.X) > 80f) break;   // nicht direkt neben dem Spieler spawnen
-        }
-        // Fällt die Position in Geometrie, geht es in die Raummitte – ein Gegner im Fels ist unerreichbar.
-        position = world.SafeSpawnBottomCenter(definition, position, _arena!);
+        Vector2 position = new(room.Left + 40 + world.Random.NextSingle() * (room.Width - 80),
+            definition.IsFlying ? room.Top + 40 + world.Random.NextSingle() * 90f : floorY);
+        // FindSpawnSpot prüft Geometrie UND hält 80 px Abstand zum Spieler – der alte
+        // Zufallswurf konnte beides nicht garantieren (Gegner im Fels oder direkt auf dem Spieler).
+        position = world.FindSpawnSpot(definition, position, _arena!, 80f);
         world.SpawnEnemy(definition, position, _arena.OwnerKey);
     }
 
