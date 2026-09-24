@@ -6,7 +6,14 @@ namespace CirclesOfAsh.Progression;
 /// Aussehen aus dem Charakter-Editor. Die Zahlen sind Indizes in die Listen aus appearance.json
 /// -> Mods können Farben austauschen, ohne alte Spielstände zu brechen.
 /// </summary>
-public sealed record CharacterAppearance(string Name, int SkinTone, int HairStyle, int HairColor, int AccentColor)
+/// <remarks>
+/// Alle Auswahlen sind INDIZES in die Listen aus appearance.json, keine Kürzel – deshalb darf dort
+/// nie umsortiert werden. Die neuen Felder haben Standardwerte, damit bestehende Spielstände und
+/// Aufrufer unverändert gültig bleiben.
+/// </remarks>
+public sealed record CharacterAppearance(
+    string Name, int SkinTone, int HairStyle, int HairColor, int AccentColor,
+    int BodyType = 0, int Makeup = 0, int MakeupColor = 0, int Wings = 0)
 {
     public static CharacterAppearance Default { get; } = new("Namenloser", 0, 0, 0, 0);
 }

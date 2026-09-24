@@ -15,7 +15,7 @@ namespace CirclesOfAsh.Scenes;
 public sealed class CharacterCreatorScene : SceneBase
 {
     private enum Step { Look, Companion }
-    private enum Row { Name, Class, Skin, Hair, HairColor, Accent, Continue }
+    private enum Row { Name, Class, Body, Skin, Hair, HairColor, Makeup, MakeupColor, Wings, Accent, Continue }
 
     private const int MaxNameLength = 14;
     private static readonly string[] RandomNames =
@@ -27,11 +27,17 @@ public sealed class CharacterCreatorScene : SceneBase
     private readonly AppearanceDefinition _options;
     private readonly MenuList _companionMenu = new();
     private readonly Random _random = new();
-    private readonly Row[] _rows = Enum.GetValues<Row>();   // alle Enum-Werte als Array
+    /// <summary>
+    /// Nur die Zeilen, für die es auch Auswahlmöglichkeiten gibt. Körpertypen, Make-up und Flügel
+    /// stehen in appearance.json; fehlen sie noch, erscheint die Zeile gar nicht erst, statt eine
+    /// leere Auswahl anzubieten.
+    /// </summary>
+    private readonly Row[] _rows;
     private Step _step = Step.Look;
     private int _rowIndex;
     private string _name;
     private int _classIndex, _skin, _hair, _hairColor, _accent;
+    private int _bodyType, _makeup, _makeupColor, _wings;
     private LayeredSprite _preview = null!;
     private float _time;
 
@@ -40,12 +46,24 @@ public sealed class CharacterCreatorScene : SceneBase
         _classes = context.Definitions.Classes.All.ToList();
         _options = context.Definitions.Appearance;
         _name = RandomNames[_random.Next(RandomNames.Length)];
+        _rows = Enum.GetValues<Row>().Where(HasOptions).ToArray();
         RebuildPreview();
     }
 
+    /// <summary>Gibt es für diese Zeile überhaupt etwas zu wählen?</summary>
+    private bool HasOptions(Row row) => row switch
+    {
+        Row.Body => _options.BodyTypes.Count > 0,
+        Row.Makeup => _options.MakeupStyles.Count > 0,
+        Row.MakeupColor => _options.MakeupStyles.Count > 0 && _options.MakeupColors.Count > 0,
+        Row.Wings => _options.WingStyles.Count > 0,
+        _ => true,
+    };
+
     private Row CurrentRow => _rows[_rowIndex];
     private ClassDefinition SelectedClass => _classes[_classIndex];
-    private CharacterAppearance Look => new(_name.Trim().Length > 0 ? _name.Trim() : "Namenloser", _skin, _hair, _hairColor, _accent);
+    private CharacterAppearance Look => new(_name.Trim().Length > 0 ? _name.Trim() : "Namenloser",
+        _skin, _hair, _hairColor, _accent, _bodyType, _makeup, _makeupColor, _wings);
 
     public override void OnEnter()
     {
@@ -135,6 +153,10 @@ public sealed class CharacterCreatorScene : SceneBase
             case Row.Hair: _hair = CharacterVisuals.Wrap(_hair + step, _options.HairStyles.Count); break;
             case Row.HairColor: _hairColor = CharacterVisuals.Wrap(_hairColor + step, _options.HairColors.Count); break;
             case Row.Accent: _accent = CharacterVisuals.Wrap(_accent + step, _options.AccentColors.Count); break;
+            case Row.Body: _bodyType = CharacterVisuals.Wrap(_bodyType + step, _options.BodyTypes.Count); break;
+            case Row.Makeup: _makeup = CharacterVisuals.Wrap(_makeup + step, _options.MakeupStyles.Count); break;
+            case Row.MakeupColor: _makeupColor = CharacterVisuals.Wrap(_makeupColor + step, _options.MakeupColors.Count); break;
+            case Row.Wings: _wings = CharacterVisuals.Wrap(_wings + step, _options.WingStyles.Count); break;
             default: return;
         }
         Context.Audio.Play("pickup", 0.25f, 0.2f);
@@ -149,6 +171,10 @@ public sealed class CharacterCreatorScene : SceneBase
         _hair = _random.Next(Math.Max(1, _options.HairStyles.Count));
         _hairColor = _random.Next(Math.Max(1, _options.HairColors.Count));
         _accent = _random.Next(Math.Max(1, _options.AccentColors.Count));
+        _bodyType = _random.Next(Math.Max(1, _options.BodyTypes.Count));
+        _makeup = _random.Next(Math.Max(1, _options.MakeupStyles.Count));
+        _makeupColor = _random.Next(Math.Max(1, _options.MakeupColors.Count));
+        _wings = _random.Next(Math.Max(1, _options.WingStyles.Count));
         Context.Audio.Play("unseal", 0.3f, 0.6f);
         RebuildPreview();
     }
@@ -216,6 +242,10 @@ public sealed class CharacterCreatorScene : SceneBase
                 Row.Skin => "Hautton",
                 Row.Hair => "Frisur",
                 Row.HairColor => "Haarfarbe",
+                Row.Body => "Gestalt",
+                Row.Makeup => "Bemalung",
+                Row.MakeupColor => "Bemalungsfarbe",
+                Row.Wings => "Flügel",
                 Row.Accent => "Wappenfarbe",
                 _ => "",
             };
@@ -240,6 +270,15 @@ public sealed class CharacterCreatorScene : SceneBase
                     string hairName = _options.HairStyles.Count == 0 ? "-" : _options.HairStyles[_hair].Name;
                     font.DrawShadowed(spriteBatch, $"‹ {hairName} ›", valuePosition, Palette.Faith);
                     break;
+                case Row.Body:
+                    font.DrawShadowed(spriteBatch, $"‹ {OptionName(_options.BodyTypes, _bodyType)} ›", valuePosition, Palette.Faith);
+                    break;
+                case Row.Makeup:
+                    font.DrawShadowed(spriteBatch, $"‹ {OptionName(_options.MakeupStyles, _makeup)} ›", valuePosition, Palette.Faith);
+                    break;
+                case Row.Wings:
+                    font.DrawShadowed(spriteBatch, $"‹ {OptionName(_options.WingStyles, _wings)} ›", valuePosition, Palette.Faith);
+                    break;
                 default:
                     DrawSwatches(spriteBatch, pixel, valuePosition, row);
                     break;
@@ -256,6 +295,9 @@ public sealed class CharacterCreatorScene : SceneBase
         font.DrawShadowed(spriteBatch, statLine, new Vector2(panel.Left + 10, panel.Bottom - 14), Palette.Soul);
     }
 
+    private static string OptionName(IReadOnlyList<AppearanceOptionDefinition> options, int index) =>
+        options.Count == 0 ? "-" : options[CharacterVisuals.Wrap(index, options.Count)].Name;
+
     /// <summary>Farbfelder statt Text: die gewählte Farbe ist größer und golden umrandet.</summary>
     private void DrawSwatches(SpriteBatch spriteBatch, Texture2D pixel, Vector2 position, Row row)
     {
@@ -263,6 +305,7 @@ public sealed class CharacterCreatorScene : SceneBase
         {
             Row.Skin => (_options.SkinTones, _skin),
             Row.HairColor => (_options.HairColors, _hairColor),
+            Row.MakeupColor => (_options.MakeupColors, _makeupColor),
             _ => (_options.AccentColors, _accent),
         };
         for (int index = 0; index < colors.Count; index++)

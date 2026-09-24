@@ -10,10 +10,20 @@ public static class CharacterVisuals
     public static LayeredSprite Create(GameContext context, ClassDefinition playerClass, CharacterAppearance look)
     {
         AppearanceDefinition options = context.Definitions.Appearance;
-        var layers = new List<(SpriteSheet Sheet, Color Tint)>
-        {
-            (context.Assets.GetSpriteSheet(options.BodySprite), Pick(options.SkinTones, look.SkinTone)),
-        };
+        var layers = new List<(SpriteSheet Sheet, Color Tint)>();
+
+        // Flügel zuerst: Die Liste wird in dieser Reihenfolge gezeichnet, sie liegen also HINTER
+        // der Figur. Akzentfarbe färbt sie ein, damit sie zur Klasse passen.
+        if (SpriteOf(options.WingStyles, look.Wings) is { } wingSprite)
+            layers.Add((context.Assets.GetSpriteSheet(wingSprite), Pick(options.AccentColors, look.AccentColor)));
+
+        // Körpertyp (Geschlecht und Statur). Ohne definierte Typen gilt der alte Einzelkörper.
+        string body = SpriteOf(options.BodyTypes, look.BodyType) ?? options.BodySprite;
+        layers.Add((context.Assets.GetSpriteSheet(body), Pick(options.SkinTones, look.SkinTone)));
+
+        // Make-up über den Körper, aber UNTER die Haare – sonst läge Lidschatten über der Stirnlocke.
+        if (SpriteOf(options.MakeupStyles, look.Makeup) is { } makeupSprite)
+            layers.Add((context.Assets.GetSpriteSheet(makeupSprite), Pick(options.MakeupColors, look.MakeupColor)));
 
         if (options.HairStyles.Count > 0)
         {
@@ -26,6 +36,17 @@ public static class CharacterVisuals
         if (!string.IsNullOrEmpty(playerClass.AccentSprite))
             layers.Add((context.Assets.GetSpriteSheet(playerClass.AccentSprite), Pick(options.AccentColors, look.AccentColor)));
         return new LayeredSprite(layers);
+    }
+
+    /// <summary>
+    /// Sprite der gewählten Option – oder null, wenn die Liste leer ist oder die Option bewusst
+    /// keine Ebene hat (leerer Sprite, z. B. "Ohne Make-up").
+    /// </summary>
+    public static string? SpriteOf(IReadOnlyList<AppearanceOptionDefinition> options, int index)
+    {
+        if (options.Count == 0) return null;
+        string sprite = options[Wrap(index, options.Count)].Sprite;
+        return string.IsNullOrEmpty(sprite) ? null : sprite;
     }
 
     /// <summary>Index in den gültigen Bereich "falten" – auch negative Werte (-1 -> letztes Element).</summary>

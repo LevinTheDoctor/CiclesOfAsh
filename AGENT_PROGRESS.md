@@ -91,14 +91,23 @@ Auftrieb. Neue Klasse „Engel" in `classes.json` mit den Flügeln als Startfäh
 
 ## Paket B — Charakter & Begleiter
 
-### [ ] B1 Geschlecht und Körpertypen
+### [~] B1 Geschlecht und Körpertypen — Code fertig, Sprites bei GLM
 
 Heute gibt es genau **einen** Körper-Sprite (`appearance.json`, `bodySprite`). Geplant: Auswahl
 männlich/weiblich und Körpertyp von mehrgewichtig bis trainiert, also mehrere Körper-Sprite-Sätze.
 Achtung: `CharacterAppearance` speichert **Indizes**, keine Ids — neue Einträge müssen ans Ende der
 Listen, sonst verschieben sich bestehende Spielstände.
 
-### [ ] B2 Make-up
+**Code erledigt.** `AppearanceDefinition` kennt `BodyTypes`, `MakeupStyles`, `MakeupColors` und
+`WingStyles`; `CharacterAppearance` hat vier neue Felder mit Standardwerten (alte Spielstände
+bleiben gültig, `run_profile` ist Schlüssel/Wert und braucht keine Migration). `CharacterVisuals`
+zeichnet Flügel hinter der Figur, dann Körpertyp, Make-up unter den Haaren. Der Charakter-Editor
+blendet die neuen Zeilen nur ein, wenn `appearance.json` auch Auswahlmöglichkeiten liefert.
+
+**Offen:** Die Sprites und die JSON-Listen — Auftrag G1/G2/G3 in [GLM_TASKS.md](GLM_TASKS.md).
+Bis dahin bleibt alles beim heutigen Einzelkörper, ohne Warnung und ohne leere Menüzeilen.
+
+### [~] B2 Make-up — Code fertig, Sprites bei GLM
 
 Weitere Farbebene über dem Gesicht, technisch wie Haare und Akzent. Der Ebenen-Aufbau in
 `Progression/CharacterVisuals.cs` trägt das ohne Umbau.

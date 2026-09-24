@@ -420,12 +420,31 @@ public sealed class ControllerProfileDefinition : IDefinition
     public Dictionary<string, string> Labels { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
+/// <summary>
+/// Eine auswählbare Aussehens-Ebene: Körpertyp, Make-up, Flügel. Immer Id, Anzeigename und
+/// Sprite-Id; ein LEERER Sprite bedeutet "diese Ebene weglassen" (wie "Kahl" bei den Frisuren).
+/// </summary>
+public sealed class AppearanceOptionDefinition
+{
+    public string Id { get; init; } = "";
+    public string Name { get; init; } = "";
+    public string Sprite { get; init; } = "";
+}
+
 /// <summary>Auswahlmöglichkeiten des Charakter-Editors (Content/Data/appearance.json).</summary>
 public sealed class AppearanceDefinition
 {
+    /// <summary>Rückfall-Körper, solange keine Körpertypen definiert sind.</summary>
     public string BodySprite { get; init; } = "char.body";
+    /// <summary>Geschlecht und Statur in einer Liste (z. B. "Weiblich · Trainiert"). Leer = nur BodySprite.</summary>
+    public List<AppearanceOptionDefinition> BodyTypes { get; init; } = new();
     public List<string> SkinTones { get; init; } = new();
     public List<HairStyleDefinition> HairStyles { get; init; } = new();
     public List<string> HairColors { get; init; } = new();
+    /// <summary>Gesichtsbemalung als eigene, einfärbbare Ebene. Leer = die Zeile entfällt im Editor.</summary>
+    public List<AppearanceOptionDefinition> MakeupStyles { get; init; } = new();
+    public List<string> MakeupColors { get; init; } = new();
+    /// <summary>Flügel werden HINTER der Figur gezeichnet. Leer = die Zeile entfällt im Editor.</summary>
+    public List<AppearanceOptionDefinition> WingStyles { get; init; } = new();
     public List<string> AccentColors { get; init; } = new();
 }

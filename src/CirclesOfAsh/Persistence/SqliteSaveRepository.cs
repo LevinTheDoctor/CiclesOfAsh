@@ -273,7 +273,13 @@ public sealed class SqliteSaveRepository : ISaveRepository
             (int)ReadLong(profile, "skin"),
             (int)ReadLong(profile, "hair_style"),
             (int)ReadLong(profile, "hair_color"),
-            (int)ReadLong(profile, "accent"));
+            (int)ReadLong(profile, "accent"),
+            // Neu hinzugekommene Felder. run_profile ist eine Schlüssel/Wert-Tabelle, fehlende
+            // Schlüssel lesen sich als 0 – ältere Spielstände brauchen also keine Migration.
+            (int)ReadLong(profile, "body_type"),
+            (int)ReadLong(profile, "makeup"),
+            (int)ReadLong(profile, "makeup_color"),
+            (int)ReadLong(profile, "wings"));
         return run;
     }
 
@@ -323,6 +329,10 @@ public sealed class SqliteSaveRepository : ISaveRepository
             ("hair_style", look.HairStyle.ToString(CultureInfo.InvariantCulture)),
             ("hair_color", look.HairColor.ToString(CultureInfo.InvariantCulture)),
             ("accent", look.AccentColor.ToString(CultureInfo.InvariantCulture)),
+            ("body_type", look.BodyType.ToString(CultureInfo.InvariantCulture)),
+            ("makeup", look.Makeup.ToString(CultureInfo.InvariantCulture)),
+            ("makeup_color", look.MakeupColor.ToString(CultureInfo.InvariantCulture)),
+            ("wings", look.Wings.ToString(CultureInfo.InvariantCulture)),
         };
         foreach (var (key, value) in profileValues)
         {
