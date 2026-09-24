@@ -21,6 +21,10 @@ public sealed class Player : Actor
     private const float JumpBufferTime = 0.12f;   // zu früh gedrückter Sprung wird bei Landung ausgeführt
     private const float JumpCutMultiplier = 0.45f; // Taste loslassen = niedrigerer Sprung
     private const float HurtInvulnerability = 0.8f;
+    private const int StandHeight = 22;
+    private const int CrouchHeight = 12;
+    /// <summary>Geduckt kommt man nur noch halb so schnell voran – das ist der Preis fuer die Deckung.</summary>
+    private const float CrouchSpeedFactor = 0.45f;
 
     private readonly List<AbilityInstance> _abilities = new();
     private const float WaterSpeedFactor = 0.6f;
@@ -39,6 +43,9 @@ public sealed class Player : Actor
     private float _dashSpeed;
     private bool _dashBreaksGates;
     private float _stealthTimer;
+
+    /// <summary>Geduckt: halbe Trefferbox, langsamer, kein Sprung. Unter niedrigen Decken erzwungen.</summary>
+    public bool IsCrouching { get; private set; }
 
     public Player(ClassDefinition playerClass, LayeredSprite visual, StatSheet stats, Vector2 spawnPosition)
         : base(stats[StatType.MaxHealth])   // ": base(...)" ruft den Konstruktor der Basisklasse Actor auf
@@ -82,13 +89,14 @@ public sealed class Player : Actor
     private void UpdateMovement(DungeonWorld world, InputState input, float deltaSeconds)
     {
         float horizontal = input.Horizontal;
+        UpdateCrouch(world, input);
         if (KnockbackSeconds > 0f)
         {
             KnockbackSeconds -= deltaSeconds;
         }
         else
         {
-            float targetSpeed = horizontal * Stats[StatType.MoveSpeed];
+            float targetSpeed = horizontal * Stats[StatType.MoveSpeed] * (IsCrouching ? CrouchSpeedFactor : 1f);
             float rate = (MathF.Abs(horizontal) > 0.01f ? Acceleration : Deceleration) * (OnGround ? 1f : AirControl);
             Velocity.X = MoveTowards(Velocity.X, targetSpeed, rate * deltaSeconds);
         }
@@ -119,6 +127,38 @@ public sealed class Player : Actor
         if (OnGround) _airJumpsUsed = 0;
     }
 
+    /// <summary>
+    /// Ducken: Runter halten, solange man am Boden und nicht im Wasser ist. Das Aufstehen ist
+    /// gesperrt, solange oben eine massive Kachel liegt – sonst steckte die Figur in der Decke.
+    /// </summary>
+    private void UpdateCrouch(DungeonWorld world, InputState input)
+    {
+        bool wantsCrouch = input.IsDown(GameAction.Down) && OnGround && !_wasInWater && !IsDashing;
+        if (wantsCrouch)
+        {
+            SetHeight(CrouchHeight);
+            IsCrouching = true;
+            return;
+        }
+        if (!IsCrouching) return;
+
+        // Aufstehen nur, wenn die volle Hoehe frei ist.
+        var standBox = new Rectangle((int)MathF.Floor(Position.X), (int)MathF.Floor(Position.Y + Size.Y - StandHeight),
+                                     Size.X, StandHeight);
+        if (TilePhysics.IsBlocked(world.Map, standBox)) return;
+        SetHeight(StandHeight);
+        IsCrouching = false;
+    }
+
+    /// <summary>Aendert die Hoehe der Trefferbox und haelt dabei die Fuesse an Ort und Stelle.</summary>
+    private void SetHeight(int height)
+    {
+        if (Size.Y == height) return;
+        float bottom = Position.Y + Size.Y;
+        Size = new Point(Size.X, height);
+        Position.Y = bottom - height;
+    }
+
     private void TryJump(DungeonWorld world, InputState input)
     {
         if (input.IsDown(GameAction.Down) && OnGround && TilePhysics.IsStandingOnPlatformOnly(this, world.Map))
@@ -127,6 +167,8 @@ public sealed class Player : Actor
             _jumpBufferTimer = 0f;
             return;
         }
+        // Geduckt wird nicht gesprungen – sonst schnellt man unter jeder niedrigen Decke hoch.
+        if (IsCrouching) { _jumpBufferTimer = 0f; return; }
         if (_wasInWater)
         {
             Jump(world, WaterJumpFactor);   // im Wasser: beliebig oft "schwimmen"
@@ -297,6 +339,9 @@ public sealed class Player : Actor
         // Blinken während der Unverwundbarkeit: jeden zweiten "Takt" halbtransparent
         if (Health.IsInvulnerable && !IsDashing && (int)(Health.InvulnerableSeconds * 20f) % 2 == 0) tint *= 0.35f;
         if (HitFlashSeconds > 0f) tint = ColorUtil.Multiply(tint, new Color(255, 140, 140));   // Treffer: rötlich
-        _visual.Draw(spriteBatch, BottomCenter, flipHorizontally: !FacingRight, tint);
+        // Solange es keine eigenen Hock-Sprites gibt, wird die Figur gestaucht gezeichnet.
+        // Der Zeichenursprung liegt auf den Fuessen, sie sinkt also korrekt zusammen.
+        Vector2? squash = IsCrouching ? new Vector2(1f, CrouchHeight / (float)StandHeight) : null;
+        _visual.Draw(spriteBatch, BottomCenter, flipHorizontally: !FacingRight, tint, squash);
     }
 }

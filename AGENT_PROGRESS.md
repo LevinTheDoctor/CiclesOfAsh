@@ -16,7 +16,7 @@ Heute kämpft das Spiel fast vollständig **automatisch**: Alle Schadensfähigke
 passen (`Entities/Player.cs`, `UpdateAbilities`). Nur Dash, Tarnung und die Ultimate sind manuell.
 Genau das soll sich für Bosskämpfe ändern.
 
-### [ ] A1 Ducken
+### [x] A1 Ducken
 
 **Problem:** Es gibt kein Ducken. `GameAction.Down` dient nur zum Durchfallen durch Plattformen und
 als Dash-Richtung; eine verkleinerte Trefferbox gibt es nirgends.
@@ -27,6 +27,11 @@ Kopf eine massive Kachel liegt (sonst steckt man in der Decke). Sprite bekommt e
 
 **Prüfen:** Unter eine zwei Kacheln hohe Öffnung ducken und hindurchlaufen; unter einer niedrigen
 Decke darf man nicht aufstehen können.
+
+**Erledigt.** Trefferbox 22 → 12 px (Füße bleiben stehen), Tempo 45 %, kein Sprung, Aufstehen nur
+bei freier Höhe über `TilePhysics.IsBlocked`. Durchfallen durch Plattformen bleibt möglich. Solange
+es keine eigenen Hock-Sprites gibt, wird die Figur gestaucht gezeichnet — dafür nehmen
+`AnimationPlayer` und `LayeredSprite` jetzt eine getrennte X/Y-Skalierung.
 
 ### [ ] A2 Manuelles Moveset im Bosskampf
 

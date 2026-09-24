@@ -176,7 +176,7 @@ public sealed class CharacterCreatorScene : SceneBase
         var altar = new Rectangle(24, 36, 150, 180);
         UiDraw.Panel(spriteBatch, pixel, altar);
         InfernoFunnel.DrawEllipse(spriteBatch, pixel, new Vector2(altar.Center.X, 190), 40f, 8f, Palette.Ember * 0.6f);
-        _preview.Draw(spriteBatch, new Vector2(altar.Center.X, 190), false, Color.White, 5f);
+        _preview.Draw(spriteBatch, new Vector2(altar.Center.X, 190), false, Color.White, new Vector2(5f));
         font.DrawCentered(spriteBatch, Look.Name, altar.Center.X, altar.Top + 6, Palette.Faith);
         font.DrawCentered(spriteBatch, SelectedClass.Name, altar.Center.X, altar.Bottom - 16, Palette.Bone);
 

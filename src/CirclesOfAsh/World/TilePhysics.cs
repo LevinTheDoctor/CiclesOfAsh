@@ -93,6 +93,18 @@ public static class TilePhysics
         return result;
     }
 
+    /// <summary>
+    /// Liegt in diesem Rechteck irgendeine massive Kachel? Gebraucht, um zu pruefen, ob eine Figur
+    /// ueberhaupt Platz hat – etwa beim Aufstehen aus der Hocke unter einer niedrigen Decke.
+    /// </summary>
+    public static bool IsBlocked(TileMap map, Rectangle box)
+    {
+        for (int tileY = TileMap.ToTile(box.Top); tileY <= TileMap.ToTile(box.Bottom - 1); tileY++)
+        for (int tileX = TileMap.ToTile(box.Left); tileX <= TileMap.ToTile(box.Right - 1); tileX++)
+            if (TileMap.IsBlocking(map[tileX, tileY])) return true;
+        return false;
+    }
+
     public static bool IsStandingOnPlatformOnly(Entity body, TileMap map)
     {
         int tileY = TileMap.ToTile(body.Position.Y + body.Size.Y + 1f);

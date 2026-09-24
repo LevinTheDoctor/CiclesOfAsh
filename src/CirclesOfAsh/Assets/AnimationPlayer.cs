@@ -36,12 +36,16 @@ public sealed class AnimationPlayer
     }
 
     /// <summary>Zeichnet mit Anker "unten mittig" -> Sprites stehen unabhängig von ihrer Größe auf dem Boden.</summary>
-    public void Draw(SpriteBatch spriteBatch, Vector2 bottomCenter, bool flipHorizontally, Color tint, float scale = 1f)
+    /// <param name="scale">
+    /// Getrennt in X und Y, damit sich eine Figur stauchen lässt (Ducken) ohne schmaler zu werden.
+    /// null = 1:1. Der Ursprung liegt auf den Füßen, gestaucht wird also nach unten.
+    /// </param>
+    public void Draw(SpriteBatch spriteBatch, Vector2 bottomCenter, bool flipHorizontally, Color tint, Vector2? scale = null)
     {
         Rectangle source = Sheet.GetFrameRectangle(CurrentClip, FrameIndex);
         var origin = new Vector2(Sheet.FrameWidth / 2f, Sheet.FrameHeight);
         var position = new Vector2(MathF.Round(bottomCenter.X), MathF.Round(bottomCenter.Y));
         SpriteEffects effects = flipHorizontally ? SpriteEffects.FlipHorizontally : SpriteEffects.None;
-        spriteBatch.Draw(Sheet.Texture, position, source, tint, 0f, origin, scale, effects, 0f);
+        spriteBatch.Draw(Sheet.Texture, position, source, tint, 0f, origin, scale ?? Vector2.One, effects, 0f);
     }
 }

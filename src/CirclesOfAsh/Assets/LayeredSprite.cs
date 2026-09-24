@@ -27,7 +27,7 @@ public sealed class LayeredSprite
         foreach (var (animation, _) in _layers) animation.Update(deltaSeconds);
     }
 
-    public void Draw(SpriteBatch spriteBatch, Vector2 bottomCenter, bool flipHorizontally, Color tint, float scale = 1f)
+    public void Draw(SpriteBatch spriteBatch, Vector2 bottomCenter, bool flipHorizontally, Color tint, Vector2? scale = null)
     {
         foreach (var (animation, layerTint) in _layers)
             animation.Draw(spriteBatch, bottomCenter, flipHorizontally, ColorUtil.Multiply(layerTint, tint), scale);
