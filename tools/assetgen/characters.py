@@ -85,7 +85,10 @@ def head_and_neck(draw, p):
 
 
 def variant_body_frame(p, variant):
-    """Körpervarianten auf 24x32: Silhouette UND Binnenzeichnung.
+    """Körpervarianten auf 24x32 (G15): Die Statur kommt aus dem UMRISS, nicht nur der Schattierung.
+    athletic: V-Form — Schultern x 3-20, Taille x 6-17 deutlich eingezogen, Arme ABSTEHEND.
+    average:  gleichmäßig x 4-19 mit leichter Taille.
+    heavy:    durchgehend breit x 2-21, Bauch vorgewölbt (unten breiter), Arme dicht am Leib.
     Rumpf y 13-23, Beine ab 24. Kopf (y 3-11) und Fußlinie (y 31) bleiben identisch."""
     image = new_image(W, H)
     draw = ImageDraw.Draw(image)
@@ -95,55 +98,70 @@ def variant_body_frame(p, variant):
     female = variant.startswith("f")
     draw_legs(draw, p, TINT_MID, TINT_DARK, TINT_DEEP)
     if heavy:
-        # breiter Rumpf, weiche Rundung: Schatten nur am Rand, Bauch vorgewölbt
-        rect(draw, 6, 13 + b, 12, 10, TINT_MID)
-        rect(draw, 5, 13 + b, 14, 4, TINT_LIGHT)             # massiver Kasten oben
-        rect(draw, 5, 13 + b, 5, 2, (250, 250, 250, 255))   # Licht oben links
-        rect(draw, 6, 21 + b, 12, 2, TINT_DEEP)             # vorgewölbte Bauch-Unterkante
+        # durchgehend breit (x 2-21), Bauch vorgewölbt: Rumpf wird nach unten BREITER.
+        # Arme eng am Leib (x 1-4 / 19-22), Silhouette durchgehend geschlossen.
+        widths = [18, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]
+        for i, wdt in enumerate(widths):
+            x0 = (W - wdt) // 2
+            rect(draw, x0, 13 + b + i, wdt, 1, TINT_MID)
+        rect(draw, 3, 13 + b, 18, 4, TINT_LIGHT)             # massiver Kasten oben
+        rect(draw, 3, 13 + b, 6, 2, (250, 250, 250, 255))   # Licht oben links
+        rect(draw, 3, 21 + b, 18, 2, TINT_DEEP)             # vorgewölbte Bauch-Unterkante
         for y in (15, 17, 19):                               # Rand-Deutung statt Muskeln
-            pixel(draw, 6, y + b, TINT_DEEP)
-            pixel(draw, 17, y + b, TINT_DEEP)
+            pixel(draw, 2, y + b, TINT_DEEP)
+            pixel(draw, 21, y + b, TINT_DEEP)
         if female:
-            rect(draw, 6, 15 + b, 2, 2, TINT_TOP)            # sanfter Brust-Schatten
-            rect(draw, 15, 15 + b, 2, 2, TINT_TOP)
-            pixel(draw, 8, 16 + b, TINT_DEEP)
-            pixel(draw, 15, 16 + b, TINT_DEEP)
-            rect(draw, 7, 18 + b, 1, 2, TINT_DEEP)          # angedeutete Taille
-            rect(draw, 16, 18 + b, 1, 2, TINT_DEEP)
+            rect(draw, 6, 15 + b, 3, 2, TINT_TOP)            # sanfter Brust-Schatten
+            rect(draw, 15, 15 + b, 3, 2, TINT_TOP)
+            pixel(draw, 8, 17 + b, TINT_DEEP)
+            pixel(draw, 15, 17 + b, TINT_DEEP)
         else:
-            rect(draw, 5, 16 + b, 1, 5, TINT_DEEP)          # seitliche Wamst-Rundung
-            rect(draw, 18, 16 + b, 1, 5, TINT_DEEP)
-            rect(draw, 6, 20 + b, 12, 1, TINT_DARK)         # Bauchfalte
+            rect(draw, 2, 16 + b, 1, 5, TINT_DEEP)           # seitliche Wamst-Rundung
+            rect(draw, 21, 16 + b, 1, 5, TINT_DEEP)
+            rect(draw, 5, 20 + b, 14, 1, TINT_DARK)         # Bauchfalte
+            pixel(draw, 4, 19 + b, TINT_DEEP)                # Bauch-Bogen unten außen
+            pixel(draw, 19, 19 + b, TINT_DEEP)
     elif athletic:
-        # breite Schultern, schmale Taille — plus Bauchmuskeln (auf 24x32 echtes Sixpack)
+        # V-Form: breite Schultern (x 3-20), KRIFTIG eingezogene Taille (x 7-16, 4 Zeilen tief),
+        # Hüfte/Becken wieder breiter — die ARME stehen ab (Lücke zwischen Arm und Taille!)
         if female:
-            rect(draw, 5, 13 + b, 14, 11, TINT_MID)
-            rect(draw, 5, 13 + b, 14, 3, TINT_LIGHT)        # breite trainierte Schultern
-            rect(draw, 5, 13 + b, 6, 2, (250, 250, 250, 255))
-            rect(draw, 8, 17 + b, 8, 4, TINT_MID)            # Taille auf 8 px verjüngt
-            pixel(draw, 7, 18 + b, TINT_DEEP)               # eingezogene Taille beidseitig
-            pixel(draw, 7, 19 + b, TINT_DEEP)
-            pixel(draw, 16, 18 + b, TINT_DEEP)
-            pixel(draw, 16, 19 + b, TINT_DEEP)
-            rect(draw, 6, 21 + b, 12, 2, TINT_LIGHT)        # Hüfte ausgestellt
+            # Schultern x 4-19, Taille x 7-16, Hüfte x 4-19 (Sanduhr)
+            torso = [16, 16, 15, 12, 9, 8, 8, 10, 13, 16, 16]
+            for i, wdt in enumerate(torso):
+                x0 = (W - wdt) // 2
+                rect(draw, x0, 13 + b + i, wdt, 1, TINT_MID)
+            rect(draw, 4, 13 + b, 16, 3, TINT_LIGHT)        # trainierte Schultern
+            rect(draw, 4, 13 + b, 6, 2, (250, 250, 250, 255))
+            for y in (17, 18):                               # Taille innen nachschattieren
+                pixel(draw, 8, y + b, TINT_DEEP)
+                pixel(draw, 15, y + b, TINT_DEEP)
             for y in (17, 19, 21):                           # Bauchmuskeln
                 rect(draw, 10, y + b, 3, 1, TINT_DEEP)
                 rect(draw, 13, y + b, 2, 1, TINT_DEEP)
         else:
-            rect(draw, 4, 13 + b, 16, 11, TINT_MID)
-            rect(draw, 4, 13 + b, 16, 3, TINT_LIGHT)        # breite Schultern
-            rect(draw, 4, 13 + b, 7, 2, (250, 250, 250, 255))
-            rect(draw, 8, 16 + b, 8, 5, TINT_MID)            # trainierte Taille (schmaler)
+            # Schultern x 3-20, Taille x 7-16 (4 Zeilen), unten wieder ausgestellt
+            torso = [18, 18, 16, 12, 9, 8, 8, 11, 15, 16, 16]
+            for i, wdt in enumerate(torso):
+                x0 = (W - wdt) // 2
+                rect(draw, x0, 13 + b + i, wdt, 1, TINT_MID)
+            rect(draw, 3, 13 + b, 18, 3, TINT_LIGHT)        # breite Schultern (x 3-20)
+            rect(draw, 3, 13 + b, 7, 2, (250, 250, 250, 255))
             for y in (17, 19, 21):                           # Sixpack: drei Schattenlinien
                 rect(draw, 10, y + b, 4, 1, TINT_DEEP)
             rect(draw, 11, 16 + b, 1, 6, TINT_DEEP)          # vertikale Mittelrinne
             rect(draw, 10, 22 + b, 4, 1, TINT_DARK)         # Leistenbeuge
-            rect(draw, 6, 21 + b, 12, 2, TINT_MID)
+            pixel(draw, 8, 17 + b, TINT_DEEP)                # Taille-V-Schatten
+            pixel(draw, 8, 18 + b, TINT_DEEP)
+            pixel(draw, 15, 17 + b, TINT_DEEP)
+            pixel(draw, 15, 18 + b, TINT_DEEP)
     else:
-        # average: Standardkörper mit dezenter Zeichnung
-        rect(draw, 7, 13 + b, 10, 10, TINT_MID)
-        rect(draw, 7, 13 + b, 10, 3, TINT_LIGHT)
-        rect(draw, 7, 13 + b, 4, 2, (250, 250, 250, 255))
+        # average: gleichmäßig x 4-19 mit leichter Taille
+        torso = [16, 16, 16, 16, 16, 15, 15, 16, 16, 16, 16]
+        for i, wdt in enumerate(torso):
+            x0 = (W - wdt) // 2
+            rect(draw, x0, 13 + b + i, wdt, 1, TINT_MID)
+        rect(draw, 4, 13 + b, 16, 3, TINT_LIGHT)
+        rect(draw, 4, 13 + b, 6, 2, (250, 250, 250, 255))
         if female:
             rect(draw, 8, 15 + b, 3, 2, TINT_TOP)           # Brust
             rect(draw, 13, 15 + b, 3, 2, TINT_TOP)
@@ -151,25 +169,37 @@ def variant_body_frame(p, variant):
             pixel(draw, 8, 19 + b, TINT_DEEP)
             pixel(draw, 15, 18 + b, TINT_DEEP)
             pixel(draw, 15, 19 + b, TINT_DEEP)
-            rect(draw, 7, 20 + b, 10, 2, TINT_LIGHT)        # Hüfte
         else:
-            pixel(draw, 8, 18 + b, TINT_DEEP)               # leichte Taille
+            pixel(draw, 8, 18 + b, TINT_DEEP)                # leichte Taille
             pixel(draw, 15, 18 + b, TINT_DEEP)
-    # Arme: hinterer Arm (x 5-6), vorderer Arm (x 17-18) — breiter als vorher, mit Licht/Schatten
+    # Arme: beim ATHLETEN abstehend (Lücke zum Rumpf = V-Form lesbar), heavy eng am Leib,
+    # average normal. Der hintere Arm x 4-5/19-20, vorderer x 17-18 — beim Athletic weiter außen.
     arm = p["arm"]
-    rect(draw, 5, 14 + b + arm, 2, 8, TINT_MID)
-    rect(draw, 5, 14 + b + arm, 1, 8, TINT_TOP)
-    rect(draw, 17, 14 + b - arm, 2, 8, TINT_LIGHT)
-    rect(draw, 18, 14 + b - arm, 1, 8, TINT_TOP)
-    pixel(draw, 17, 22 + b - arm, TINT_LIGHT)               # Hand vorn
-    pixel(draw, 18, 22 + b - arm, TINT_TOP)
-    pixel(draw, 5, 22 + b + arm, TINT_MID)                  # Hand hinten
-    if heavy:
-        rect(draw, 4, 14 + b + arm, 1, 9, TINT_MID)         # wuchtigere Arme
-        rect(draw, 19, 14 + b - arm, 1, 9, TINT_LIGHT)
-    elif athletic:
-        rect(draw, 4, 14 + b + arm, 1, 8, TINT_MID)
-        rect(draw, 19, 14 + b - arm, 1, 8, TINT_LIGHT)
+    if athletic:
+        # Arme ganz aussen (x 2-3 / 20-21). Zusammen mit der auf 8 px verschmaelerten Taille
+        # bleiben je 4 px Luft; polish() legt beidseitig 1 px Kontur an, sichtbar bleiben 2 px.
+        # Vorher waren es 2 px Luft - die Kontur schloss die Luecke komplett und die V-Form war weg.
+        rect(draw, 2, 14 + b + arm, 2, 7, TINT_MID)          # hinterer Arm abstehend
+        rect(draw, 2, 14 + b + arm, 1, 7, TINT_TOP)
+        rect(draw, 20, 14 + b - arm, 2, 7, TINT_LIGHT)      # vorderer Arm abstehend
+        rect(draw, 21, 14 + b - arm, 1, 7, TINT_TOP)
+        pixel(draw, 2, 21 + b + arm, TINT_MID)               # Hände
+        pixel(draw, 21, 21 + b - arm, TINT_LIGHT)
+    elif heavy:
+        rect(draw, 2, 14 + b + arm, 3, 9, TINT_MID)          # Arme eng am wuchtigen Leib
+        rect(draw, 2, 14 + b + arm, 1, 9, TINT_TOP)
+        rect(draw, 19, 14 + b - arm, 3, 9, TINT_LIGHT)
+        rect(draw, 21, 14 + b - arm, 1, 9, TINT_TOP)
+        pixel(draw, 2, 23 + b + arm, TINT_MID)
+        pixel(draw, 21, 23 + b - arm, TINT_LIGHT)
+    else:
+        rect(draw, 5, 14 + b + arm, 2, 8, TINT_MID)
+        rect(draw, 5, 14 + b + arm, 1, 8, TINT_TOP)
+        rect(draw, 17, 14 + b - arm, 2, 8, TINT_LIGHT)
+        rect(draw, 18, 14 + b - arm, 1, 8, TINT_TOP)
+        pixel(draw, 17, 22 + b - arm, TINT_LIGHT)            # Hand vorn
+        pixel(draw, 18, 22 + b - arm, TINT_TOP)
+        pixel(draw, 5, 22 + b + arm, TINT_MID)               # Hand hinten
     head_and_neck(draw, p)
     return polish(image, outline=TINT_OUTLINE, light=14, dark=-24, gradient=12)
 
