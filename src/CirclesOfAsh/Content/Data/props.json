@@ -32,6 +32,19 @@
   { "id": "rune_pillar", "name": "Runensäule", "spriteSheet": "prop.rune_pillar", "behavior": "rune_pillar", "width": 16, "height": 32,
     "interactable": true, "prompt": "Rune berühren", "lightColor": "#70E6BE" },
   { "id": "mural", "name": "Inschrift", "spriteSheet": "prop.mural", "behavior": "mural", "width": 40, "height": 24 },
+
+  // Gewichtsrätsel: Platten senken sich unter Spieler ODER Schiebeblock.
+  // Der Block rutscht auf Tastendruck eine Kachel weiter – kein Schieben mit dem Körper,
+  // sonst bräuchte er echte Kollision und der Spieler würde sich daran aufhängen.
+  { "id": "pressure_plate", "name": "Druckplatte", "spriteSheet": "prop.pressure_plate", "behavior": "pressure_plate",
+    "width": 16, "height": 6 },
+  { "id": "push_block", "name": "Schiebeblock", "spriteSheet": "prop.push_block", "behavior": "push_block",
+    "width": 16, "height": 16, "interactable": true, "prompt": "Block schieben" },
+
+  // Spiegelrätsel: Der Strahl läuft nur über die Diagonalstellungen weiter (/ und \),
+  // flach gestellt (| und –) blockt der Spiegel ihn ab.
+  { "id": "mirror", "name": "Spiegel", "spriteSheet": "prop.mirror", "behavior": "mirror", "width": 16, "height": 16,
+    "interactable": true, "prompt": "Spiegel drehen", "lightColor": "#FFE9A8" },
   { "id": "brazier", "name": "Kohlenbecken", "spriteSheet": "prop.brazier", "behavior": "brazier", "width": 16, "height": 16,
     "interactable": true, "prompt": "Entzünden", "lightColor": "#FF8040", "lightFlicker": 0.15 },
   { "id": "chest", "name": "Truhe", "spriteSheet": "prop.chest", "behavior": "chest", "width": 16, "height": 12, "interactable": true, "prompt": "Öffnen" },

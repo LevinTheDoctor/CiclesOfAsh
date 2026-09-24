@@ -181,3 +181,148 @@ public sealed class CageProp : IPropBehavior
         world.Effects.Burst(prop.Center, Palette.Soul, 24, 60f, 1.2f, gravity: -80f);   // die befreite Seele steigt auf
     }
 }
+
+/// <summary>
+/// "pressure_plate": senkt sich, solange etwas Schweres darauf steht – der Spieler selbst
+/// oder ein Schiebeblock. Meldet jeden Zustandswechsel ans Rätsel, nicht nur das Drücken:
+/// das Gewichtsrätsel muss auch mitbekommen, wenn eine Platte wieder hochkommt.
+/// </summary>
+public sealed class PressurePlateProp : IPropBehavior
+{
+    /// <summary>Wie weit die Mitte eines Blocks von der Plattenmitte abweichen darf.</summary>
+    private const float BlockTolerance = 10f;
+
+    public void Initialize(Prop prop, DungeonWorld world) => prop.Animation.Play("raised");
+
+    public void Update(Prop prop, DungeonWorld world, float deltaSeconds)
+    {
+        bool weighted = HasWeightOn(prop, world);
+        if (weighted == (prop.State == 1)) return;
+
+        prop.State = weighted ? 1 : 0;
+        prop.Animation.Play(weighted ? "pressed" : "raised");
+        world.Context.Audio.Play("lever", weighted ? 0.45f : 0.3f, weighted ? -0.5f : -0.2f);
+        world.NotifyPuzzle(prop);
+    }
+
+    private static bool HasWeightOn(Prop prop, DungeonWorld world)
+    {
+        // Der Spieler zählt, wenn er mit den Fuessen auf der Platte steht.
+        Player player = world.Player;
+        if (player.Position.Y + player.Size.Y >= prop.Position.Y - 2f
+            && player.Position.Y + player.Size.Y <= prop.Position.Y + prop.Size.Y + 4f
+            && player.Center.X >= prop.Position.X && player.Center.X <= prop.Position.X + prop.Size.X)
+            return true;
+
+        foreach (Prop block in world.PropsWithTag("block"))
+            if (MathF.Abs(block.Center.X - prop.Center.X) <= BlockTolerance
+                && MathF.Abs(block.Position.Y + block.Size.Y - (prop.Position.Y + prop.Size.Y)) <= 6f)
+                return true;
+        return false;
+    }
+}
+
+/// <summary>
+/// "push_block": rutscht auf Tastendruck EINE Kachel in die Richtung, in die der Spieler schaut.
+/// Bewusst kein Schieben mit dem Körper: dafür bräuchte der Block echte Kollision, und der
+/// Spieler würde bei jedem Sprung daran hängenbleiben.
+/// </summary>
+public sealed class PushBlockProp : IPropBehavior
+{
+    private const float SlideSeconds = 0.18f;
+    private Vector2 _from;
+    private Vector2 _to;
+    private float _slide = 1f;
+
+    public void Initialize(Prop prop, DungeonWorld world)
+    {
+        _from = _to = prop.Position;
+        prop.Animation.Play("idle");
+    }
+
+    public bool Interact(Prop prop, DungeonWorld world)
+    {
+        if (_slide < 1f) return false;   // rutscht noch
+        int direction = world.Player.Center.X <= prop.Center.X ? 1 : -1;   // weg vom Spieler
+        var target = new Vector2(prop.Position.X + direction * TileMap.TileSize, prop.Position.Y);
+        if (IsTargetBlocked(prop, world, target))
+        {
+            world.Context.Audio.Play("error", 0.4f, -0.4f);
+            return false;
+        }
+
+        _from = prop.Position;
+        _to = target;
+        _slide = 0f;
+        world.Context.Audio.Play("crumble", 0.35f, -0.6f);
+        return true;
+    }
+
+    public void Update(Prop prop, DungeonWorld world, float deltaSeconds)
+    {
+        if (_slide >= 1f) return;
+        _slide = MathF.Min(1f, _slide + deltaSeconds / SlideSeconds);
+        prop.Position = Vector2.Lerp(_from, _to, _slide);
+        if (_slide < 1f) return;
+
+        // Nach dem Rutschen so weit fallen lassen, wie der Boden es zulässt – sonst schwebt der
+        // Block über einer Grube und das Rätsel wäre unlösbar geworden, ohne dass man es sieht.
+        while (!IsSolidBelow(prop, world) && prop.Position.Y < world.Map.Height * TileMap.TileSize)
+            prop.Position = new Vector2(prop.Position.X, prop.Position.Y + TileMap.TileSize);
+    }
+
+    private static bool IsTargetBlocked(Prop prop, DungeonWorld world, Vector2 target)
+    {
+        var box = new Rectangle((int)MathF.Round(target.X) + 2, (int)MathF.Round(target.Y) + 2,
+                                prop.Size.X - 4, prop.Size.Y - 4);
+        if (TilePhysics.IsBlocked(world.Map, box)) return true;
+        // Zwei Blöcke auf derselben Kachel wären nicht mehr auseinanderzuziehen.
+        foreach (Prop other in world.PropsWithTag("block"))
+            if (other != prop && MathF.Abs(other.Position.X - target.X) < TileMap.TileSize * 0.8f
+                && MathF.Abs(other.Position.Y - target.Y) < TileMap.TileSize * 0.8f)
+                return true;
+        return false;
+    }
+
+    private static bool IsSolidBelow(Prop prop, DungeonWorld world)
+    {
+        int row = TileMap.ToTile(prop.Position.Y + prop.Size.Y);
+        int left = TileMap.ToTile(prop.Position.X + 2);
+        int right = TileMap.ToTile(prop.Position.X + prop.Size.X - 3);
+        for (int column = left; column <= right; column++)
+        {
+            if (!world.Map.IsInside(column, row)) return true;   // Rand zählt als Boden
+            TileType tile = world.Map[column, row];
+            if (TileMap.IsBlocking(tile) || TileMap.IsPlatform(tile)) return true;
+        }
+        return false;
+    }
+}
+
+/// <summary>
+/// "mirror": vier Stellungen im Kreis. Nur die Diagonalen lenken den Strahl um,
+/// flach gestellt blockt der Spiegel ihn – das ist die eigentliche Aufgabe des Rätsels.
+/// State 0 = "|", 1 = "/", 2 = "–", 3 = "\".
+/// </summary>
+public sealed class MirrorProp : IPropBehavior
+{
+    private static readonly string[] Clips = { "angle0", "angle45", "angle90", "angle135" };
+
+    public void Initialize(Prop prop, DungeonWorld world) => prop.Animation.Play(Clips[prop.State & 3]);
+
+    public bool Interact(Prop prop, DungeonWorld world)
+    {
+        prop.State = (prop.State + 1) & 3;
+        prop.Animation.Play(Clips[prop.State]);
+        world.Context.Audio.Play("lever", 0.5f, 0.6f);
+        world.NotifyPuzzle(prop);
+        return true;
+    }
+
+    public void OnSignal(Prop prop, DungeonWorld world, string signal)
+    {
+        // Der Strahl meldet, ob er diesen Spiegel gerade trifft -> er glimmt dann.
+        prop.LightRadius = signal == "lit" ? 30f : 0f;
+        prop.Tint = signal == "lit" ? Color.White : new Color(200, 200, 210);
+    }
+}

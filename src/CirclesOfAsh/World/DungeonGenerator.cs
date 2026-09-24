@@ -137,6 +137,14 @@ public sealed class DungeonGenerator
         return path;
     }
 
+    /// <summary>
+    /// Rätsel, die einen eigenen Raum brauchen, weil ihre Teile in fester Geometrie zueinander
+    /// stehen müssen. "levers" steht bewusst nicht drin: seine Hebel verteilen sich über das
+    /// ganze Verlies – deshalb ist es auch der Rückfall, wenn kein freier Raum übrig ist.
+    /// </summary>
+    private static readonly HashSet<string> NeedsPuzzleRoom =
+        new(StringComparer.OrdinalIgnoreCase) { "rune_order", "braziers", "weights", "mirrors" };
+
     /// <summary>Setzt Start, Ziel, Arenen und ggf. den Rätselraum. Gibt den tatsächlich nutzbaren Rätsel-Schlüssel zurück.</summary>
     private string AssignRoomTypes(DungeonPlan plan, List<RoomNode> path)
     {
@@ -152,7 +160,7 @@ public sealed class DungeonGenerator
         }
 
         string key = plan.PuzzleKey;
-        if (key is "rune_order" or "braziers")
+        if (NeedsPuzzleRoom.Contains(key))
         {
             RoomNode? puzzleRoom = path.Skip(1).Take(middleCount)
                 .Where(room => room.Type == RoomType.Corridor)
@@ -497,6 +505,57 @@ public sealed class DungeonGenerator
                     if (PlaceProp(puzzleRoom, "brazier", PropAnchor.Floor, "brazier", index, columns[index])) placed++;
                 return placed > 0 ? new PuzzleSpec(key, Array.Empty<int>()) : null;
             }
+            case "weights":
+            {
+                RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
+                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
+
+                // Drei Platten, zwei Bloecke: Auf der letzten Platte muss der Spieler selbst
+                // stehen bleiben – sonst waere es nur Hin- und Herlaufen.
+                int[] plateColumns = { 6, 14, 22 };
+                int plates = 0;
+                for (int index = 0; index < plateColumns.Length; index++)
+                    if (PlacePropAt(puzzleRoom, "pressure_plate", "plate", index, plateColumns[index], FloorRow)) plates++;
+                if (plates < plateColumns.Length) return PlacePuzzle("levers", path, rooms, leverCount);
+
+                // Bloecke bewusst NICHT auf den Platten: sie stehen dazwischen und muessen
+                // geschoben werden. Eine Kachel Abstand reicht, der Block rutscht je Druck eine weiter.
+                int[] blockColumns = { 10, 18 };
+                for (int index = 0; index < blockColumns.Length; index++)
+                    PlacePropAt(puzzleRoom, "push_block", "block", index, blockColumns[index], FloorRow);
+                return new PuzzleSpec(key, Array.Empty<int>());
+            }
+            case "mirrors":
+            {
+                RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
+                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
+
+                // Feste Geometrie, damit das Raetsel garantiert loesbar ist:
+                //   Leuchter (2) --> Spiegel (6, flach stellen) --> Spiegel (11, "/") --> hoch
+                //   --> fester Spiegel (11, oben) --> rechts --> fester Spiegel (21, oben) --> runter
+                //   --> Spiegel (21, "\") --> rechts --> Standbild (26)
+                // Die festen Spiegel haengen hoch an der Wand: der Spieler sieht den gedachten
+                // Weg, muss aber nur die drei am Boden drehen.
+                //
+                // Der feste Sperrspiegel in Spalte 16 steht quer ("|") und ist noetig: ohne ihn
+                // konnte man alle drei drehbaren flach stellen, der Strahl lief einfach am Boden
+                // durch und das Raetsel loeste sich von selbst. Er liegt genau in dem Stueck
+                // Bodenreihe, das der gedachte Weg ueberspringt - die Loesung ist damit eindeutig.
+                const int beamRow = FloorRow;          // Spiegel stehen auf dem Boden, Strahl in ihrer Reihe
+                const int upperStandRow = beamRow - 6; // hoch an der Wand, ausserhalb der Sprungweite
+
+                bool ok = PlacePropAt(puzzleRoom, "lamp", "beam_source", 0, 2, beamRow)
+                          & PlacePropAt(puzzleRoom, "mirror", "mirror", 0, 6, beamRow)
+                          & PlacePropAt(puzzleRoom, "mirror", "mirror", 1, 11, beamRow)
+                          & PlacePropAt(puzzleRoom, "mirror", "mirror", 2, 21, beamRow)
+                          & PlacePropAt(puzzleRoom, "mirror", "mirror_fixed", 0, 11, upperStandRow)
+                          & PlacePropAt(puzzleRoom, "mirror", "mirror_fixed", 1, 21, upperStandRow)
+                          & PlacePropAt(puzzleRoom, "mirror", "mirror_fixed", 2, 16, beamRow)
+                          & PlacePropAt(puzzleRoom, "statue", "beam_target", 0, 26, beamRow);
+                // Order = Stellungen der FESTEN Spiegel (0 = "|", 1 = "/", 2 = "–", 3 = "\\").
+                // Loesung fuer die drei drehbaren: Spalte 6 flach (2), Spalte 11 "/" (1), Spalte 21 "\\" (3).
+                return ok ? new PuzzleSpec(key, new[] { 1, 3, 0 }) : PlacePuzzle("levers", path, rooms, leverCount);
+            }
             default:
                 return null;
         }
@@ -570,6 +629,23 @@ public sealed class DungeonGenerator
             _usedColumns[(room, anchor)] = used;
         }
         return used;
+    }
+
+    /// <summary>
+    /// Setzt ein Prop auf eine GENAU bestimmte Kachel, ohne die Suche in <see cref="FindSpot"/>.
+    /// Für Rätsel mit fester Geometrie: Der Spiegelstrahl trifft nur, wenn Quelle, Spiegel und
+    /// Ziel exakt auf einer Kachelreihe liegen – ein zufälliger Platz wäre dort unbrauchbar.
+    /// Die Spalte wird als belegt vermerkt, damit die Deko später nicht darüber gesetzt wird.
+    /// </summary>
+    private bool PlacePropAt(RoomNode room, string propId, string tag, int index, int column, int standRow)
+    {
+        if (!_definitions.Props.Contains(propId)) return false;
+        PropDefinition prop = _definitions.Props.Get(propId);
+        var bottomCenter = new Vector2((room.TileBounds.X + column) * TileSize + TileSize / 2f,
+                                       (room.TileBounds.Y + standRow) * TileSize);
+        _props.Add(new PropPlacement(prop, bottomCenter, room, tag, index));
+        UsedColumns(room, PropAnchor.Floor).Add(column);
+        return true;
     }
 
     private bool PlaceProp(RoomNode room, string propId, PropAnchor anchor, string tag, int index, int? preferredColumn = null)

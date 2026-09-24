@@ -68,7 +68,8 @@
         ],
         "puzzles": [
           "levers",
-          "rune_order"
+          "rune_order",
+          "weights"
         ],
         "collectibles": [
           "prayer_beads",
@@ -160,7 +161,9 @@
         "puzzles": [
           "rune_order",
           "braziers",
-          "levers"
+          "levers",
+          "weights",
+          "mirrors"
         ],
         "collectibles": [
           "lost_letter",
@@ -251,7 +254,9 @@
         ],
         "puzzles": [
           "braziers",
-          "rune_order"
+          "rune_order",
+          "mirrors",
+          "weights"
         ],
         "collectibles": [
           "soul_shard",

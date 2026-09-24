@@ -894,6 +894,7 @@ public sealed class DungeonWorld : IDisposable
         if (IsGoalActive) _sigil.Draw(spriteBatch, Layout.GoalBottomCenter, false, Color.White);
         foreach (var ability in Player.Abilities) ability.Behavior.Draw(spriteBatch, this, Player, ability);
         foreach (Projectile projectile in _projectiles) projectile.Draw(spriteBatch);
+        Puzzle?.Draw(spriteBatch, this);
         Effects.Draw(spriteBatch, Context.Assets.Pixel, Context.Font);
         Chatter.Draw(spriteBatch, Context.Assets.Pixel, Context.Font);
         DrawInteractionPrompt(spriteBatch);

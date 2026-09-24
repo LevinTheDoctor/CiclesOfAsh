@@ -64,10 +64,15 @@ public sealed class BehaviorRegistry
         registry.RegisterProp("cage", () => new CageProp());
         registry.RegisterProp("breakable", () => new BreakableProp());
         registry.RegisterProp("critter", () => new CritterProp());
+        registry.RegisterProp("pressure_plate", () => new PressurePlateProp());
+        registry.RegisterProp("push_block", () => new PushBlockProp());
+        registry.RegisterProp("mirror", () => new MirrorProp());
 
         registry.RegisterPuzzle("levers", () => new LeverPuzzle());
         registry.RegisterPuzzle("rune_order", () => new RuneOrderPuzzle());
         registry.RegisterPuzzle("braziers", () => new BrazierPuzzle());
+        registry.RegisterPuzzle("weights", () => new WeightPuzzle());
+        registry.RegisterPuzzle("mirrors", () => new MirrorPuzzle());
         return registry;
     }
 
