@@ -33,16 +33,17 @@
     "modifiers": [ { "stat": "Might", "amount": 0.18, "isPercent": true }, { "stat": "MoveSpeed", "amount": -0.05, "isPercent": true } ] },
 
   // Rüstungen (Slot Armor): flache Schadensreduktion pro Treffer (StatType.Armor)
-  { "id": "leather_jerkin", "name": "Lederwams", "slot": "Armor", "rarity": "Common",
+  // durability = Schaden, den das Stück abfängt, bevor es zerspringt; 0/fehlt = unzerstörbar
+  { "id": "leather_jerkin", "name": "Lederwams", "slot": "Armor", "rarity": "Common", "durability": 60,
     "description": "Abgetragenes Leder. Hält nicht viel aus, wiegt aber nichts.",
     "modifiers": [ { "stat": "Armor", "amount": 2 } ] },
-  { "id": "chainmail", "name": "Kettenhemd", "slot": "Armor", "rarity": "Common",
+  { "id": "chainmail", "name": "Kettenhemd", "slot": "Armor", "rarity": "Common", "durability": 110,
     "description": "Tausend kleine Ringe zwischen dir und den Zähnen der Hölle.",
     "modifiers": [ { "stat": "Armor", "amount": 4 } ] },
-  { "id": "scale_mail", "name": "Schuppenpanzer", "slot": "Armor", "rarity": "Rare",
+  { "id": "scale_mail", "name": "Schuppenpanzer", "slot": "Armor", "rarity": "Rare", "durability": 180,
     "description": "Schuppe über Schuppe, wie die Haut eines jungen Drachen.",
     "modifiers": [ { "stat": "Armor", "amount": 6 } ] },
-  { "id": "ash_harness", "name": "Aschenharnisch", "slot": "Armor", "rarity": "Sacred", "minCircle": 1,
+  { "id": "ash_harness", "name": "Aschenharnisch", "slot": "Armor", "rarity": "Sacred", "minCircle": 1, "durability": 300,
     "description": "Geschmiedet aus verklumpter Asche Gefallener. Fast unzerbrechlich – und schwer.",
     "modifiers": [ { "stat": "Armor", "amount": 9 }, { "stat": "MoveSpeed", "amount": -0.06, "isPercent": true } ] },
 
