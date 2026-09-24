@@ -98,6 +98,14 @@
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
     "accent.angel": { "texture": "Textures/char_accent_angel.png", "frameWidth": 16, "frameHeight": 24,
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "armor.leather_jerkin": { "texture": "Textures/char_armor_leather.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "armor.chainmail": { "texture": "Textures/char_armor_chain.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "armor.scale_mail": { "texture": "Textures/char_armor_scale.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "armor.ash_harness": { "texture": "Textures/char_armor_ash.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
 
     // ---------------- Gegner
     "enemy.ghoul": { "texture": "Textures/enemy_ghoul.png", "frameWidth": 16, "frameHeight": 16,

@@ -413,3 +413,28 @@ Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Si
   Animationen heißen `angle0`/`angle45`/`angle90`/`angle135`), `prop.push_block` (16×16, ein
   Bild). `props.json` wie besprochen nicht angefasst. `dotnet build` bleibt 0/0, keine
   fehlenden Texturen im Manifest.
+- **G9 fertig — Körper mit Statur.** Alle sechs Typen haben jetzt Binnenzeichnung: Taille als
+  beidseitige Schattenpixel (y 12–13), Sixpack als waagerechte Linien + Mittelrinne bei den
+  athletischen, weiche Rand-Schatten ohne Muskellinien bei den heavy-Typen. `f_average` und
+  `f_athletic` unterscheiden sich jetzt **sowohl in Silhouette als auch Binnenzeichnung**
+  (f_athletic: breitere Schultern x 4–11, Rumpf auf 4 px verjüngt, Hüfte ausgestellt).
+  Kopf, Hals und Fußlinie sind bei allen sechs unverändert (nur Outline-Pixel rücken mit den
+  breiteren Schultern mit — kosmetisch, gewollt).
+  **Ein Hinweis:** `char.body` (der Rückfallwert) zeichnet per Code denselben m_average und
+  hat dadurch jetzt die zwei neuen Taille-Schattenpixel übernommen (28 Pixel im Blatt
+  anders, alle in y 13–14). Falls du den alten Look bit-genau brauchst, sag Bescheid —
+  dann zeichne ich den Rückfallkörper wieder ohne Taille.
+- **G10 fertig — leichte Kleidung.** Alle vier Klassen tragen jetzt Hose/Rock + Gürtel statt
+  Vollpanzer/Robe: Krieger Riemen auf Schulterhöhe + Schulterplatten + Klinge, Magier Rock ab
+  der Hüfte + Kapuze + Stab, Schatten Kapuze + Hüfttuch + Umhangstreifen hinter dem Rücken +
+  Dolch, Engel Kragen (nur y 9) + Rock + Gürtel. Der Rumpf (x 6–9, y 11–13) ist bei allen
+  Klassen in Outfit und Akzent frei — gemessen, nicht geraten: 0–2 Restpixel (Akzente wie
+  Stola/Schärpe sind dünne Diagonalen). Wappenrock des Kriegers ist auf ein kleines
+  Brustwappen (y 9–10) geschrumpft, die Magier-Stola endet bei y 11.
+- **G11 fertig — Rüstungs-Ebenen stehen.** Vier neue IDs im Manifest:
+  `armor.leather_jerkin` (Wams mit Schnürung vorn), `armor.chainmail` (Maschenmuster, kurze
+  Ärmel), `armor.scale_mail` (Schuppenreihen + Schulterstücke), `armor.ash_harness` (breiter
+  Harnisch mit Glutadern). Format 16×24 mit vier Zeilen wie die Outfits, komplett in
+  Graustufen (Outline (60,60,66) wie beim Körper), Rumpf 42/42 Pixel bedeckt — genau der Sinn.
+  `items.json` hat bei allen vier das Feld `"sprite"` (armor.leather_jerkin, armor.chainmail,
+  armor.scale_mail, armor.ash_harness), `durability` unverändert. `dotnet build` 0/0.
