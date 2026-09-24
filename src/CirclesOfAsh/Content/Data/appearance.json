@@ -2,6 +2,14 @@
   // Auswahlmöglichkeiten des Charakter-Editors. Farben als #RRGGBB, sie färben Graustufen-Ebenen ein.
   // Reihenfolge nicht umsortieren: Spielstände speichern die Position (Index)!
   "bodySprite": "char.body",
+  "bodyTypes": [
+    { "id": "m_average",  "name": "Männlich · Normal",     "sprite": "char.body.m.average" },
+    { "id": "m_heavy",    "name": "Männlich · Kräftig",    "sprite": "char.body.m.heavy" },
+    { "id": "m_athletic", "name": "Männlich · Trainiert",  "sprite": "char.body.m.athletic" },
+    { "id": "f_average",  "name": "Weiblich · Normal",    "sprite": "char.body.f.average" },
+    { "id": "f_heavy",    "name": "Weiblich · Kräftig",   "sprite": "char.body.f.heavy" },
+    { "id": "f_athletic", "name": "Weiblich · Trainiert", "sprite": "char.body.f.athletic" }
+  ],
   "skinTones": [ "#F2D3B8", "#E0B090", "#B07A55", "#7A4E33", "#D0CCD8", "#9DB09A" ],
   "hairStyles": [
     { "id": "short", "name": "Kurz", "sprite": "hair.short" },
@@ -12,5 +20,19 @@
     { "id": "bald", "name": "Kahl", "sprite": "" }
   ],
   "hairColors": [ "#2A2024", "#5A3A28", "#A06A3A", "#E0C080", "#E8E4F0", "#B03020", "#4A5A8A", "#6A8A5A" ],
-  "accentColors": [ "#961824", "#D4AA48", "#5A6EE6", "#6EE6BE", "#AA64E6", "#E87828", "#E8E0D0", "#3A3A44" ]
+  "accentColors": [ "#961824", "#D4AA48", "#5A6EE6", "#6EE6BE", "#AA64E6", "#E87828", "#E8E0D0", "#3A3A44" ],
+  "makeupStyles": [
+    { "id": "none",   "name": "Ohne",           "sprite": "" },
+    { "id": "liner",  "name": "Lidstrich",      "sprite": "makeup.liner" },
+    { "id": "shadow", "name": "Lidschatten",    "sprite": "makeup.shadow" },
+    { "id": "lips",   "name": "Lippen",         "sprite": "makeup.lips" },
+    { "id": "war",    "name": "Kriegsbemalung", "sprite": "makeup.war" }
+  ],
+  "makeupColors": [ "#C0304A", "#8A2BE2", "#1A1A1A", "#D4AA48", "#3A6EA5", "#E8E4F0" ],
+  "wingStyles": [
+    { "id": "none",      "name": "Keine",     "sprite": "" },
+    { "id": "feathered", "name": "Gefiedert", "sprite": "wings.feathered" },
+    { "id": "tattered",  "name": "Zerfetzt",  "sprite": "wings.tattered" },
+    { "id": "ember",     "name": "Glut",      "sprite": "wings.ember" }
+  ]
 }

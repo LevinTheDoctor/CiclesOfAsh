@@ -46,6 +46,32 @@
     // ---------------- Spieler-Ebenen (Charakter-Editor): body, hair.*, outfit.<klasse>, accent.<klasse>
     "char.body": { "texture": "Textures/char_body.png", "frameWidth": 16, "frameHeight": 24,
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "char.body.m.heavy": { "texture": "Textures/char_body_m_heavy.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "char.body.m.average": { "texture": "Textures/char_body_m_average.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "char.body.m.athletic": { "texture": "Textures/char_body_m_athletic.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "char.body.f.heavy": { "texture": "Textures/char_body_f_heavy.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "char.body.f.average": { "texture": "Textures/char_body_f_average.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "char.body.f.athletic": { "texture": "Textures/char_body_f_athletic.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "makeup.liner": { "texture": "Textures/char_makeup_liner.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "makeup.shadow": { "texture": "Textures/char_makeup_shadow.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "makeup.lips": { "texture": "Textures/char_makeup_lips.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "makeup.war": { "texture": "Textures/char_makeup_war.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "wings.feathered": { "texture": "Textures/char_wings_feathered.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "wings.tattered": { "texture": "Textures/char_wings_tattered.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
+    "wings.ember": { "texture": "Textures/char_wings_ember.png", "frameWidth": 16, "frameHeight": 24,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
     "hair.short": { "texture": "Textures/char_hair_short.png", "frameWidth": 16, "frameHeight": 24,
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 5}, "run": {"row": 1, "frames": 4, "fps": 10}, "jump": {"row": 2, "frames": 4, "fps": 8}, "hurt": {"row": 3, "frames": 2, "fps": 12} } },
     "hair.long": { "texture": "Textures/char_hair_long.png", "frameWidth": 16, "frameHeight": 24,
@@ -92,6 +118,10 @@
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 2}, "run": {"row": 1, "frames": 4, "fps": 8} } },
     "enemy.golem": { "texture": "Textures/enemy_golem.png", "frameWidth": 24, "frameHeight": 24,
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 3}, "run": {"row": 1, "frames": 4, "fps": 5} } },
+    "enemy.drake": { "texture": "Textures/enemy_drake.png", "frameWidth": 24, "frameHeight": 20,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 8}, "cast": {"row": 1, "frames": 4, "fps": 10} } },
+    "enemy.dragon_whelp": { "texture": "Textures/enemy_dragon_whelp.png", "frameWidth": 16, "frameHeight": 16,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 7}, "run": {"row": 1, "frames": 4, "fps": 12} } },
 
     // ---------------- NPCs
     "npc.pilgrim": { "texture": "Textures/npc_pilgrim.png", "frameWidth": 16, "frameHeight": 20,
@@ -119,6 +149,8 @@
     "companion.chain": { "texture": "Textures/companion_chain.png", "frameWidth": 12, "frameHeight": 12,
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 6} } },
     "companion.bell": { "texture": "Textures/companion_bell.png", "frameWidth": 12, "frameHeight": 12,
+      "animations": { "idle": {"row": 0, "frames": 4, "fps": 6} } },
+    "companion.dragonling": { "texture": "Textures/companion_dragonling.png", "frameWidth": 12, "frameHeight": 12,
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 6} } },
 
     // ---------------- Projektile, Effekte, Pickups
@@ -149,7 +181,7 @@
 
     // ---------------- Items: eine Animation pro Item-ID (Spalte = Icon, 2 Zeilen = Glanz-Frames)
     "items.icons": { "texture": "Textures/items.png", "frameWidth": 12, "frameHeight": 12,
-      "animations": { "grave_lantern": {"row": 0, "frames": 1, "fps": 1, "column": 0}, "saint_lamp": {"row": 0, "frames": 1, "fps": 1, "column": 1}, "hellfire_lantern": {"row": 0, "frames": 1, "fps": 1, "column": 2}, "rosary": {"row": 0, "frames": 1, "fps": 1, "column": 3}, "bleeding_heart": {"row": 0, "frames": 1, "fps": 1, "column": 4}, "eye_of_vigil": {"row": 0, "frames": 1, "fps": 1, "column": 5}, "ring_of_ash": {"row": 0, "frames": 1, "fps": 1, "column": 6}, "ring_of_silence": {"row": 0, "frames": 1, "fps": 1, "column": 7}, "ring_of_mammon": {"row": 0, "frames": 1, "fps": 1, "column": 8}, "prayer_beads": {"row": 0, "frames": 1, "fps": 1, "column": 9}, "soul_shard": {"row": 0, "frames": 1, "fps": 1, "column": 10}, "lost_letter": {"row": 0, "frames": 1, "fps": 1, "column": 11} } },
+      "animations": { "grave_lantern": {"row": 0, "frames": 1, "fps": 1, "column": 0}, "saint_lamp": {"row": 0, "frames": 1, "fps": 1, "column": 1}, "hellfire_lantern": {"row": 0, "frames": 1, "fps": 1, "column": 2}, "rosary": {"row": 0, "frames": 1, "fps": 1, "column": 3}, "bleeding_heart": {"row": 0, "frames": 1, "fps": 1, "column": 4}, "eye_of_vigil": {"row": 0, "frames": 1, "fps": 1, "column": 5}, "ring_of_ash": {"row": 0, "frames": 1, "fps": 1, "column": 6}, "ring_of_silence": {"row": 0, "frames": 1, "fps": 1, "column": 7}, "ring_of_mammon": {"row": 0, "frames": 1, "fps": 1, "column": 8}, "prayer_beads": {"row": 0, "frames": 1, "fps": 1, "column": 9}, "soul_shard": {"row": 0, "frames": 1, "fps": 1, "column": 10}, "lost_letter": {"row": 0, "frames": 1, "fps": 1, "column": 11}, "leather_jerkin": {"row": 0, "frames": 1, "fps": 1, "column": 12}, "chainmail": {"row": 0, "frames": 1, "fps": 1, "column": 13}, "scale_mail": {"row": 0, "frames": 1, "fps": 1, "column": 14}, "ash_harness": {"row": 0, "frames": 1, "fps": 1, "column": 15} } },
     "ui.runes": { "texture": "Textures/runes.png", "frameWidth": 8, "frameHeight": 8,
       "animations": { "idle": {"row": 0, "frames": 4, "fps": 1} } },
 
