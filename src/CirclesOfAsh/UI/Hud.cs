@@ -25,6 +25,9 @@ public sealed class Hud
         // Links oben: Ressourcen
         UiDraw.Bar(spriteBatch, pixel, new Rectangle(6, 6, 90, 7), player.Health.Ratio, Palette.Blood);
         UiDraw.Bar(spriteBatch, pixel, new Rectangle(6, 15, 70, 5), player.Mana / MathF.Max(1f, player.MaxMana), Palette.Mana);
+        // Ausdauer fuer den manuellen Nahkampf: leuchtet gold, solange geblockt wird.
+        UiDraw.Bar(spriteBatch, pixel, new Rectangle(6, 22, 70, 4),
+            player.Stamina / player.MaxStaminaValue, player.IsBlocking ? Palette.Gold : Palette.Ash);
         font.DrawShadowed(spriteBatch, $"{player.Health.Current:0}/{player.Health.Max:0}", new Vector2(100, 5), Palette.Bone);
 
         // Unten: Seelenleiste (XP) über die volle Breite

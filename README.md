@@ -121,16 +121,25 @@ Mehr dazu unter [Auslieferung & Release](#auslieferung--release).
 | Bewegen | A / D oder ← / → | Linker Stick / D-Pad |
 | Springen (halten = höher) | Leertaste / K | A |
 | Durch Plattform fallen | S + Springen | Runter + A |
+| Ducken | S / ↓ gedrückt halten | Steuerkreuz runter |
 | Dash *(Ewige Gabe)* – mit W/S vertikal | Shift / L | RB / B |
-| Fähigkeit 1 (z. B. Schleier) | Q / J | X |
-| Fähigkeit 2 (z. B. Jüngstes Gericht) | E / I | Y |
+| Angreifen (Kombo aus drei Schlägen) | J | RT / R2 / ZR |
+| Blocken – früh gedrückt = Parade | K | LT / L2 / ZL |
+| Drehsprung | W | Steuerkreuz hoch |
+| Fähigkeit 1 (z. B. Schleier) | Q | X |
+| Fähigkeit 2 (z. B. Jüngstes Gericht) | E | Y |
 | Benutzen (Hebel, Truhe, Rune, Feuer) | F / W | LB / D-Pad hoch |
 | Schwimmen (im Wasser) | Springen mehrfach | A mehrfach |
 | Menü bestätigen | Enter | A / Start |
 | Zufällige Gestalt (Editor) | F5 | Back |
 | Pause / Zurück | Esc | Start / B |
 
-Angriffe laufen automatisch. Tastenbelegung: `Core/InputState.cs`.
+Die Fähigkeiten feuern weiterhin automatisch, sobald Abklingzeit und Mana passen. **Zusätzlich**
+gibt es einen manuellen Nahkampf: Schlagkombo, Block mit Parade und Drehsprung, alle drei über die
+Ausdauerleiste unter Leben und Mana begrenzt. Der dritte Schlag einer Kombo trifft deutlich härter,
+ein früh gesetzter Block pariert den Treffer vollständig und stößt den Angreifer zurück.
+
+Tastenbelegung: `Core/InputState.cs`, Controller-Beschriftungen: `Content/Data/controllers.json`.
 
 ### Controller-Profile
 

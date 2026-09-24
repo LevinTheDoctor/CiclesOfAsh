@@ -26,6 +26,22 @@ public sealed class Player : Actor
     /// <summary>Geduckt kommt man nur noch halb so schnell voran – das ist der Preis fuer die Deckung.</summary>
     private const float CrouchSpeedFactor = 0.45f;
 
+    // ---------------------------------------------------------------- Manueller Nahkampf
+    /// <summary>Ausdauer regeneriert pro Sekunde, solange nicht geblockt wird.</summary>
+    private const float StaminaRegenPerSecond = 28f;
+    private const float MaxStamina = 100f;
+    private const float BlockDrainPerSecond = 18f;
+    private const float AttackStaminaCost = 12f;
+    private const float SpinJumpStaminaCost = 25f;
+    /// <summary>So lange nach dem Blocken zaehlt ein Treffer als Parade.</summary>
+    private const float ParryWindow = 0.22f;
+    /// <summary>Zeitfenster, in dem der naechste Schlag die Kombo fortsetzt statt neu zu beginnen.</summary>
+    private const float ComboWindow = 0.55f;
+    private const float AttackDuration = 0.18f;
+    /// <summary>Schadensfaktor je Kombostufe – der dritte Schlag sitzt deutlich haerter.</summary>
+    private static readonly float[] ComboDamage = { 1.0f, 1.15f, 1.6f };
+    private const float BlockedDamageFactor = 0.25f;
+
     private readonly List<AbilityInstance> _abilities = new();
     private const float WaterSpeedFactor = 0.6f;
     private const float WaterGravityFactor = 0.35f;
@@ -46,6 +62,19 @@ public sealed class Player : Actor
 
     /// <summary>Geduckt: halbe Trefferbox, langsamer, kein Sprung. Unter niedrigen Decken erzwungen.</summary>
     public bool IsCrouching { get; private set; }
+
+    /// <summary>Ausdauer fuer den manuellen Nahkampf (0..100).</summary>
+    public float Stamina { get; private set; } = MaxStamina;
+    public float MaxStaminaValue => MaxStamina;
+    /// <summary>true, solange die Blocktaste gehalten wird UND Ausdauer da ist.</summary>
+    public bool IsBlocking { get; private set; }
+    /// <summary>Kombostufe 0..2, nur zur Anzeige.</summary>
+    public int ComboStep { get; private set; }
+
+    private float _attackTimer;
+    private float _comboTimer;
+    private float _blockHeldTimer;
+    private bool _isSpinning;
 
     public Player(ClassDefinition playerClass, LayeredSprite visual, StatSheet stats, Vector2 spawnPosition)
         : base(stats[StatType.MaxHealth])   // ": base(...)" ruft den Konstruktor der Basisklasse Actor auf
@@ -90,6 +119,7 @@ public sealed class Player : Actor
     {
         float horizontal = input.Horizontal;
         UpdateCrouch(world, input);
+        UpdateMeleeCombat(world, input, deltaSeconds);
         if (KnockbackSeconds > 0f)
         {
             KnockbackSeconds -= deltaSeconds;
@@ -125,6 +155,84 @@ public sealed class Player : Actor
         LastCollision = TilePhysics.MoveAndCollide(this, world.Map, deltaSeconds, ignorePlatforms: _dropThroughTimer > 0f);
         OnGround = LastCollision.HasFlag(CollisionResult.Landed);
         if (OnGround) _airJumpsUsed = 0;
+    }
+
+    /// <summary>
+    /// Manueller Nahkampf: Schlagkombo, Block mit Parade und Drehsprung. Bewusst hier im Spieler
+    /// statt als Faehigkeit – anders als die Faehigkeiten haengt das direkt an Bewegung und
+    /// Trefferbox, und es soll auch ohne ausgeruestete Faehigkeit funktionieren.
+    /// </summary>
+    private void UpdateMeleeCombat(DungeonWorld world, InputState input, float deltaSeconds)
+    {
+        _attackTimer -= deltaSeconds;
+        _comboTimer -= deltaSeconds;
+        if (_comboTimer <= 0f) ComboStep = 0;
+
+        // ---- Blocken: haelt Schaden ab, zehrt aber an der Ausdauer
+        bool wantsBlock = input.IsDown(GameAction.Block) && OnGround && Stamina > 0f;
+        if (wantsBlock)
+        {
+            if (!IsBlocking) _blockHeldTimer = 0f;   // frisch aufgesetzt -> Paradefenster laeuft
+            _blockHeldTimer += deltaSeconds;
+            Stamina = MathF.Max(0f, Stamina - BlockDrainPerSecond * deltaSeconds);
+            Velocity.X *= 0.4f;   // im Block kommt man kaum vom Fleck
+        }
+        else
+        {
+            Stamina = MathF.Min(MaxStamina, Stamina + StaminaRegenPerSecond * deltaSeconds);
+        }
+        IsBlocking = wantsBlock;
+
+        // ---- Drehsprung: Sprungangriff, der beim Aufkommen im Umkreis trifft
+        if (input.WasPressed(GameAction.Up) && !_isSpinning && Stamina >= SpinJumpStaminaCost
+            && !IsCrouching && !IsBlocking && (OnGround || _coyoteTimer > 0f))
+        {
+            Stamina -= SpinJumpStaminaCost;
+            _isSpinning = true;
+            Velocity.Y = -Stats[StatType.JumpPower] * 0.9f;
+            world.Context.Audio.Play("slash", 0.5f, 0.3f);
+        }
+        if (_isSpinning && OnGround && Velocity.Y >= 0f)
+        {
+            _isSpinning = false;
+            SpinImpact(world);
+        }
+
+        // ---- Schlagkombo
+        if (!input.WasPressed(GameAction.Attack) || _attackTimer > 0f || IsBlocking) return;
+        if (Stamina < AttackStaminaCost) return;
+        Stamina -= AttackStaminaCost;
+        _attackTimer = AttackDuration;
+        _comboTimer = ComboWindow;
+        Swing(world, ComboDamage[ComboStep]);
+        ComboStep = (ComboStep + 1) % ComboDamage.Length;
+    }
+
+    /// <summary>Ein Hieb nach vorn. Reichweite und Flaeche wie bei MeleeArcAbility, nur spielergesteuert.</summary>
+    private void Swing(DungeonWorld world, float damageFactor)
+    {
+        const int reach = 26;
+        var area = new Rectangle(FacingRight ? Bounds.Right : Bounds.Left - reach, Bounds.Top - 6, reach, Size.Y + 10);
+        float damage = Stats[StatType.Might] * damageFactor * ConsumeStealthBonus();
+        foreach (Enemy enemy in world.EnemiesIntersecting(area).ToList())
+            world.DamageEnemy(enemy, damage, Center, 120f);
+        world.HitBreakables(new Vector2(area.Center.X, Center.Y), reach);
+        world.Effects.Burst(new Vector2(area.Center.X, Center.Y), Palette.Bone, 4, 60f, 0.25f);
+        world.Context.Audio.Play("slash", 0.45f, damageFactor > 1.3f ? -0.2f : 0.15f);
+    }
+
+    /// <summary>Aufschlag des Drehsprungs: Schaden im Umkreis, dazu Erschuetterung.</summary>
+    private void SpinImpact(DungeonWorld world)
+    {
+        const int radius = 34;
+        var area = new Rectangle((int)Center.X - radius, Bounds.Top, radius * 2, Size.Y + 8);
+        float damage = Stats[StatType.Might] * 1.4f;
+        foreach (Enemy enemy in world.EnemiesIntersecting(area).ToList())
+            world.DamageEnemy(enemy, damage, Center, 200f);
+        world.HitBreakables(Center, radius);
+        world.Effects.Ring(Center, radius, Palette.Gold);
+        world.ShakeCamera(3f);
+        world.Context.Audio.Play("hit", 0.6f, -0.3f);
     }
 
     /// <summary>
@@ -249,6 +357,26 @@ public sealed class Player : Actor
     public void TakeHit(DungeonWorld world, float amount, Vector2 source, float knockback)
     {
         float reduced = MathF.Max(1f, amount - Stats[StatType.Armor]);
+
+        if (IsBlocking)
+        {
+            // Parade: im ersten Moment des Blockens kostet der Treffer gar nichts und der Angreifer
+            // prallt zurueck. Spaeter geblockt kommt ein Viertel durch.
+            bool isParry = _blockHeldTimer <= ParryWindow;
+            world.Effects.Ring(Center, isParry ? 26f : 18f, isParry ? Palette.Gold : Palette.Ash);
+            world.Context.Audio.Play(isParry ? "unseal" : "hit", isParry ? 0.7f : 0.4f, isParry ? 0.4f : -0.1f);
+            world.ShakeCamera(isParry ? 4f : 2f);
+            if (isParry)
+            {
+                // Der Angreifer wird zurueckgestossen und ist kurz offen.
+                foreach (Enemy enemy in world.EnemiesIntersecting(Bounds).ToList())
+                    world.DamageEnemy(enemy, 0f, Center, 260f);
+                return;
+            }
+            reduced *= BlockedDamageFactor;
+            Stamina = MathF.Max(0f, Stamina - 20f);
+        }
+
         if (Health.TakeDamage(reduced, HurtInvulnerability) <= 0f) return;
 
         _stealthTimer = 0f;

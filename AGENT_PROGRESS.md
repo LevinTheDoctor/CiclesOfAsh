@@ -33,7 +33,7 @@ bei freier Höhe über `TilePhysics.IsBlocked`. Durchfallen durch Plattformen bl
 es keine eigenen Hock-Sprites gibt, wird die Figur gestaucht gezeichnet — dafür nehmen
 `AnimationPlayer` und `LayeredSprite` jetzt eine getrennte X/Y-Skalierung.
 
-### [ ] A2 Manuelles Moveset im Bosskampf
+### [x] A2 Manueller Nahkampf
 
 **Problem:** Im Bosskampf schaut man dem Automatismus zu.
 
@@ -49,6 +49,14 @@ Der Automatik-Modus bleibt erhalten; im Optionsmenü (Reiter Gameplay) wählbar,
 manuell oder automatisch laufen. So bleibt das bisherige Spielgefühl für alle, die es mögen.
 
 **Prüfen:** Bosskampf mit Tastatur und Controller; Ausdauerleiste sichtbar; Parade erkennbar.
+
+**Erledigt.** Angriff `J`/RT, Block `K`/LT, Drehsprung `W`. Kombo aus drei Schlägen (×1,0 / ×1,15 /
+×1,6) im 0,55-s-Fenster; Block kostet Ausdauer und lässt ein Viertel durch, in den ersten 0,22 s
+ist es eine Parade (kein Schaden, Angreifer wird zurückgestoßen). Drehsprung schlägt beim Aufkommen
+im Umkreis zu. Ausdauerleiste im HUD unter Leben und Mana.
+
+**Noch offen:** Der Umschalter „Bosskampf manuell/automatisch" im Optionsmenü. Aktuell läuft beides
+nebeneinander — die Automatik feuert weiter, der manuelle Nahkampf kommt oben drauf.
 
 ### [ ] A3 Rüstung: anlegen, ablegen, zerspringen
 

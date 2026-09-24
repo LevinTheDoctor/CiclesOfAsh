@@ -10,7 +10,8 @@
     "match": [ "dualsense", "dualshock", "playstation", "ps4", "ps5", "wireless controller" ],
     "labels": {
       "Jump": "X", "Dash": "R1", "AbilityOne": "□", "AbilityTwo": "△",
-      "Interact": "L1", "Confirm": "X", "Cancel": "○", "Pause": "Options", "Randomize": "Create"
+      "Interact": "L1", "Confirm": "X", "Cancel": "○", "Pause": "Options", "Randomize": "Create",
+      "Attack": "R2", "Block": "L2"
     }
   },
   {
@@ -19,7 +20,8 @@
     "match": [ "nintendo", "switch", "joy-con", "joycon", "pro controller" ],
     "labels": {
       "Jump": "B", "Dash": "R", "AbilityOne": "Y", "AbilityTwo": "X",
-      "Interact": "L", "Confirm": "B", "Cancel": "A", "Pause": "+", "Randomize": "-"
+      "Interact": "L", "Confirm": "B", "Cancel": "A", "Pause": "+", "Randomize": "-",
+      "Attack": "ZR", "Block": "ZL"
     }
   },
   {
@@ -28,7 +30,8 @@
     "match": [ "steam" ],
     "labels": {
       "Jump": "A", "Dash": "R1", "AbilityOne": "X", "AbilityTwo": "Y",
-      "Interact": "L1", "Confirm": "A", "Cancel": "B", "Pause": "Menü", "Randomize": "Ansicht"
+      "Interact": "L1", "Confirm": "A", "Cancel": "B", "Pause": "Menü", "Randomize": "Ansicht",
+      "Attack": "R2", "Block": "L2"
     }
   },
   {
@@ -59,7 +62,8 @@
     "match": [],
     "labels": {
       "Jump": "A", "Dash": "RB", "AbilityOne": "X", "AbilityTwo": "Y",
-      "Interact": "LB", "Confirm": "A", "Cancel": "B", "Pause": "Menü", "Randomize": "Ansicht"
+      "Interact": "LB", "Confirm": "A", "Cancel": "B", "Pause": "Menü", "Randomize": "Ansicht",
+      "Attack": "RT", "Block": "LT"
     }
   }
 ]

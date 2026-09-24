@@ -4,7 +4,7 @@ using Microsoft.Xna.Framework.Input;
 namespace CirclesOfAsh.Core;
 
 /// <summary>Abstrakte Spielaktionen statt fester Tasten -> Tastatur und Gamepad gleichzeitig, leicht umbelegbar.</summary>
-public enum GameAction { Left, Right, Up, Down, Jump, Dash, AbilityOne, AbilityTwo, Interact, Confirm, Cancel, Pause, Randomize }
+public enum GameAction { Left, Right, Up, Down, Jump, Dash, AbilityOne, AbilityTwo, Interact, Confirm, Cancel, Pause, Randomize, Attack, Block }
 
 /// <summary>Womit der Spieler zuletzt etwas getan hat. Steuert Mauszeiger und Tastenbeschriftungen.</summary>
 public enum InputDevice { Keyboard, Gamepad, Mouse }
@@ -27,13 +27,17 @@ public sealed class InputState
         [GameAction.Down] = (new[] { Keys.S, Keys.Down }, new[] { Buttons.DPadDown, Buttons.LeftThumbstickDown }),
         [GameAction.Jump] = (new[] { Keys.Space, Keys.K }, new[] { Buttons.A }),
         [GameAction.Dash] = (new[] { Keys.LeftShift, Keys.L }, new[] { Buttons.RightShoulder, Buttons.B }),
-        [GameAction.AbilityOne] = (new[] { Keys.J, Keys.Q }, new[] { Buttons.X }),
-        [GameAction.AbilityTwo] = (new[] { Keys.I, Keys.E }, new[] { Buttons.Y }),
+        [GameAction.AbilityOne] = (new[] { Keys.Q }, new[] { Buttons.X }),
+        [GameAction.AbilityTwo] = (new[] { Keys.E }, new[] { Buttons.Y }),
         [GameAction.Interact] = (new[] { Keys.F, Keys.W }, new[] { Buttons.LeftShoulder, Buttons.DPadUp }),
         [GameAction.Confirm] = (new[] { Keys.Enter }, new[] { Buttons.A, Buttons.Start }),
         [GameAction.Cancel] = (new[] { Keys.Escape }, new[] { Buttons.B }),
         [GameAction.Pause] = (new[] { Keys.Escape, Keys.P }, new[] { Buttons.Start }),
         [GameAction.Randomize] = (new[] { Keys.F5 }, new[] { Buttons.Back }),
+        // Manueller Nahkampf. Die Trigger sind frei, deshalb liegen Angriff und Block dort –
+        // das ist die gewohnte Belegung und kollidiert mit keiner Faehigkeit.
+        [GameAction.Attack] = (new[] { Keys.J }, new[] { Buttons.RightTrigger }),
+        [GameAction.Block] = (new[] { Keys.K }, new[] { Buttons.LeftTrigger }),
     };
 
     private readonly StringBuilder _typedBuffer = new();
@@ -59,6 +63,7 @@ public sealed class InputState
         [GameAction.AbilityOne] = "J", [GameAction.AbilityTwo] = "I",
         [GameAction.Interact] = "F", [GameAction.Confirm] = "Enter",
         [GameAction.Cancel] = "Esc", [GameAction.Pause] = "Esc", [GameAction.Randomize] = "F5",
+        [GameAction.Attack] = "J", [GameAction.Block] = "K",
     };
 
     private IReadOnlyDictionary<GameAction, string>? _padLabels;
