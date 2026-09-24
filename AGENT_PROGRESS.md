@@ -62,8 +62,10 @@ manuell oder automatisch laufen. So bleibt das bisherige Spielgefühl für alle,
 ist es eine Parade (kein Schaden, Angreifer wird zurückgestoßen). Drehsprung schlägt beim Aufkommen
 im Umkreis zu. Ausdauerleiste im HUD unter Leben und Mana.
 
-**Noch offen:** Der Umschalter „Bosskampf manuell/automatisch" im Optionsmenü. Aktuell läuft beides
-nebeneinander — die Automatik feuert weiter, der manuelle Nahkampf kommt oben drauf.
+**Nachgetragen** (`28dd8ec`): Der Umschalter steht jetzt im Reiter Gameplay — „Bosskämpfe: Selbst
+kämpfen / Automatik hilft". Auf „Selbst kämpfen" schweigen die automatischen Fähigkeiten, solange
+ein Boss oder Mini-Boss lebt; außerhalb des Bosskampfs bleibt die Automatik an, sonst würde das
+Grundspiel zum Dauergeklicke. Standard bleibt „Automatik hilft".
 
 ### [x] A3 Rüstung: anlegen, ablegen, zerspringen
 
@@ -246,20 +248,67 @@ eher länger als breiter), Verfalls-Zuschlag 0,45 → 0,25. Neuer Regler `decorD
 `balance.json`, angewandt in `DungeonGenerator.Decorate` — ein Wert statt zehn Themen. Wellen sind
 damit 35–40 % kleiner. **Das Urteil steht aus:** Ob es jetzt zu leer ist, zeigt erst ein Durchgang.
 
-### [ ] C3 Eigenes Thema je Boss und Mini-Boss
+### [x] C3 Eigenes Thema je Boss und Mini-Boss — `dbd71b5`
 
-Jeder Kreis hat bereits Tileset, Hintergrund, Musik und Lichtstimmung. Was fehlt, ist eine eigene
-**Arena** je Boss: bisher ist der Thronsaal ein generischer `RoomType.Boss`-Raum. Geplant: Arena-
-Vorlage je Boss (Geometrie, Props, Beleuchtung) und ein eigenes Stück je Mini-Boss.
+Bisher war der Thronsaal ein generischer Raum mit zwei Standardplattformen — jeder Boss kämpfte in
+derselben Halle. Jetzt hat jeder der sechs Gegner eine eigene Arena in `Content/Data/arenas.json`:
+
+| Arena | Gegner | Kennzeichen |
+|---|---|---|
+| Der Hain des Hirten | `boss_shepherd` | hohe Mittelplattform, Kerzen, Standbild |
+| Mammons Hort | `boss_mammon` | vier Absätze, zwei Säulen, Goldhaufen |
+| Die Mauern von Dis | `boss_titan` | Lavaschlote und Ketten, enge Deckung |
+| Kerkerhof | `warden_limbo` | schlicht, zwei Absätze, Fackeln |
+| Schuldturm | `warden_greed` | ein langer Absatz quer durch die Mitte |
+| Folterkammer | `warden_wrath` | Kohlenbecken und Ketten |
+
+Alle Angaben sind **Raum**-Kacheln — eine Arena ist damit unabhängig davon, wo im Verlies der Raum
+liegt. Ohne Eintrag bleibt es beim Standardraum. Grundhelligkeit und Musik wirken nur im Thronsaal,
+wo die Arena das ganze Verlies ist; ein Stück, das noch nicht im Manifest steht, wird ignoriert
+statt Stille zu erzeugen.
+
+Die Deko steht an festen Spalten; ist eine von einem Spiel-Prop belegt (im Kerker die Käfige),
+rückt sie bis zu drei Kacheln zur Seite statt zu verschwinden.
+
+**Geprüft** über 60 Seeds je Arena: Geometrie in 60 von 60 Räumen exakt, keine Türkachel zugebaut,
+kein Prop schwebt, Deko zu 99–100 % am vorgesehenen Platz.
+
+**Offen:** Ein eigenes Musikstück je Boss — reine Asset-Arbeit, als **G17** an GLM gegeben. Bis
+dahin spielt überall `music.boss`.
 
 ---
 
 ## Paket D — Tutorial (optional spielbar)
 
-Es gibt **kein** Tutorial; nur `tips.json` auf den Ladebildschirmen. Geplant: ein optionaler
-Einstieg, den man im Titel oder beim ersten Start wählen kann — geführt von einem sprechenden
-Begleiter (siehe B3), der Bewegung, Ducken, Kampf, Block und Interaktion erklärt. Überspringbar und
-jederzeit wiederholbar.
+### [x] D1 Tutorial, geführt von der Begleitseele — `a41f61b`
+
+Zehn Schritte, jeder wartet auf **eine** Handlung: gehen, springen, ducken, angreifen, blocken,
+Drehsprung, einen Gegner töten, etwas benutzen. Keine Zeitbegrenzung und kein Zwang — wer
+weiterläuft statt zu üben, wird nicht aufgehalten, der Schritt bleibt stehen. `F5` bricht ab.
+
+Die Schritte stehen in `Content/Data/tutorial.json`: Reihenfolge, Texte und Auslöser sind reine
+Daten, der Code kennt nur die Auslösernamen.
+
+Statt eigener Abfragen im Spielerzustand nutzt das Tutorial **dieselben Ereignisse**, mit denen
+schon die Begleitseelen zum Sprechen gebracht werden. `DungeonWorld.Say` ist jetzt die eine
+Meldestelle für beide Zuhörer — keine Spielregel muss wissen, ob gerade ein Tutorial läuft. Dafür
+sind `first_crouch`/`first_block` zu `crouch`/`block` geworden und fünf Ereignisse neu dazugekommen
+(`jump`, `attack`, `spin`, `interact`, `kill`).
+
+Solange das Tutorial führt, schweigen die Zwischenrufe — zwei Sprechblasen um dieselbe Figur
+würden einander überschreiben. Die Blase erscheint notfalls über dem Spieler selbst; ohne diesen
+Rückfall bliebe das Tutorial stumm, wenn jemand „Allein hinabsteigen" gewählt hat.
+
+Läuft nur im ersten Verlies eines Laufs und schaltet sich danach selbst ab. Im Optionsmenü
+(Gameplay) jederzeit wieder einschaltbar.
+
+`Validate` prüft die Auslöser gegen die Liste, die der Code meldet. Ein Tippfehler wäre hier
+besonders teuer: Der Schritt würde nie bestanden, und der Spieler hinge für immer fest.
+
+**Geprüft:** Alle zehn Auslöser werden vom Code wirklich gemeldet — gegen sämtliche `Say`-Aufrufe
+im Projekt abgeglichen.
+
+**Nicht beurteilt:** Ob die Reihenfolge sich gut anfühlt und ob zehn Schritte zu viel sind.
 
 ---
 

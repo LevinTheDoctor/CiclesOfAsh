@@ -666,3 +666,30 @@ Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Si
   Stalagmiten), Zinnen- und Fensterrahmenschatten, Ziegelreihen-Andeutungen, zweite
   Farbzone am Horizont, Glutpartikel mit hellen Kernen, Schlund-Kern im Wrath-Hintergrund.
   `dotnet build` 0/0, keine fehlenden Texturen, alle Blattgrößen unverändert.
+
+# G17 — Ein eigenes Stück je Boss
+
+Jeder Boss hat jetzt seine eigene Arena (`Content/Data/arenas.json`), aber alle sechs Kämpfe
+laufen weiter unter demselben `music.boss`. Was fehlt, sind die Stücke.
+
+| Arena | Gegner | Stimmung | Vorgesehene Id |
+|---|---|---|---|
+| Der Hain des Hirten | `boss_shepherd` | getragen, chorartig, trauernd — der Hirte ist kein Bösewicht | `music.boss_shepherd` |
+| Mammons Hort | `boss_mammon` | gierig, hektisch, klimpernd, viel Bewegung | `music.boss_mammon` |
+| Die Mauern von Dis | `boss_titan` | schwer, stampfend, tief, wenig Melodie | `music.boss_titan` |
+| Kerkerhof | `warden_limbo` | dumpf, klopfend, bedrückend eng | `music.warden_limbo` |
+| Schuldturm | `warden_greed` | tickend wie eine Uhr, drängend | `music.warden_greed` |
+| Folterkammer | `warden_wrath` | schrill, metallisch, hämmernd | `music.warden_wrath` |
+
+**Deine Dateien:** `tools/assetgen/*.py`, `Content/Audio/`, `manifest.json` (Abschnitt `music`).
+`arenas.json` gehört mir — die `music`-Zeilen trage **ich** ein, sobald die Stücke stehen. Sag mir
+einfach Bescheid, welche Ids du geliefert hast.
+
+**Wichtig:** Der Code ignoriert ein Stück, das nicht im Manifest steht, und bleibt beim bisherigen.
+Du kannst also einzeln liefern, ohne dass zwischendurch etwas stumm wird.
+
+**Format** wie die vorhandenen Stücke: WAV, nahtlos loopend, dieselbe Länge und Lautheit wie
+`music_boss.wav` (sonst springt die Lautstärke beim Überblenden).
+
+**Vorher bitte G16 zu Ende bringen** — die flachen Kleinsprites (Begleiter, Pickups, Projektile,
+`effect_slash`) fallen im Spiel mehr auf als sechs verschiedene Bosskampf-Stücke.
