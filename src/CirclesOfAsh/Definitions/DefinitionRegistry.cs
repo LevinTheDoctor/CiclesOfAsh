@@ -56,6 +56,8 @@ public sealed class DefinitionRegistry
     public DefinitionSet<ChatterDefinition> Chatter { get; } = new();
     /// <summary>Tutorial-Schritte in Dateireihenfolge – die ist zugleich die Abfolge im Spiel.</summary>
     public DefinitionSet<TutorialStepDefinition> Tutorial { get; } = new();
+    /// <summary>Arena je Boss/Mini-Boss, indiziert nach Gegner-Id. Ohne Eintrag: Standardraum.</summary>
+    public DefinitionSet<ArenaDefinition> Arenas { get; } = new();
     public DefinitionSet<NpcDefinition> Npcs { get; } = new();
     public DefinitionSet<DifficultyDefinition> Difficulties { get; } = new();
     public DefinitionSet<ControllerProfileDefinition> ControllerProfiles { get; } = new();
@@ -79,6 +81,7 @@ public sealed class DefinitionRegistry
         LoadInto(locator, "Data/dialogs.json", registry.Dialogs);
         LoadInto(locator, "Data/chatter.json", registry.Chatter);
         LoadInto(locator, "Data/tutorial.json", registry.Tutorial);
+        LoadInto(locator, "Data/arenas.json", registry.Arenas);
         LoadInto(locator, "Data/npcs.json", registry.Npcs);
         LoadInto(locator, "Data/difficulties.json", registry.Difficulties);
         LoadInto(locator, "Data/controllers.json", registry.ControllerProfiles);
@@ -171,6 +174,13 @@ public sealed class DefinitionRegistry
             Require(knownTriggers.Contains(step.Trigger),
                 $"Tutorial-Schritt '{step.Id}': Auslöser '{step.Trigger}' ist dem Code unbekannt.");
             Require(step.Text.Length > 0, $"Tutorial-Schritt '{step.Id}': kein Text.");
+        }
+
+        foreach (ArenaDefinition arena in Arenas.All)
+        {
+            Require(Enemies.Contains(arena.Id), $"Arena '{arena.Id}': kein Gegner mit dieser Id.");
+            foreach (ArenaProp prop in arena.Props)
+                Require(Props.Contains(prop.Prop), $"Arena '{arena.Id}': Prop '{prop.Prop}' existiert nicht.");
         }
 
         foreach (UpgradeDefinition upgrade in Upgrades.All)

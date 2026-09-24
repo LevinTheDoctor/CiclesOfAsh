@@ -40,6 +40,12 @@ public sealed class MusicSystem : IDisposable
     /// <summary>Id des gerade laufenden Stücks (leer = Stille). Verhindert Neustarts beim selben Stück.</summary>
     public string CurrentId { get; private set; } = "";
 
+    /// <summary>
+    /// Kennt das Manifest dieses Stück? Erlaubt es, in den Daten schon auf ein Stück zu zeigen,
+    /// das erst später geliefert wird – der Aufrufer bleibt dann beim bisherigen, statt zu verstummen.
+    /// </summary>
+    public bool Has(string musicId) => musicId.Length > 0 && _musicPaths.ContainsKey(musicId);
+
     public void ApplySettings(GameSettings settings)
     {
         MasterVolume = settings.MasterVolume;

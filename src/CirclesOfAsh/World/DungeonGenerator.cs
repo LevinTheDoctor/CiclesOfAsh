@@ -87,6 +87,7 @@ public sealed class DungeonGenerator
         }
         PlaceChests(plan, allRooms);
         PlaceCages(allRooms);
+        PlaceArenaProps(plan, allRooms);
         foreach (RoomNode room in allRooms) Decorate(room);
         List<CollectiblePlacement> collectibles = PlaceCollectibles(plan, allRooms);
 
@@ -144,6 +145,9 @@ public sealed class DungeonGenerator
     /// stehen müssen. "levers" steht bewusst nicht drin: seine Hebel verteilen sich über das
     /// ganze Verlies – deshalb ist es auch der Rückfall, wenn kein freier Raum übrig ist.
     /// </summary>
+    /// <summary>Ausweichspalten fuer Arena-Deko: erst die Wunschspalte, dann abwechselnd daneben.</summary>
+    private static readonly int[] NearbyOffsets = { 0, -1, 1, -2, 2, -3, 3 };
+
     private static readonly HashSet<string> NeedsPuzzleRoom =
         new(StringComparer.OrdinalIgnoreCase) { "rune_order", "braziers", "weights", "mirrors" };
 
@@ -342,7 +346,10 @@ public sealed class DungeonGenerator
         if (shape == RoomShape.Cave) CarveCave(room);
         else if (shape == RoomShape.Flooded) CarvePond(room);
 
-        if (room.Type != RoomType.Exit) AddPlatforms(room, plan.Circle.Decay);
+        // Eine eigene Arena ersetzt die Standardplattformen komplett - sonst laegen fremde
+        // Absaetze quer durch eine bewusst gesetzte Geometrie.
+        if (ArenaFor(plan, room) is { } arena) BuildArena(room, arena);
+        else if (room.Type != RoomType.Exit) AddPlatforms(room, plan.Circle.Decay);
     }
 
     private void CarveExit(RoomNode room, Direction direction, bool gated)
@@ -411,6 +418,85 @@ public sealed class DungeonGenerator
         _map.Fill(new Rectangle(originX + 9, originY + FloorRow - 2, 12, 2), TileType.Water);
         _map[originX + 8, originY + FloorRow - 1] = TileType.Solid;
         _map[originX + 21, originY + FloorRow - 1] = TileType.Solid;
+    }
+
+    /// <summary>
+    /// Die Arena, die zu diesem Raum gehoert - oder null. Der Thronsaal traegt den Boss des
+    /// Kreises, der Kerker seinen Mini-Boss. Alle anderen Raeume bleiben Standardraeume.
+    /// </summary>
+    private ArenaDefinition? ArenaFor(DungeonPlan plan, RoomNode room)
+    {
+        string enemyId = room.Type switch
+        {
+            RoomType.Boss => plan.Circle.Boss,
+            RoomType.Prison => plan.Circle.Prison?.MiniBoss ?? "",
+            _ => "",
+        };
+        return enemyId.Length > 0 && _definitions.Arenas.TryGet(enemyId, out ArenaDefinition? arena) ? arena : null;
+    }
+
+    /// <summary>
+    /// Baut Absaetze und Saeulen einer Arena. Die Props kommen spaeter (PlaceArenaProps), weil in
+    /// dieser Phase die Prop-Liste noch gar nicht gefuellt wird.
+    /// </summary>
+    private void BuildArena(RoomNode room, ArenaDefinition arena)
+    {
+        int originX = room.TileBounds.X;
+        int originY = room.TileBounds.Y;
+
+        foreach (ArenaPlatform platform in arena.Platforms)
+        {
+            for (int offset = 0; offset < Math.Max(1, platform.Length); offset++)
+            {
+                int x = originX + platform.Column + offset;
+                int y = originY + platform.Row;
+                // Nur leere Kacheln ueberschreiben: Tueroeffnungen und Aussenwand bleiben heil.
+                if (_map.IsInside(x, y) && _map[x, y] == TileType.Empty) _map[x, y] = TileType.Platform;
+            }
+        }
+        foreach (ArenaPillar pillar in arena.Pillars)
+        {
+            for (int offset = 0; offset < Math.Max(1, pillar.Height); offset++)
+            {
+                int x = originX + pillar.Column;
+                int y = originY + pillar.Row + offset;
+                if (_map.IsInside(x, y) && _map[x, y] == TileType.Empty) _map[x, y] = TileType.Solid;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Deko der Arena an FESTEN Spalten. Bewusst ueber PlacePropAt statt PlaceProp: Letzteres
+    /// weicht auf eine zufaellige Spalte aus, wenn die gewuenschte belegt ist - bei einer
+    /// entworfenen Arena landet die Deko dann irgendwo und der Entwurf ist hin.
+    ///
+    /// Belegte Spalten werden uebersprungen statt verschoben: Im Kerker stehen die Kaefige schon,
+    /// und die gehoeren zum Spiel, die Arena-Deko nicht.
+    /// Laeuft vor der Zufallsdeko, die dann ihrerseits ausweicht.
+    /// </summary>
+    private void PlaceArenaProps(DungeonPlan plan, IEnumerable<RoomNode> rooms)
+    {
+        foreach (RoomNode room in rooms)
+        {
+            if (ArenaFor(plan, room) is not { } arena) continue;
+            HashSet<int> used = UsedColumns(room, PropAnchor.Floor);
+            int index = 0;
+            foreach (ArenaProp prop in arena.Props)
+            {
+                // Ist die Wunschspalte vergeben (im Kerker stehen die Kaefige schon) oder fehlt
+                // dort der Boden, ruecken wir bis zu zwei Kacheln zur Seite. Ganz wegzulassen
+                // waere schlechter: Dann fehlte in manchen Laeufen ohne sichtbaren Grund eine
+                // Fackel, und die Arena saehe jedes Mal anders leer aus.
+                foreach (int offset in NearbyOffsets)
+                {
+                    int column = prop.Column + offset;
+                    if (column < 2 || column > RoomWidthTiles - 3 || used.Contains(column)) continue;
+                    if (!PlacePropAt(room, prop.Prop, "decor", index, column, FloorRow)) continue;
+                    index++;
+                    break;
+                }
+            }
+        }
     }
 
     private void AddPlatforms(RoomNode room, float decay)

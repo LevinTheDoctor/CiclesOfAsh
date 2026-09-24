@@ -1,0 +1,116 @@
+[
+  // Eigene Arena je Boss und Mini-Boss. Die "id" ist die Gegner-Id aus enemies.json.
+  // Ohne Eintrag bleibt es beim alten Standardraum – ein Boss braucht hier also nichts.
+  //
+  // Alle Angaben in RAUM-Kacheln (0..29 waagerecht, 0..16 senkrecht, 16 = Bodenreihe).
+  //   platforms: durchlässige Absätze, von unten durchspringbar
+  //   pillars:   massive Blöcke, blockieren Sicht und Weg (column, row = OBERkante, height)
+  //   props:     Deko auf dem Boden, an fester Spalte
+  //   ambientLight / music: nur im Thronsaal wirksam, wo die Arena das ganze Verlies ist
+
+  {
+    "id": "boss_shepherd",
+    "name": "Der Hain des Hirten",
+    "ambientLight": "#7C7796",
+    "platforms": [
+      { "column": 3, "row": 12, "length": 5 },
+      { "column": 22, "row": 12, "length": 5 },
+      { "column": 12, "row": 8, "length": 6 }
+    ],
+    "props": [
+      { "prop": "candles", "column": 5 },
+      { "prop": "candles", "column": 24 },
+      { "prop": "statue", "column": 14 },
+      { "prop": "lamp", "column": 9 },
+      { "prop": "lamp", "column": 20 }
+    ]
+  },
+
+  {
+    "id": "boss_mammon",
+    "name": "Mammons Hort",
+    "ambientLight": "#6B5B3A",
+    "platforms": [
+      { "column": 2, "row": 10, "length": 4 },
+      { "column": 24, "row": 10, "length": 4 },
+      { "column": 9, "row": 13, "length": 4 },
+      { "column": 17, "row": 13, "length": 4 }
+    ],
+    "pillars": [
+      { "column": 13, "row": 14, "height": 2 },
+      { "column": 16, "row": 14, "height": 2 }
+    ],
+    "props": [
+      { "prop": "gold_pile", "column": 6 },
+      { "prop": "gold_pile", "column": 23 },
+      { "prop": "gold_pile", "column": 11 },
+      { "prop": "chest", "column": 27 },
+      { "prop": "banner", "column": 3 }
+    ]
+  },
+
+  {
+    "id": "boss_titan",
+    "name": "Die Mauern von Dis",
+    "ambientLight": "#6B3438",
+    "platforms": [
+      { "column": 5, "row": 9, "length": 4 },
+      { "column": 21, "row": 9, "length": 4 }
+    ],
+    "pillars": [
+      { "column": 9, "row": 15, "height": 1 },
+      { "column": 20, "row": 15, "height": 1 }
+    ],
+    "props": [
+      { "prop": "lava_vent", "column": 8 },
+      { "prop": "lava_vent", "column": 15 },
+      { "prop": "lava_vent", "column": 21 },
+      { "prop": "brazier", "column": 4 },
+      { "prop": "brazier", "column": 25 },
+      { "prop": "chains", "column": 12 },
+      { "prop": "chains", "column": 18 }
+    ]
+  },
+
+  {
+    "id": "warden_limbo",
+    "name": "Kerkerhof",
+    "platforms": [
+      { "column": 4, "row": 12, "length": 4 },
+      { "column": 22, "row": 12, "length": 4 }
+    ],
+    "props": [
+      { "prop": "torch", "column": 3 },
+      { "prop": "torch", "column": 26 },
+      { "prop": "bones", "column": 10 }
+    ]
+  },
+
+  {
+    "id": "warden_greed",
+    "name": "Schuldturm",
+    "platforms": [
+      { "column": 11, "row": 11, "length": 8 }
+    ],
+    "props": [
+      { "prop": "gold_pile", "column": 8 },
+      { "prop": "chains", "column": 17 },
+      { "prop": "torch", "column": 25 }
+    ]
+  },
+
+  {
+    "id": "warden_wrath",
+    "name": "Folterkammer",
+    "platforms": [
+      { "column": 3, "row": 10, "length": 4 },
+      { "column": 23, "row": 10, "length": 4 }
+    ],
+    "props": [
+      { "prop": "brazier", "column": 9 },
+      { "prop": "brazier", "column": 20 },
+      { "prop": "chains", "column": 14 },
+      { "prop": "bone_pile", "column": 5 }
+    ]
+  }
+]

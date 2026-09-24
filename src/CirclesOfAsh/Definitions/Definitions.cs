@@ -383,6 +383,46 @@ public sealed class DialogDefinition : IDefinition
 }
 
 /// <summary>
+/// Eigene Arena eines Bosses oder Mini-Bosses. Die Id ist die Gegner-Id aus enemies.json; ohne
+/// Eintrag bleibt es beim Standardraum. Alle Koordinaten sind RAUM-Kacheln, nicht Weltkacheln –
+/// eine Arena ist dadurch unabhängig davon, wo im Verlies der Raum am Ende liegt.
+/// </summary>
+public sealed class ArenaDefinition : IDefinition
+{
+    public string Id { get; init; } = "";
+    public string Name { get; init; } = "";
+    /// <summary>Grundhelligkeit (#RRGGBB). Nur im Thronsaal wirksam. Leer = die des Kreises.</summary>
+    public string AmbientLight { get; init; } = "";
+    /// <summary>Eigenes Stück. Nur im Thronsaal wirksam. Leer = das des Kreises.</summary>
+    public string Music { get; init; } = "";
+    public List<ArenaPlatform> Platforms { get; init; } = new();
+    public List<ArenaPillar> Pillars { get; init; } = new();
+    public List<ArenaProp> Props { get; init; } = new();
+}
+
+/// <summary>Durchlässiger Absatz: von unten durchspringbar, von oben begehbar.</summary>
+public sealed class ArenaPlatform
+{
+    public int Column { get; init; }
+    public int Row { get; init; }
+    public int Length { get; init; } = 1;
+}
+
+/// <summary>Massiver Block. <see cref="Row"/> ist die OBERkante, gebaut wird nach unten.</summary>
+public sealed class ArenaPillar
+{
+    public int Column { get; init; }
+    public int Row { get; init; }
+    public int Height { get; init; } = 1;
+}
+
+public sealed class ArenaProp
+{
+    public string Prop { get; init; } = "";
+    public int Column { get; init; }
+}
+
+/// <summary>
 /// Ein Schritt des Tutorials. Er steht so lange, bis der Spieler die verlangte Handlung ausführt –
 /// es gibt keine Zeitbegrenzung und keine Reihenfolge im Code, die Datei allein bestimmt beides.
 /// </summary>

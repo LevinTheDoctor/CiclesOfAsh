@@ -66,7 +66,7 @@ public sealed class DungeonWorld : IDisposable
         Waves = new WaveDirector(plan, context.Definitions.Balance, layout.Rooms, context.Progression.Difficulty.WaveSize);
         Lighting = new LightingSystem(context.GraphicsDevice, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight)
         {
-            Ambient = ColorUtil.FromHex(plan.Circle.AmbientLight, Color.Gray),   // Objekt-Initialisierer nach dem Konstruktor
+            Ambient = ColorUtil.FromHex(AmbientLightOf(context, plan), Color.Gray),   // Objekt-Initialisierer nach dem Konstruktor
             Brightness = context.Settings.AmbientLift,   // globale Aufhellung (Optionsmenü), gegen zu starke Dunkelheit
         };
         _crumble = new CrumbleSystem(context.Definitions.Balance);
@@ -244,6 +244,17 @@ public sealed class DungeonWorld : IDisposable
                 if (TileMap.IsBlocking(Map[tileX, tileY])) return true;
         return false;
     }
+
+    /// <summary>
+    /// Grundhelligkeit: normalerweise die des Kreises, im Thronsaal die der Arena. Nur dort, weil
+    /// eine Arena mitten im Verlies (Kerker) sonst das ganze Verlies umfärben würde.
+    /// </summary>
+    private static string AmbientLightOf(GameContext context, DungeonPlan plan) =>
+        plan.IsBossDungeon
+        && context.Definitions.Arenas.TryGet(plan.Circle.Boss, out ArenaDefinition? arena)
+        && arena.AmbientLight.Length > 0
+            ? arena.AmbientLight
+            : plan.Circle.AmbientLight;
 
     private Matrix WorldTransform => Camera.Transform * Matrix.CreateTranslation(_shakeOffset.X, _shakeOffset.Y, 0f);
 
