@@ -7,7 +7,7 @@ Spielerfigur als EBENEN (16x24 pro Frame), damit der Charakter-Editor sie frei k
 Zeichenreihenfolge im Spiel: body, hair, outfit, accent.
 Zeilen: 0 idle, 1 run, 2 jump, 3 hurt (je bis zu 4 Frames).
 """
-from PIL import ImageDraw
+from PIL import Image, ImageDraw
 
 from .core import (BLACK, DARK_STEEL, DEEP_PURPLE, GOLD, LEATHER, MANA, OUTLINE, PURPLE, SHADOW, SOUL, STEEL, TINT_DARK,
                    TINT_EYE, TINT_LIGHT, TINT_MID, WOOD, build_sheet, new_image, pixel, polish, rect)
@@ -236,48 +236,43 @@ def makeup_frame(style, p):
         pixel(draw, 8, 7 + b, TINT_MID)
         pixel(draw, 10, 7 + b, TINT_MID)
     elif style == "war":                      # Kriegsbemalung: Streifen über die Wangen
-        rect(draw, 5, 6 + b, 1, 3, TINT_MID)
-        rect(draw, 10, 6 + b, 1, 3, TINT_MID)
-        pixel(draw, 5, 5 + b, TINT_LIGHT)
-        pixel(draw, 10, 5 + b, TINT_LIGHT)
-        pixel(draw, 5, 9 + b, TINT_DARK)
-        pixel(draw, 10, 9 + b, TINT_DARK)
+        rect(draw, 5, 7 + b, 1, 3, TINT_MID)
+        rect(draw, 10, 7 + b, 1, 3, TINT_MID)
+        pixel(draw, 5, 10 + b, TINT_DARK)
+        pixel(draw, 10, 10 + b, TINT_DARK)
     return polish(image, outline=None, light=8, dark=-12, gradient=0)
 
 
 # ------------------------------------------------------------------ Flügel (Graustufen, hinter dem Körper)
 def wings_frame(kind, p):
-    """Ragt links und rechts über die Figur hinaus, Fußlinie bleibt gleich. In jump weiter geöffnet."""
+    """Ragt links und rechts über die Figur hinaus, Fußlinie bleibt gleich. In jump weiter geöffnet.
+    Wir nur die linke Flügelhälfte und spiegelt sie an x=8 auf die rechte Seite."""
     image = new_image(16, 24)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
     spread = 2 if p["jump"] else 0            # Sprung = erkennbar weiter geöffnet
     flap = p["frame"] % 2
+    top = 6 + b - flap + spread
+    half = new_image(8, 24)
+    hd = ImageDraw.Draw(half)
     if kind == "feathered":                   # gefiedert, hell (Engel)
-        for side, dir_x in ((4, -1), (11, 1)):
-            top = 6 + b - flap + spread
-            for i in range(5):                # federige Treppenstufen
-                rect(draw, dir_x if dir_x < 0 else dir_x, top + i * 2, 3, 2, TINT_LIGHT if i < 2 else TINT_MID)
-            # Treppenstufen nach außen abflachen lassen
-        for i, y in enumerate(range(top, top + 10)):
-            width = max(0, 3 - i // 3)
-            rect(draw, 1 + flap, y, 1, 1, TINT_MID)
-            rect(draw, 14 - flap, y, 1, 1, TINT_MID)
+        for i in range(5):                    # federige Treppenstufen nach außen
+            hd.rectangle([7 - min(4, i + 1), top + i * 2, 7, top + i * 2 + 1], fill=TINT_LIGHT if i < 2 else TINT_MID)
+        pixel(hd, 7, top + 10, TINT_MID)      # unterste Feder
     elif kind == "tattered":                  # zerfetzt, dunkel (gefallen)
-        for side, dir_x in ((3, -1), (12, 1)):
-            top = 7 + b - flap + spread
-            for i in range(4):
-                if (i + p["frame"]) % 3 != 2:  # Lücken = zerfetzter Look
-                    rect(draw, dir_x if dir_x < 0 else dir_x, top + i * 2, 2, 2, TINT_DARK)
-        pixel(draw, 2, top + 9, TINT_DARK)
-        pixel(draw, 13, top + 9, TINT_DARK)
+        for i in range(4):
+            if (i + p["frame"]) % 3 != 2:     # Lücken = zerfetzter Look
+                hd.rectangle([7 - (2 if i % 2 else 1), top + i * 2, 7, top + i * 2 + 1], fill=TINT_DARK)
+        pixel(hd, 6, top + 8, TINT_DARK)
+        pixel(hd, 4, top + 9, TINT_DARK)
     else:                                     # ember: glühend, aus Asche
-        for side, dir_x in ((4, -1), (11, 1)):
-            top = 6 + b - flap + spread
-            for i in range(4):
-                rect(draw, dir_x if dir_x < 0 else dir_x, top + i * 2, 3 if i % 2 else 1, 2,
-                     TINT_LIGHT if i < 2 else TINT_DARK)
-            pixel(draw, dir_x if dir_x < 0 else dir_x, top, TINT_LIGHT)
+        for i in range(4):
+            hd.rectangle([7 - (3 if i % 2 else 1), top + i * 2, 7, top + i * 2 + 1],
+                        fill=TINT_LIGHT if i < 2 else TINT_DARK)
+        pixel(hd, 7, top, TINT_LIGHT)
+    mirror = half.transpose(Image.FLIP_LEFT_RIGHT)   # rechte Flügelhälfte = Spiegel
+    image.paste(half, (0, 0), half)
+    image.paste(mirror, (8, 0), mirror)
     return polish(image, outline=None, light=14, dark=-18, gradient=8)
 
 
