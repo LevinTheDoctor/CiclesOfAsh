@@ -393,24 +393,39 @@ def dragon_whelp(anim, frame):
     return polish(image)
 
 
-def companion_dragonling(frame):
-    """Begleiter-Drache 12x12: kleines, treues Drachenjunges."""
+def companion_dragonling(frame, variant="normal"):
+    """Begleiter-Drache 12x12: kleines, treues Drachenjunges. variant pale/deep nur als Farbstimmung."""
     image = new_image(12, 12)
     draw = ImageDraw.Draw(image)
     bob = frame % 2
     scale = (128, 78, 60, 255)
     dark = (70, 40, 34, 255)
     wing = (90, 54, 46, 255)
+    eye = GOLD
+    if variant == "pale":       # hell/kühl: helle Schuppen, Eisblick
+        scale = (150, 156, 168, 255)
+        dark = (96, 104, 120, 255)
+        wing = (120, 128, 146, 255)
+        eye = (140, 200, 255, 255)
+    elif variant == "deep":     # dunkel/warm: veraschte Schuppen, Glutaugen
+        scale = (78, 44, 40, 255)
+        dark = (48, 26, 24, 255)
+        wing = (58, 32, 30, 255)
+        eye = EMBER
     draw.polygon([(3, 4 + bob), (0, 1 + bob * 2), (2, 5 + bob)], fill=wing)
     draw.polygon([(6, 4 + bob), (9, 1 + bob * 2), (7, 5 + bob)], fill=wing)
     rect(draw, 2, 3 + bob, 6, 5, scale)                         # Leib
     rect(draw, 6, 4 + bob, 4, 3, scale)                         # Kopf
     pixel(draw, 9, 5 + bob, dark)                               # Maul
-    pixel(draw, 8, 4 + bob, GOLD)                               # freundliches Auge
+    pixel(draw, 8, 4 + bob, eye)                                # freundliches Auge
     pixel(draw, 3, 2 + bob, dark)                               # Stachelchen
     rect(draw, 3, 8 + bob, 2, 2, scale)                        # Beinchen
     rect(draw, 6, 8 + bob, 2, 2, scale)
     return polish(image, light=18, dark=-14, gradient=0)
+
+
+def dragonling_variant(variant):
+    return build_sheet(12, 12, [[companion_dragonling(i, variant) for i in range(4)]])
 
 
 # ------------------------------------------------------------------ NPCs (v2)
@@ -493,7 +508,15 @@ def bat(anim, frame):
     return polish(image, light=20, dark=-10, gradient=0)
 
 
-def wisp(core, glow, shape="flame"):
+def wisp(core, glow, shape="flame", variant="normal"):
+    """Begleitseele. variant: 'normal' | 'pale' (hell/kühl) | 'deep' (dunkel/warm) — nur Farbstimmung,
+    die Silhouette bleibt identisch, damit der Begleiter wiedererkennbar bleibt."""
+    if variant == "pale":
+        core = shift(core, 60) if core[0] < 200 else core     # Richtung hell/kühl ziehen
+        glow = tuple(min(255, c + 70) for c in glow[:3]) + (glow[3],)
+    elif variant == "deep":
+        core = shift(core, -70)
+        glow = (max(30, glow[0] - 60), max(20, glow[1] - 70), max(10, glow[2] - 90), glow[3])
     frames = []
     for frame in range(4):
         image = new_image(12, 12)
@@ -538,10 +561,19 @@ def generate(textures):
     for kind in ("shepherd", "mammon", "titan"):
         build_sheet(48, 48, [[boss(kind, "idle", i) for i in range(4)], [boss(kind, "cast", i) for i in range(4)]]).save(textures / f"boss_{kind}.png")
     build_sheet(10, 8, [[bat("hang", 0)], [bat("fly", i) for i in range(2)]]).save(textures / "prop_bat.png")
-    wisp(EMBER, GOLD).save(textures / "companion_ember.png")
-    wisp(WHITE, (140, 200, 255, 255)).save(textures / "companion_tear.png")
-    wisp(VIOLET, MANA).save(textures / "companion_moon.png")
-    wisp((200, 200, 210, 255), (120, 120, 140, 255), "chain").save(textures / "companion_chain.png")
-    wisp(GOLD, (255, 230, 150, 255), "bell").save(textures / "companion_bell.png")
+    # --- Begleitseelen (G7): je zwei Farbfassungen pale/deep neben der Normalfassung
+    companions = {
+        "ember": (EMBER, GOLD, "flame"),
+        "tear": (WHITE, (140, 200, 255, 255), "flame"),
+        "moon": (VIOLET, MANA, "flame"),
+        "chain": ((200, 200, 210, 255), (120, 120, 140, 255), "chain"),
+        "bell": (GOLD, (255, 230, 150, 255), "bell"),
+    }
+    for name, (core, glow, shape) in companions.items():
+        wisp(core, glow, shape).save(textures / f"companion_{name}.png")
+        for variant in ("pale", "deep"):
+            wisp(core, glow, shape, variant).save(textures / f"companion_{name}_{variant}.png")
     build_sheet(12, 12, [[companion_dragonling(i) for i in range(4)]]).save(textures / "companion_dragonling.png")
+    for variant in ("pale", "deep"):
+        dragonling_variant(variant).save(textures / f"companion_dragonling_{variant}.png")
     _ = (math, SHADOW)  # (Importe für spätere Erweiterungen)
