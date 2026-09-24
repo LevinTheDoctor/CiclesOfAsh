@@ -188,8 +188,10 @@ public sealed class WaveDirector
     private void StartWave()
     {
         float size = _balance.BaseWaveSize * _plan.DifficultyMultiplier * _waveSizeMultiplier * (1f + _balance.WaveGrowth * _waveIndex);
-        // Tiefe-Progression: Kreise mit viel Verfall (decay) spawnen dichter -> es "wimmelt" unten
-        size *= 1f + _plan.Circle.Decay * 0.45f;
+        // Tiefe-Progression: Kreise mit viel Verfall (decay) spawnen dichter -> es "wimmelt" unten.
+        // Zuschlag bewusst gedaempft (frueher 0.45): Zusammen mit der gewachsenen Gegnervielfalt
+        // wurde es in den tiefen Kreisen sonst unuebersichtlich statt bedrohlich.
+        size *= 1f + _plan.Circle.Decay * 0.25f;
         _remainingToSpawn = Math.Max(1, (int)MathF.Round(size));
         _spawnTimer = 0.5f;
     }

@@ -523,9 +523,13 @@ public sealed class DungeonGenerator
     private void Decorate(RoomNode room)
     {
         if (room.Theme is null) return;
+        float density = _definitions.Balance.DecorDensity;
         foreach (ThemePropRule rule in room.Theme.Props)
         {
             int count = _random.Next(rule.Min, Math.Max(rule.Min, rule.Max) + 1);
+            // Deko-Regler aus balance.json. Bewusst abrunden: Eine Regel mit max 1 kann dadurch
+            // ganz entfallen, was den Raum wirklich leerer macht statt nur die Spitzen zu kappen.
+            count = (int)MathF.Floor(count * density);
             for (int index = 0; index < count; index++) PlaceProp(room, rule.Prop, rule.Anchor, "decor", index);
         }
     }

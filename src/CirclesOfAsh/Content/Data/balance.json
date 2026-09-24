@@ -5,10 +5,10 @@
   "roomsPerDungeonIndex": 1,
   "treasureBranches": 2,
   "baseWavesPerArena": 2,
-  "baseWaveSize": 12,
-  "waveGrowth": 0.25,
+  "baseWaveSize": 8,
+  "waveGrowth": 0.35,
   "spawnInterval": 0.3,
-  "maxAliveEnemies": 45,
+  "maxAliveEnemies": 22,
   "waveBreakSeconds": 2,
   "xpBase": 5,
   "xpGrowth": 1.25,
@@ -27,5 +27,7 @@
   "crumbleRespawnSeconds": 4,
   "brazierTimeLimit": 14,
   "ambientLift": 0.32,
-  "defaultScreenScale": 3
+  "defaultScreenScale": 3,
+  // Deko-Regler: 1 = Mengen wie in themes.json, kleiner = leerere Räume.
+  "decorDensity": 0.6
 }

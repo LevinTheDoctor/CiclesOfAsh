@@ -212,6 +212,11 @@ public sealed class BalanceDefinition
     public float AmbientLift { get; init; } = 0.32f;
     /// <summary>Standard-Bildschirmgröße (Skalierungsfaktor der virtuellen 480x270-Auflösung).</summary>
     public int DefaultScreenScale { get; init; } = 3;
+    /// <summary>
+    /// Multiplikator auf die Deko-Mengen aus themes.json. 1 = wie dort angegeben, 0.6 = deutlich
+    /// leerere Räume. Ein Regler statt zehn Themen einzeln anzufassen.
+    /// </summary>
+    public float DecorDensity { get; init; } = 1f;
 }
 
 // ================================================================= Neu in v2

@@ -33,6 +33,10 @@
           {
             "enemy": "leech",
             "weight": 1
+          },
+          {
+            "enemy": "dragon_whelp",
+            "weight": 1
           }
         ],
         "boss": "boss_shepherd",
@@ -116,6 +120,14 @@
           {
             "enemy": "swarm",
             "weight": 2
+          },
+          {
+            "enemy": "dragon_whelp",
+            "weight": 2
+          },
+          {
+            "enemy": "drake",
+            "weight": 1
           }
         ],
         "boss": "boss_mammon",
@@ -200,6 +212,14 @@
           {
             "enemy": "leech",
             "weight": 2
+          },
+          {
+            "enemy": "dragon_whelp",
+            "weight": 2
+          },
+          {
+            "enemy": "drake",
+            "weight": 3
           }
         ],
         "boss": "boss_titan",
