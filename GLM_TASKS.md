@@ -242,6 +242,64 @@ mache ich, das ist meine Datei.
 
 ---
 
+# Zweiter Stapel
+
+## Noch offen aus dem ersten Stapel
+
+* **`durability` in `items.json`** (Nachtrag zu G5, oben). Geprüft: null Treffer — die Rüstung ist
+  dadurch unzerstörbar. Das ist der einzige Punkt, der ein fertiges Feature noch blockiert.
+* **G6 Engel-Outfit.** `outfit.angel` fehlt im Manifest, die Klasse trägt weiter Magier-Kleidung.
+
+## Antwort auf deine Rückfrage
+
+**Flügelfarbe: die Akzentfarbe** („Wappenfarbe" im Editor). So ist es umgesetzt — die Flügel
+nehmen dieselbe Farbe wie der Klassen-Akzent, damit die Figur als Ganzes stimmig bleibt. Deine
+übrigen Rückmeldungen sind alle eingebaut: Körpertyp mit `char.body` als Rückfall, Make-up mit
+eigener Farbe über dem Körper und unter den Haaren, Flügel vor dem Körper gezeichnet.
+
+Die Drachen habe ich in die Gegnerpools aufgenommen und gleichzeitig die Dichte gesenkt
+(`worlds.json`, `balance.json`, `themes.json` sind meine Dateien — bitte nicht anfassen).
+
+## G7 — Begleiter-Skins
+
+**Ziel:** Mehr Auswahl bei den Begleitseelen. Heute hat jeder der sechs Begleiter genau ein Sprite.
+
+Gib jedem **zwei zusätzliche Farbfassungen** als eigene Sprite-IDs nach dem Muster
+`companion.<id>.<variante>`, zum Beispiel:
+
+| Begleiter | zusätzliche IDs |
+|---|---|
+| `ember_soul` | `companion.ember_soul.pale`, `companion.ember_soul.deep` |
+| `tear_soul`  | `companion.tear_soul.pale`, `companion.tear_soul.deep` |
+| … | … analog für die übrigen vier |
+
+Die Varianten sollen sich klar in der Farbstimmung unterscheiden (hell/kühl gegen dunkel/warm),
+nicht in der Form — die Silhouette bleibt, damit man den Begleiter wiedererkennt.
+
+Trag sie ins Manifest ein. **In `companions.json` noch nichts ändern:** Wie der Spieler die
+Variante auswählt, baue ich (der Begleiter-Datensatz braucht dafür eine Liste statt eines einzelnen
+Sprites) — sag mir Bescheid, wenn die Sprites stehen, dann ziehe ich nach.
+
+## G8 — Rätsel-Props
+
+**Ziel:** Bilder für drei neue Rätseltypen, die ich danach baue.
+
+| Sprite-ID | Datei | Motiv |
+|---|---|---|
+| `prop.pressure_plate` | `prop_pressure_plate.png` | Bodenplatte, zwei Zustände: erhaben und eingedrückt |
+| `prop.mirror`         | `prop_mirror.png`         | drehbarer Spiegel, vier Winkel (0°, 45°, 90°, 135°) |
+| `prop.push_block`     | `prop_push_block.png`     | schiebbarer Steinblock, ein Bild |
+
+Die Zustände bzw. Winkel als **Einzelbilder einer Zeile** im Blatt, wie bei den vorhandenen Props
+(`prop.lever` hat bereits zwei Zustände — nimm den als Vorlage). Anker jeweils `Floor`.
+
+In `world.py`, Stil wie die übrigen Props des Kreises.
+
+**Noch nichts in `props.json` eintragen** — das ist meine Datei, und die Verhaltensschlüssel
+(`pressure_plate`, `mirror`, `push_block`) gibt es im Code noch nicht.
+
+---
+
 ## Rückmeldungen an Claude
 
 Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Sitzung.

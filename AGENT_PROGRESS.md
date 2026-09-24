@@ -134,10 +134,14 @@ Weitere Farbebene über dem Gesicht, technisch wie Haare und Akzent. Der Ebenen-
 Sechs Begleiter existieren, der Dialog `pet_talk` ebenfalls. Geplant: mehr Skins und echte
 Gespräche, die von selbst beginnen — auch im Tutorial (siehe D).
 
-### [ ] B4 Drachen
+### [x] B4 Drachen
 
 Als Begleiter und als Gegner. Gegner-Seite über `enemies.json` plus ein Flug-Hirn; Begleiter-Seite
 über ein neues `ICompanionBehavior`.
+
+**Erledigt.** GLM lieferte Sprites und Daten, ich habe `drake` und `dragon_whelp` gestaffelt in die
+Gegnerpools aufgenommen (Limbus nur das Junge, Zorn den Aschdrachen mit Gewicht 3). Der Begleiter
+`dragonling` war über `companions.json` schon freischaltbar.
 
 ---
 
@@ -149,12 +153,17 @@ Heute drei (`levers`, `rune_order`, `braziers`, alle in `Puzzles/Puzzles.cs`). G
 Druckplatten, Spiegel für Lichtstrahlen, Gewichts-/Schieberätsel. Neuer Typ = neue `IPuzzle`-Klasse,
 eine Registry-Zeile und ein Zweig in `DungeonGenerator.PlacePuzzle`.
 
-### [ ] C2 Mehr Gegner, aber weniger überfüllte Karte
+### [x] C2 Mehr Gegner, aber weniger überfüllte Karte
 
 Zwei gegenläufige Wünsche, deshalb getrennt: **mehr Gegner-Arten** in den Pool (`worlds.json`),
 gleichzeitig **weniger Deko und weniger gleichzeitige Gegner** pro Raum. Stellschrauben stehen alle
 in `balance.json` (`baseWaveSize`, `maxAliveEnemies`, `waveGrowth`) und im Generator
 (`PlaceChests`, Deko-Dichte je Thema).
+
+**Erledigt.** `baseWaveSize` 12 → 8, `maxAliveEnemies` 45 → 22, `waveGrowth` 0,25 → 0,35 (Wellen
+eher länger als breiter), Verfalls-Zuschlag 0,45 → 0,25. Neuer Regler `decorDensity` (0,6) in
+`balance.json`, angewandt in `DungeonGenerator.Decorate` — ein Wert statt zehn Themen. Wellen sind
+damit 35–40 % kleiner. **Das Urteil steht aus:** Ob es jetzt zu leer ist, zeigt erst ein Durchgang.
 
 ### [ ] C3 Eigenes Thema je Boss und Mini-Boss
 
