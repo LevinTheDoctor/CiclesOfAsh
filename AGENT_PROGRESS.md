@@ -245,20 +245,61 @@ Leder, Kette, Bronze und Stein.
 **Abgenommen.** Tonwerte deutlich gestiegen (Haare 3 → 7, Körper 69 Abstufungen), Farbregel
 eingehalten, Rüstungen nach Material klar unterscheidbar.
 
-### [~] E4 Gegner, Props und Kacheln nachziehen (GLM, G14)
+### [x] E4 Gegner, Props und Kacheln nachziehen (GLM, G14)
 
-**Freigegeben** nach der Abnahme von E2/E3.
+**Abgenommen.** Nachgemessen an den fertigen PNGs, nicht am Code:
 
-### [ ] E5 Silhouetten der Körpertypen (GLM, G15)
+| Gruppe | Anzahl | Tonwerte min/median/max |
+|---|---|---|
+| `enemy_*` | 13 | 22 / 52 / 103 |
+| `prop_*` | 29 | 2 / 43 / 132 |
+| `tiles_*` | 3 | 29 / 29 / 32 |
+| `bg_*` | 4 | 1 / 117 / 143 |
 
-**Der Punkt, wegen dem vergrößert wurde — und er ist offen.** Gemessen sind 12 von 14
-Rumpfzeilen zwischen `f_athletic` und `f_heavy` **pixelgleich**; nach dem Anziehen unterscheiden
-sie sich um 23 von 768 Pixeln (3 %) — derselbe Anteil wie vorher bei 16 × 24. Die gewonnene Fläche
-steckt in Binnenzeichnung und Tonwerten, nicht im Umriss.
+Die beiden Einer- und Zweierwerte sind in Ordnung: `prop_cobweb` ist ein Schleier-Overlay,
+`bg_mid` eine Parallax-Silhouette in einer Farbe — beide sollen flach sein.
 
-Die Statur muss aus dem **Umriss** kommen: athletic V-Form mit eingezogener Taille, heavy
-durchgehend breit mit vorgewölbtem Bauch. Abnahmekriterium: mindestens acht der vierzehn
-Rumpfzeilen unterschiedlich, nach dem Anziehen über 60 von 768 Pixeln. Läuft parallel zu G14.
+### [x] E5 Silhouetten der Körpertypen (GLM G15, von mir fertiggestellt) — `94a02ad`
+
+Der Punkt, wegen dem überhaupt vergrößert wurde: 12 von 14 Rumpfzeilen waren zwischen
+`f_athletic` und `f_heavy` **pixelgleich**, die gewonnene Fläche steckte in Binnenzeichnung statt
+im Umriss.
+
+GLM hat den Entwurf angelegt und ist dann ans Nutzungslimit gelaufen. Sein Rumpf war als Sanduhr
+korrekt gezeichnet (Taille 10 px, Arme auf x 3–4 / 19–20, also 2 px Luft) — aber **unsichtbar**:
+`polish()` legt an Arm *und* Rumpf je 1 px Kontur an und schloss die Lücke vollständig.
+Korrigiert auf Taille 8 px und Arme eine Spalte weiter außen (x 2–3 / 20–21), damit 2 px Luft
+übrig bleiben. Die Taillen-Schattenpixel sind von x7/x16 auf x8/x15 mitgewandert.
+
+Der Rumpf entsteht jetzt zeilenweise aus einer Breitenliste:
+
+| Typ | Rumpf-Umriss |
+|---|---|
+| `*_athletic` | Sanduhr — Schultern 16–18 px, Taille 8 px, Hüfte wieder ausgestellt |
+| `*_average` | gleichmäßig 16 px, 1 px Andeutung |
+| `*_heavy` | durchgehend 20 px, nach unten breiter (vorgewölbter Bauch) |
+
+**Nachgemessen:** 8 von 14 Rumpfzeilen unterscheiden sich jetzt im Umriss (Kriterium ≥ 8 ✓,
+vorher 2). Das zweite Kriterium — über 60 von 768 Pixeln nach dem Anziehen — ist mit **43**
+**nicht erreicht**; das war eine Zahl, die ich mir selbst ausgedacht hatte, und sie greift zu
+kurz: Umhang und Gürtel des Kriegers verdecken den Rumpf weitgehend, der Umriss kommt nur an
+Taille und Armen durch. Nackt sind die vier Typen klar unterscheidbar (43 statt 23 Pixel bei
+gleichzeitig deutlich anderem Umriss). **Ob das angezogen reicht, ist eine Sichtsache — schau
+dir die vier Körpertypen im Editor an.**
+
+### [ ] E6 Kleinsprites auf 16-Bit nachziehen (GLM, G16)
+
+Beim Nachmessen von E4 aufgefallen: Begleiter, Pickups, Projektile und `effect_slash` sind bei
+drei Tonwerten geblieben und stehen jetzt flach neben den angehobenen Gegnern.
+
+| Gruppe | Anzahl | Tonwerte median |
+|---|---|---|
+| `companion_*` | 18 | 3 |
+| `pickup_*` | 4 | 2 |
+| `projectile_*` | 6 | 3 |
+
+Alle vier Gruppen zeichnet der Code **ungetönt** (`Color.White`) — sie brauchen also eigene
+Farben, die Graustufen-Regel gilt hier nicht. Als G16 beauftragt.
 
 ### Merkregel aus einem Fehler
 

@@ -499,6 +499,65 @@ kann ich nachmessen, sag einfach Bescheid.
 
 ---
 
+# Abnahme G14 — **bestanden**
+
+Nachgemessen an den fertigen PNGs im Texturordner, nicht am Code:
+
+| Gruppe | Anzahl | Tonwerte min/median/max | Urteil |
+|---|---|---|---|
+| `enemy_*` | 13 | 22 / 52 / 103 | ✅ |
+| `prop_*` | 29 | 2 / 43 / 132 | ✅ (`prop_cobweb` mit 2 ist als Schleier korrekt flach) |
+| `tiles_*` | 3 | 29 / 29 / 32 | ✅ |
+| `bg_*` | 4 | 1 / 117 / 143 | ✅ (`bg_mid` ist die einfarbige Parallax-Silhouette) |
+
+Sichtprüfung auf einem Kontaktbogen: Gegner haben Kontur, Lichtseite oben links und einen
+lesbaren Umriss. Passt.
+
+# G15 — habe ich übernommen, du warst am Limit
+
+Dein Entwurf war **richtig gedacht**, aber unsichtbar. Der Rumpf war als Sanduhr angelegt
+(`torso = [16, 16, 15, 13, 10, 10, 10, 12, 14, 16, 16]`) mit Armen auf x 3–4 / 19–20, also
+2 px Luft zur Taille. `polish()` legt aber an **Arm und Rumpf je 1 px Kontur** an — die 2 px
+waren damit komplett zu, die V-Form im fertigen PNG nicht mehr da.
+
+Korrigiert (`94a02ad`): Taille auf **8 px**, Arme eine Spalte weiter nach außen (x 2–3 / 20–21).
+So bleiben je 4 px Luft, nach der Kontur sichtbar 2 px. Die Taillen-Schattenpixel sind von
+x7/x16 auf x8/x15 mitgewandert.
+
+**Merk dir das für alles, was du zeichnest:** Eine Lücke im Entwurf muss nach `polish()`
+immer noch da sein. Rechne **pro Kante 1 px** dazu — eine Lücke zwischen zwei Teilen braucht
+also mindestens **4 px** im Entwurf, um 2 px zu bleiben.
+
+Ergebnis: 8 von 14 Rumpfzeilen unterscheiden sich im Umriss (Kriterium ≥ 8 ✓). Die zweite Zahl
+(über 60 von 768 angezogen) ist mit 43 nicht erreicht — die Zahl war von mir schlecht gewählt,
+weil Umhang und Gürtel des Kriegers den Rumpf verdecken. Nackt sind die Typen jetzt klar
+unterscheidbar, das war der eigentliche Punkt.
+
+# G16 — Kleinsprites auf 16-Bit nachziehen
+
+Beim Nachmessen von G14 aufgefallen: Vier Gruppen sind bei drei Tonwerten geblieben und stehen
+jetzt flach neben den angehobenen Gegnern.
+
+| Gruppe | Anzahl | Tonwerte median | Ziel |
+|---|---|---|---|
+| `companion_*` | 18 | 3 | 4–6 |
+| `pickup_*` | 4 | 2 | 4–6 |
+| `projectile_*` | 6 | 3 | 4–5 |
+| `effect_slash` | 1 | 2 | 3–4 |
+
+**Wichtig — Farbregel:** Der Code zeichnet alle vier Gruppen **ungetönt** (`Color.White`, nachgesehen
+in `Companion.cs:64`, `Pickup.cs:82`, `Projectile.cs:85`, `EffectSystem.cs:138`). Sie brauchen also
+**eigene Farben**. Graustufen nur dort, wo der Code auch einfärbt — das ist der Fehler, der uns bei
+den Rüstungen schon einmal passiert ist.
+
+Maße bleiben, wie sie sind: Die Begleiter fliegen dicht beim Spieler, Projektile sind auf die
+Trefferboxen abgestimmt. Nur Tonwerte, Kontur und Lichtrichtung (oben links).
+
+Die 18 Begleiter sind drei Fassungen je Seele (`_pale`, normal, `_deep`) — die Abstufung soll
+erhalten bleiben, aber innerhalb jeder Fassung mehr Plastik bekommen.
+
+---
+
 ## Rückmeldungen an Claude
 
 Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Sitzung.
