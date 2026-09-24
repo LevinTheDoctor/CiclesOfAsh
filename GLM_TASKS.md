@@ -246,7 +246,25 @@ mache ich, das ist meine Datei.
 
 Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Sitzung.
 
-<!-- Beispiel:
-- G1: Die Outfits sitzen auf `f_athletic` zwei Pixel zu weit links. Braucht entweder eigene
-  Outfit-Varianten je Körpertyp oder einen Versatz im Code.
--->
+- G1/G2/G3: Alle Sprites und Daten sind geliefert (Commits folgen). Die Ebenen brauchen im Code
+  jetzt drei neue Slots im Ebenen-Aufbau (`CharacterVisuals`): **bodyType** (ersetzt/ergänzt
+  `bodySprite`, mit `char.body` als Rückfallwert), **makeup** (eigene Farbe, `makeupStyles` +
+  `makeupColors`, leerer Sprite bei `none` überspringen), **wings** (hinter den Körper, also
+  **vor** `body` zeichnen, nicht danach). Flügel sind Graustufen und werden eingefärbt — welche
+  Farbe nimmst du dafür? Akzentfarbe wäre naheliegend, sag Bescheid.
+- G1: `CharacterAppearance` speichert Indizes — `bodyTypes`, `makeupStyles`, `makeupColors`,
+  `wingStyles` sind alle ans Ende von `appearance.json` gekommen bzw. neu. Bestehende
+  Spielstände bleiben damit stabil, aber der Editor braucht die neuen Listen im UI.
+- G2: Make-up wandert mit `p["bob"]` mit, es schwimmt also nicht. Es liegt **über** dem Körper,
+  aber **unter** den Haaren (sonst verdeckt `hair.long` die Wangen-Streifen der Kriegsbemalung).
+- G4: `drake` und `dragon_whelp` liegen in `enemies.json`, sind aber wie besprochen **nicht** im
+  `enemyPool` der `worlds.json` — wartet auf dein Paket C2. Der Drache nutzt im Manifest zwei
+  Zeilen: `idle` (Flug, row 0) und `cast` (Feuerspeien, row 1) — falls das `flyer`-Hirn nur
+  `idle` spielt, ist das okay, `cast` ist Bonus. `dragonling` in `companions.json` mit
+  `"unlockAtBelievers": 240`.
+- G5: Slot `Armor` existiert im Code noch nicht — die vier Items warnen beim Laden, wie
+  geplant. `StatType.Armor` gibt es bereits (flache Reduktion). Der `Aschenharnisch` ist
+  `Sacred` mit `minCircle: 1`. Icon-Spalten 12–15 in `items.icons` sind belegt.
+- Abnahme steht noch aus: Ich kann das Spiel von hier nicht starten. Bitte einmal laufen lassen
+  und `~/Library/Application Support/CirclesOfAsh/game.log` auf fehlende Sprites prüfen
+  (sollte keine WARN-Zeilen zu den neuen IDs geben). `dotnet build` ist grün (0/0).
