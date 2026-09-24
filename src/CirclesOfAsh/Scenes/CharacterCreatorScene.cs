@@ -18,6 +18,13 @@ public sealed class CharacterCreatorScene : SceneBase
     private enum Row { Name, Class, Body, Skin, Hair, HairColor, Makeup, MakeupColor, Wings, Accent, Continue }
 
     private const int MaxNameLength = 14;
+    /// <summary>Höhe beider Panels. Darunter bleibt Platz für die Hilfezeile bei y = 256.</summary>
+    private const int PanelHeight = 208;
+    /// <summary>
+    /// Fest reservierter Block am Panelboden: Trennlinie, Klassenbeschreibung (bis drei Zeilen)
+    /// und die Werte-Zeile. Die Auswahlzeilen bekommen genau den Rest darüber.
+    /// </summary>
+    private const int InfoBlockHeight = 56;
     private static readonly string[] RandomNames =
     {
         "Aurel", "Beatrix", "Cassian", "Dante", "Elysia", "Fenris", "Galia", "Ilian", "Lucan", "Mira", "Orin", "Seraphine", "Vigil",
@@ -199,14 +206,17 @@ public sealed class CharacterCreatorScene : SceneBase
         Context.TitleFont.DrawCentered(spriteBatch, _step == Step.Look ? "Erschaffe deine Gestalt" : "Wähle eine Begleitseele", centerX, 6, Palette.Gold);
 
         // Links: große Vorschau auf einem "Altar"
-        var altar = new Rectangle(24, 36, 150, 180);
+        // Beide Panels reichen bis 244 – erst bei 256 steht die Hilfezeile. Die Höhe wurde
+        // gebraucht, weil der Editor inzwischen elf Zeilen hat statt sieben.
+        var altar = new Rectangle(24, 36, 150, PanelHeight);
         UiDraw.Panel(spriteBatch, pixel, altar);
-        InfernoFunnel.DrawEllipse(spriteBatch, pixel, new Vector2(altar.Center.X, 190), 40f, 8f, Palette.Ember * 0.6f);
-        _preview.Draw(spriteBatch, new Vector2(altar.Center.X, 190), false, Color.White, new Vector2(5f));
+        float previewBottom = altar.Bottom - 26;   // Standfläche der Figur, nicht mehr fest auf 190
+        InfernoFunnel.DrawEllipse(spriteBatch, pixel, new Vector2(altar.Center.X, previewBottom), 40f, 8f, Palette.Ember * 0.6f);
+        _preview.Draw(spriteBatch, new Vector2(altar.Center.X, previewBottom), false, Color.White, new Vector2(5f));
         font.DrawCentered(spriteBatch, Look.Name, altar.Center.X, altar.Top + 6, Palette.Faith);
-        font.DrawCentered(spriteBatch, SelectedClass.Name, altar.Center.X, altar.Bottom - 16, Palette.Bone);
+        font.DrawCentered(spriteBatch, SelectedClass.Name, altar.Center.X, altar.Bottom - 14, Palette.Bone);
 
-        var panel = new Rectangle(186, 36, CirclesGame.VirtualWidth - 206, 180);
+        var panel = new Rectangle(186, 36, CirclesGame.VirtualWidth - 206, PanelHeight);
         UiDraw.Panel(spriteBatch, pixel, panel);
         if (_step == Step.Look) DrawOptions(spriteBatch, font, pixel, panel);
         else
@@ -230,7 +240,14 @@ public sealed class CharacterCreatorScene : SceneBase
 
     private void DrawOptions(SpriteBatch spriteBatch, BitmapFont font, Texture2D pixel, Rectangle panel)
     {
-        float y = panel.Top + 8;
+        // Abstand aus dem verfügbaren Platz ableiten, NICHT fest verdrahten: Bei wenigen Zeilen
+        // bleibt es luftig wie früher, bei vielen rückt es zusammen statt in den Infoblock zu
+        // laufen. Genau das ist vorher passiert, als vier Zeilen dazukamen.
+        float top = panel.Top + 8;
+        float available = panel.Bottom - InfoBlockHeight - top;
+        float step = MathF.Min(font.LineHeight + 7, available / Math.Max(1, _rows.Length));
+
+        float y = top;
         foreach (Row row in _rows)
         {
             bool isSelected = row == CurrentRow;
@@ -283,11 +300,11 @@ public sealed class CharacterCreatorScene : SceneBase
                     DrawSwatches(spriteBatch, pixel, valuePosition, row);
                     break;
             }
-            y += font.LineHeight + 7;
+            y += step;
         }
 
         // Klassenbeschreibung + Werte unten im Panel
-        float infoTop = panel.Bottom - 58;
+        float infoTop = panel.Bottom - InfoBlockHeight + 6;
         UiDraw.Rect(spriteBatch, pixel, new Rectangle(panel.Left + 8, (int)infoTop - 4, panel.Width - 16, 1), Palette.Gold * 0.4f);
         font.DrawShadowed(spriteBatch, font.Wrap(SelectedClass.Description, panel.Width - 20), new Vector2(panel.Left + 10, infoTop), Palette.Bone * 0.8f);
         Dictionary<StatType, float> stats = StatSheet.ParseAll(SelectedClass.BaseStats);
