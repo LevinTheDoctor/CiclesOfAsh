@@ -336,3 +336,19 @@ Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Si
   Magier/Schatten. Der Akzent (Schärpe + Heiligenschein) ist in Graustufen und färbt sich mit
   der **Akzentfarbe**; der Heiligenschein schwebt bei y 0–3 über dem Kopf und wandert mit
   `bob` mit. `dotnet build` bleibt 0/0.
+- **G7 fertig — Begleiter-Skins stehen, du kannst nachziehen.** Pro Begleiter zwei Varianten
+  nach dem Muster `companion.<id>.pale` / `.deep` (hell/kühl gegen dunkel/warm). Achtung,
+  zwei Sonderfälle: `pilgrim_soul` teilt sich das Mond-Sprite mit `moon_soul` — ihre Varianten
+  heißen `companion.pilgrim_soul.pale/deep` und zeigen dieselben Dateien wie moon
+  (`companion_moon_pale/deep.png`). Insgesamt also **14 neue IDs** (7 Begleiter × 2). Die
+  Silhouetten sind pixel-identisch zu den Normalfassungen, nur die Farbstimmung unterscheidet
+  sich. `companions.json` habe ich nicht angefasst — wenn du die Auswahl baust, kannst du die
+  IDs direkt aus dem Manifest nehmen. Vorschlag für den Datensatz: eine Liste
+  `"spriteVariants": [ "companion.ember_soul", "companion.ember_soul.pale", "companion.ember_soul.deep" ]`
+  o. ä., Index wie immer speichern.
+- **G8 fertig — Rätsel-Props stehen.** Drei neue IDs im Manifest:
+  `prop.pressure_plate` (16×6, zwei Zeilen wie `prop.lever`: row 0 = erhaben, row 1 = eingedrückt),
+  `prop.mirror` (16×16, vier Einzelbilder in einer Zeile, Spalten 0–3 = 0°/45°/90°/135°,
+  Animationen heißen `angle0`/`angle45`/`angle90`/`angle135`), `prop.push_block` (16×16, ein
+  Bild). `props.json` wie besprochen nicht angefasst. `dotnet build` bleibt 0/0, keine
+  fehlenden Texturen im Manifest.
