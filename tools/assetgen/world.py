@@ -441,7 +441,8 @@ def props(textures):
 
 # ------------------------------------------------------------------ Items (Icons 12x12, eine Spalte pro Item)
 ITEM_ORDER = ["grave_lantern", "saint_lamp", "hellfire_lantern", "rosary", "bleeding_heart", "eye_of_vigil",
-              "ring_of_ash", "ring_of_silence", "ring_of_mammon", "prayer_beads", "soul_shard", "lost_letter"]
+              "ring_of_ash", "ring_of_silence", "ring_of_mammon", "prayer_beads", "soul_shard", "lost_letter",
+              "leather_jerkin", "chainmail", "scale_mail", "ash_harness"]
 
 
 def item_icons(textures):
@@ -486,6 +487,30 @@ def item_icons(textures):
             rect(d, 1, 3, 10, 7, BONE)
             d.line([(1, 3), (6, 7), (11, 3)], fill=(150, 140, 120, 255))
             rect(d, 5, 6, 2, 2, BLOOD)                                     # Siegel
+        elif item == "leather_jerkin":                                     # Lederwams
+            d.polygon([(2, 1), (9, 1), (10, 10), (1, 10)], fill=LEATHER)
+            rect(d, 2, 1, 1, 9, shift(LEATHER, -25))
+            rect(d, 5, 1, 1, 9, shift(LEATHER, -35))                       # Naht
+            rect(d, 4, 3, 3, 1, DARK_WOOD)                                 # Kragen
+        elif item == "chainmail":                                           # Kettenhemd
+            d.polygon([(2, 1), (9, 1), (10, 10), (1, 10)], fill=STEEL)
+            for y in range(2, 10, 2):                                      # Maschenmuster
+                for x in range(2, 10, 2):
+                    pixel(d, x + (y // 2) % 2, y, DARK_STEEL)
+            rect(d, 4, 0, 3, 1, DARK_STEEL)                                # Halsbund
+        elif item == "scale_mail":                                          # Schuppenpanzer
+            d.polygon([(2, 1), (9, 1), (10, 10), (1, 10)], fill=(110, 104, 122, 255))
+            for y in range(2, 10, 2):                                      # überlappende Schuppen
+                for x in range(1 + y % 4, 11, 3):
+                    d.arc([x, y, x + 2, y + 2], 180, 360, fill=(140, 134, 150, 255))
+            rect(d, 4, 0, 3, 1, DARK_STEEL)
+        elif item == "ash_harness":                                         # Aschenharnisch (heilig)
+            d.polygon([(2, 1), (9, 1), (10, 10), (1, 10)], fill=(70, 64, 78, 255))
+            rect(d, 3, 2, 5, 8, (100, 92, 112, 255))
+            rect(d, 5, 2, 1, 8, EMBER)                                      # glühende Mittelnaht
+            pixel(d, 5, 4, FLAME)
+            pixel(d, 5, 7, FLAME)
+            rect(d, 4, 0, 3, 1, GOLD)                                       # goldener Kragen
         result = polish(image, light=18, dark=-18, gradient=0)
         if glint:
             ImageDraw.Draw(result).point((9, 1), fill=WHITE)

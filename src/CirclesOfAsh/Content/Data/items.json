@@ -32,6 +32,20 @@
     "description": "Schwer vor Gold. Macht stark, macht langsam.",
     "modifiers": [ { "stat": "Might", "amount": 0.18, "isPercent": true }, { "stat": "MoveSpeed", "amount": -0.05, "isPercent": true } ] },
 
+  // Rüstungen (Slot Armor): flache Schadensreduktion pro Treffer (StatType.Armor)
+  { "id": "leather_jerkin", "name": "Lederwams", "slot": "Armor", "rarity": "Common",
+    "description": "Abgetragenes Leder. Hält nicht viel aus, wiegt aber nichts.",
+    "modifiers": [ { "stat": "Armor", "amount": 2 } ] },
+  { "id": "chainmail", "name": "Kettenhemd", "slot": "Armor", "rarity": "Common",
+    "description": "Tausend kleine Ringe zwischen dir und den Zähnen der Hölle.",
+    "modifiers": [ { "stat": "Armor", "amount": 4 } ] },
+  { "id": "scale_mail", "name": "Schuppenpanzer", "slot": "Armor", "rarity": "Rare",
+    "description": "Schuppe über Schuppe, wie die Haut eines jungen Drachen.",
+    "modifiers": [ { "stat": "Armor", "amount": 6 } ] },
+  { "id": "ash_harness", "name": "Aschenharnisch", "slot": "Armor", "rarity": "Sacred", "minCircle": 1,
+    "description": "Geschmiedet aus verklumpter Asche Gefallener. Fast unzerbrechlich – und schwer.",
+    "modifiers": [ { "stat": "Armor", "amount": 9 }, { "stat": "MoveSpeed", "amount": -0.06, "isPercent": true } ] },
+
   // Sammelobjekte: liegen schwebend in den Verliesen und zählen für Bitten der Gläubigen
   { "id": "prayer_beads", "name": "Gebetsperlen", "slot": "Collectible", "description": "Verloren von einer Mutter im Limbus." },
   { "id": "soul_shard", "name": "Seelensplitter", "slot": "Collectible", "description": "Ein Bruchstück einer zerrissenen Seele." },
