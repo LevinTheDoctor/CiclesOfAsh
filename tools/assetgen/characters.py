@@ -9,8 +9,8 @@ Zeilen: 0 idle, 1 run, 2 jump, 3 hurt (je bis zu 4 Frames).
 """
 from PIL import Image, ImageDraw
 
-from .core import (BLACK, DARK_STEEL, DEEP_PURPLE, GOLD, LEATHER, MANA, OUTLINE, PURPLE, SHADOW, SOUL, STEEL, TINT_DARK,
-                   TINT_EYE, TINT_LIGHT, TINT_MID, WOOD, build_sheet, new_image, pixel, polish, rect)
+from .core import (BLACK, DARK_STEEL, DEEP_PURPLE, GOLD, LEATHER, MANA, OUTLINE, PURPLE, SHADOW, SOUL, STEEL,
+                   TINT_DARK, TINT_EYE, TINT_LIGHT, TINT_MID, WOOD, build_sheet, new_image, pixel, polish, rect, shift)
 
 ANIMATIONS = (("idle", 4), ("run", 4), ("jump", 4), ("hurt", 2))
 TINT_OUTLINE = (60, 60, 66, 255)
@@ -188,6 +188,21 @@ def outfit_frame(cls, p):
         rect(draw, 7, 7 + b, 4, 2, (40, 32, 52, 255))      # Maske
         rect(draw, 12, 13 + b - arm, 1, 4, STEEL)          # Dolch
         rect(draw, 11, 16 + b - arm, 3, 1, DARK_STEEL)
+    if cls == "angel":
+        # Gefallener Engel: helle, schlichte Robe mit Gürtel (eigenes Set statt Magier-Leihe)
+        image = new_image(16, 24)
+        draw = ImageDraw.Draw(image)
+        sway = [0, 1, 0, -1][frame] if p["run"] else 0
+        robe = (218, 212, 198, 255)
+        robe_dark = (170, 164, 152, 255)
+        draw_legs(draw, p, robe_dark, BLACK)
+        rect(draw, 5, 9 + b, 6, 9, robe)                   # schlichte Robe
+        rect(draw, 4 + sway, 18 + b, 8, 3, robe)           # weiter Saum
+        rect(draw, 6, 9 + b, 4, 2, shift(robe, 15))        # heller Kragen
+        rect(draw, 5, 15 + b, 6, 1, LEATHER)                # schlichter Gürtel
+        pixel(draw, 8, 15 + b, GOLD)                       # kleine Schnalle
+        rect(draw, 10, 11 + b - arm, 2, 4, robe_dark)      # Ärmel
+        rect(draw, 12, 10 + b - arm, 1, 2, (235, 232, 224, 255))  # Hand
     return polish(image)
 
 
@@ -212,6 +227,20 @@ def accent_frame(cls, p):
             rect(draw, 1 + frame % 2, 10 + b, 4, 1, TINT_DARK)
         else:
             rect(draw, 4, 10 + b, 1, 3, TINT_DARK)
+    if cls == "angel":
+        # Gefallener Engel: Schärpe über die Schulter + Heiligenschein, einfärbbar (Graustufen)
+        image = new_image(16, 24)
+        draw = ImageDraw.Draw(image)
+        sway = [0, 1, 0, -1][frame] if p["run"] else 0
+        rect(draw, 6, 9 + b, 2, 2, TINT_MID)               # Schärpe an der Schulter
+        for y in range(11 + b, 17 + b):                   # diagonal über die Brust
+            pixel(draw, 7 + (y - 11 - b) // 3, y, TINT_MID)
+        pixel(draw, 8, 16 + b, TINT_DARK)                  # Quaste
+        pixel(draw, 9, 17 + b, TINT_DARK)
+        halo = (240, 240, 240, 255)                        # Heiligenschein als Ellipse über dem Kopf
+        draw.arc([4 + sway, 0 + b, 11 + sway, 4 + b], 180, 360, fill=TINT_LIGHT, width=1)
+        pixel(draw, 4 + sway, 1 + b, halo)
+        pixel(draw, 11 + sway, 1 + b, halo)
     return polish(image, outline=(50, 50, 56, 255), light=10, dark=-20, gradient=0)
 
 
@@ -291,7 +320,7 @@ def generate(textures):
         layer_sheet(lambda p, s=style: makeup_frame(s, p)).save(textures / f"char_makeup_{style}.png")
     for kind in ("feathered", "tattered", "ember"):
         layer_sheet(lambda p, k=kind: wings_frame(k, p)).save(textures / f"char_wings_{kind}.png")
-    for cls in ("warrior", "mage", "shadow"):
+    for cls in ("warrior", "mage", "shadow", "angel"):
         layer_sheet(lambda p, c=cls: outfit_frame(c, p)).save(textures / f"char_outfit_{cls}.png")
         layer_sheet(lambda p, c=cls: accent_frame(c, p)).save(textures / f"char_accent_{cls}.png")
 
