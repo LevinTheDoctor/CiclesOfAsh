@@ -1,0 +1,64 @@
+[
+  // Tutorial: Schritte in genau dieser Reihenfolge. Jeder wartet auf EINE Handlung des Spielers,
+  // dann kommt der nächste. Die Auslöser sind dieselben Ereignisse, die auch die Begleitseelen
+  // zum Sprechen bringen (Companions/CompanionChatter.cs) – der Code meldet sie ohnehin schon.
+  //
+  // "trigger": move | jump | crouch | attack | block | spin | interact | kill | wait
+  // "hold":    Sekunden, die der Zustand gehalten werden muss (nur bei move/crouch/block sinnvoll)
+  // "wait":    Sekunden, die der Schritt mindestens stehenbleibt, bevor er weiterzählt
+  {
+    "id": "welcome",
+    "text": "Du warst einmal ein Gott. Jetzt bist du hier unten – mit mir. Ich zeige dir das Nötigste.",
+    "trigger": "wait",
+    "wait": 4
+  },
+  {
+    "id": "move",
+    "text": "Geh los. Links und rechts, das kennst du noch.",
+    "trigger": "move",
+    "hold": 0.6
+  },
+  {
+    "id": "jump",
+    "text": "Und springen. Über Lücken kommst du nur so.",
+    "trigger": "jump"
+  },
+  {
+    "id": "crouch",
+    "text": "Duck dich. Durch manche Spalten passt du nur geduckt.",
+    "trigger": "crouch",
+    "hold": 0.4
+  },
+  {
+    "id": "attack",
+    "text": "Schlag zu. Drei Schläge hintereinander werden härter, wenn du den Takt hältst.",
+    "trigger": "attack"
+  },
+  {
+    "id": "block",
+    "text": "Und blocken. Im richtigen Moment gedrückt ist es eine Parade – der Gegner taumelt.",
+    "trigger": "block",
+    "hold": 0.3
+  },
+  {
+    "id": "spin",
+    "text": "Der Drehsprung ist dein Ausweg, wenn sie dich umzingeln.",
+    "trigger": "spin"
+  },
+  {
+    "id": "kill",
+    "text": "Jetzt ernst. Die Verdammten hier unten glauben an niemanden mehr – ändere das.",
+    "trigger": "kill"
+  },
+  {
+    "id": "interact",
+    "text": "Truhen, Hebel, Käfige: Auf alles, was leuchtet, kannst du zugehen und es benutzen.",
+    "trigger": "interact"
+  },
+  {
+    "id": "done",
+    "text": "Mehr brauchst du nicht von mir. Deine Rüstung hält zwei Treffer – dann zerspringt sie. Geh vorsichtig.",
+    "trigger": "wait",
+    "wait": 6
+  }
+]

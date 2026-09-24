@@ -383,6 +383,22 @@ public sealed class DialogDefinition : IDefinition
 }
 
 /// <summary>
+/// Ein Schritt des Tutorials. Er steht so lange, bis der Spieler die verlangte Handlung ausführt –
+/// es gibt keine Zeitbegrenzung und keine Reihenfolge im Code, die Datei allein bestimmt beides.
+/// </summary>
+public sealed class TutorialStepDefinition : IDefinition
+{
+    public string Id { get; init; } = "";
+    public string Text { get; init; } = "";
+    /// <summary>move | jump | crouch | attack | block | spin | interact | kill | wait</summary>
+    public string Trigger { get; init; } = "wait";
+    /// <summary>Sekunden, die ein Zustand gehalten werden muss (move, crouch, block).</summary>
+    public float Hold { get; init; }
+    /// <summary>Sekunden, die der Schritt mindestens stehenbleibt.</summary>
+    public float Wait { get; init; } = 2f;
+}
+
+/// <summary>
 /// Zwischenruf einer Begleitseele. Anders als ein Dialog hält er das Spiel NICHT an: Der Satz
 /// erscheint als Sprechblase über der Seele und verschwindet von selbst. Die Id ist der Auslöser
 /// ("run_start", "low_health", ...); welche Auslöser es gibt, steht in CompanionChatter.

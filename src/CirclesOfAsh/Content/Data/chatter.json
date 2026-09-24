@@ -76,14 +76,14 @@
     ]
   },
   {
-    "id": "first_crouch",
+    "id": "crouch",
     "repeat": 0,
     "lines": [
       { "text": "Geduckt kommst du durch Spalten, die dir sonst den Weg nehmen." }
     ]
   },
   {
-    "id": "first_block",
+    "id": "block",
     "repeat": 0,
     "lines": [
       { "text": "Gut geblockt. Im richtigen Moment hält das fast alles auf." }

@@ -18,7 +18,7 @@ public sealed class SettingsScene : SceneBase
     private enum Tab { Screen, Audio, Control, Gameplay }
     private enum ScreenRow { Scale, Fullscreen, VSync }
     private enum AudioRow { Master, Music, Sfx }
-    private enum GameplayRow { AmbientLift, Rumble, DamageNumbers, Difficulty }
+    private enum GameplayRow { AmbientLift, Rumble, DamageNumbers, Tutorial, Difficulty }
 
     private readonly List<DifficultyDefinition> _difficulties;
     private Tab _tab;
@@ -30,7 +30,7 @@ public sealed class SettingsScene : SceneBase
         Tab.Screen => new TabLayout("Bildschirm", 3),
         Tab.Audio => new TabLayout("Audio", 3),
         Tab.Control => new TabLayout("Steuerung", 3),
-        _ => new TabLayout("Gameplay", 4),
+        _ => new TabLayout("Gameplay", 5),
     };
 
     public SettingsScene(GameContext context) : base(context)
@@ -219,6 +219,9 @@ public sealed class SettingsScene : SceneBase
                     case GameplayRow.DamageNumbers:
                         Settings.ShowDamageNumbers = !Settings.ShowDamageNumbers;
                         break;
+                    case GameplayRow.Tutorial:
+                        Settings.Tutorial = !Settings.Tutorial;
+                        break;
                     case GameplayRow.Difficulty:
                     {
                         int index = Math.Max(0, _difficulties.FindIndex(candidate => candidate.Id == Settings.DifficultyId));
@@ -381,6 +384,8 @@ public sealed class SettingsScene : SceneBase
             GameplayRow.AmbientLift => ("Helligkeit", Percent(Settings.AmbientLift)),
             GameplayRow.Rumble => ("Vibration", Percent(Settings.RumbleIntensity)),
             GameplayRow.DamageNumbers => ("Schadenszahlen", Settings.ShowDamageNumbers ? "An" : "Aus"),
+            // Schaltet sich nach dem Durchlauf selbst ab; hier wieder einschaltbar.
+            GameplayRow.Tutorial => ("Tutorial", Settings.Tutorial ? "Beim nächsten Lauf" : "Aus"),
             GameplayRow.Difficulty => ("Schwierigkeit", _difficulties.FirstOrDefault(d => d.Id == Settings.DifficultyId)?.Name ?? "?"),
             _ => ("", ""),
         },

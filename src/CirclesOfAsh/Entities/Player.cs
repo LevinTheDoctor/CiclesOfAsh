@@ -207,7 +207,7 @@ public sealed class Player : Actor
             if (!IsBlocking)
             {
                 _blockHeldTimer = 0f;   // frisch aufgesetzt -> Paradefenster laeuft
-                world.Say(Companions.CompanionChatter.FirstBlock);
+                world.Say(Companions.CompanionChatter.Block);
             }
             _blockHeldTimer += deltaSeconds;
             Stamina = MathF.Max(0f, Stamina - BlockDrainPerSecond * deltaSeconds);
@@ -227,6 +227,7 @@ public sealed class Player : Actor
             _isSpinning = true;
             Velocity.Y = -Stats[StatType.JumpPower] * 0.9f;
             world.Context.Audio.Play("slash", 0.5f, 0.3f);
+            world.Say(Companions.CompanionChatter.SpinJump);
         }
         if (_isSpinning && OnGround && Velocity.Y >= 0f)
         {
@@ -247,6 +248,7 @@ public sealed class Player : Actor
     /// <summary>Ein Hieb nach vorn. Reichweite und Flaeche wie bei MeleeArcAbility, nur spielergesteuert.</summary>
     private void Swing(DungeonWorld world, float damageFactor)
     {
+        world.Say(Companions.CompanionChatter.Attack);
         const int reach = 26;
         var area = new Rectangle(FacingRight ? Bounds.Right : Bounds.Left - reach, Bounds.Top - 6, reach, Size.Y + 10);
         float damage = Stats[StatType.Might] * damageFactor * ConsumeStealthBonus();
@@ -280,7 +282,7 @@ public sealed class Player : Actor
         bool wantsCrouch = input.IsDown(GameAction.Down) && OnGround && !_wasInWater && !IsDashing;
         if (wantsCrouch)
         {
-            if (!IsCrouching) world.Say(Companions.CompanionChatter.FirstCrouch);
+            if (!IsCrouching) world.Say(Companions.CompanionChatter.Crouch);
             SetHeight(_crouchHeight);
             IsCrouching = true;
             return;
@@ -336,6 +338,7 @@ public sealed class Player : Actor
         _jumpBufferTimer = 0f;
         _coyoteTimer = 0f;
         world.Context.Audio.Play("pickup", 0.25f, -0.6f);
+        world.Say(Companions.CompanionChatter.Jump);
     }
 
     private static float MoveTowards(float current, float target, float maxDelta) =>

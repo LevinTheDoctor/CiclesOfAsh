@@ -54,6 +54,8 @@ public sealed class DefinitionRegistry
     public DefinitionSet<MissionDefinition> Missions { get; } = new();
     public DefinitionSet<DialogDefinition> Dialogs { get; } = new();
     public DefinitionSet<ChatterDefinition> Chatter { get; } = new();
+    /// <summary>Tutorial-Schritte in Dateireihenfolge – die ist zugleich die Abfolge im Spiel.</summary>
+    public DefinitionSet<TutorialStepDefinition> Tutorial { get; } = new();
     public DefinitionSet<NpcDefinition> Npcs { get; } = new();
     public DefinitionSet<DifficultyDefinition> Difficulties { get; } = new();
     public DefinitionSet<ControllerProfileDefinition> ControllerProfiles { get; } = new();
@@ -76,6 +78,7 @@ public sealed class DefinitionRegistry
         LoadInto(locator, "Data/missions.json", registry.Missions);
         LoadInto(locator, "Data/dialogs.json", registry.Dialogs);
         LoadInto(locator, "Data/chatter.json", registry.Chatter);
+        LoadInto(locator, "Data/tutorial.json", registry.Tutorial);
         LoadInto(locator, "Data/npcs.json", registry.Npcs);
         LoadInto(locator, "Data/difficulties.json", registry.Difficulties);
         LoadInto(locator, "Data/controllers.json", registry.ControllerProfiles);
@@ -158,6 +161,17 @@ public sealed class DefinitionRegistry
                     $"Zwischenruf '{chatter.Id}': Begleiter-Verhalten '{line.Behavior}' unbekannt.");
                 Require(line.Text.Length > 0, $"Zwischenruf '{chatter.Id}': leere Zeile.");
             }
+
+        // Ein Tippfehler im Auslöser waere hier besonders teuer: Der Schritt wuerde nie bestanden
+        // und der Spieler haenge fuer immer an derselben Aufforderung fest.
+        var knownTriggers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "wait", "move", "jump", "crouch", "attack", "block", "spin", "interact", "kill" };
+        foreach (TutorialStepDefinition step in Tutorial.All)
+        {
+            Require(knownTriggers.Contains(step.Trigger),
+                $"Tutorial-Schritt '{step.Id}': Auslöser '{step.Trigger}' ist dem Code unbekannt.");
+            Require(step.Text.Length > 0, $"Tutorial-Schritt '{step.Id}': kein Text.");
+        }
 
         foreach (UpgradeDefinition upgrade in Upgrades.All)
             Require(StatSheet.TryParse(upgrade.Stat, out _), $"Upgrade '{upgrade.Id}': unbekannter Stat '{upgrade.Stat}'.");

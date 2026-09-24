@@ -25,9 +25,15 @@ public sealed class CompanionChatter
     public const string BossDefeated = "boss_defeated";
     public const string ArmorShattered = "armor_shattered";
     public const string CollectibleFound = "collectible_found";
-    public const string FirstCrouch = "first_crouch";
-    public const string FirstBlock = "first_block";
+    public const string Crouch = "crouch";
+    public const string Block = "block";
     public const string HubIdle = "hub_idle";
+    // Diese meldet bisher nur das Tutorial ab; chatter.json darf sie jederzeit mitbenutzen.
+    public const string Jump = "jump";
+    public const string Attack = "attack";
+    public const string SpinJump = "spin";
+    public const string Interact = "interact";
+    public const string Kill = "kill";
 
     /// <summary>Kürzester Abstand zwischen zwei Sprechblasen – sonst reden sie sich tot.</summary>
     private const float GlobalCooldown = 7f;
@@ -41,7 +47,9 @@ public sealed class CompanionChatter
     private float _time;
     private float _globalNextAllowed;
 
-    private Companion? _speaker;
+    /// <summary>Wer gerade spricht. Entity statt Companion, damit auch der Spieler sprechen kann
+    /// (das Tutorial nutzt das, wenn jemand ohne Begleiter hinabsteigt).</summary>
+    private Entity? _speaker;
     private string _text = "";
     private float _bubbleLeft;
 
@@ -80,13 +88,22 @@ public sealed class CompanionChatter
         }
 
         string name = PetService.GetPet(_context, speaker.Definition.Id)?.Name ?? speaker.Definition.Name;
-        _speaker = speaker;
-        _text = matching[_random.Next(matching.Count)].Text.Replace("{name}", name, StringComparison.Ordinal);
-        _bubbleLeft = BubbleSeconds;
+        Show(matching[_random.Next(matching.Count)].Text.Replace("{name}", name, StringComparison.Ordinal), speaker);
         _globalNextAllowed = _time + GlobalCooldown;
         // Repeat 0 heißt "nur einmal": eine Sperre, die in diesem Lauf nicht mehr abläuft.
         _nextAllowed[triggerId] = chatter.Repeat > 0f ? _time + chatter.Repeat : float.MaxValue;
         return true;
+    }
+
+    /// <summary>
+    /// Zeigt einen festen Satz über einer Figur – ohne Auslöser, ohne Sperre. Das Tutorial führt
+    /// seine eigene Reihenfolge und darf sich nicht von den Zwischenruf-Sperren aufhalten lassen.
+    /// </summary>
+    public void Show(string text, Entity speaker)
+    {
+        _speaker = speaker;
+        _text = text;
+        _bubbleLeft = BubbleSeconds;
     }
 
     private static bool Matches(ChatterLineDefinition line, Companion speaker) =>

@@ -52,6 +52,18 @@ public sealed class Hud
         }
         if (world.Puzzle is { IsSolved: false } puzzle)   // Property-Pattern: nicht null UND noch nicht gelöst
             font.DrawCentered(spriteBatch, puzzle.Hint, CirclesGame.VirtualWidth / 2f, 34, Palette.Soul);
+        // Tutorial-Zeile über der Seelenleiste: dauerhaft sichtbar, während die Sprechblase der
+        // Begleitseele nach ein paar Sekunden verschwindet.
+        if (world.Tutorial is { IsFinished: false } tutorial)
+        {
+            string wrapped = font.Wrap(tutorial.Hint, CirclesGame.VirtualWidth - 40);
+            int lines = wrapped.Count(character => character == '\n') + 1;
+            float top = CirclesGame.VirtualHeight - 22 - lines * font.LineHeight;
+            var panel = new Rectangle(16, (int)top - 4, CirclesGame.VirtualWidth - 32, lines * font.LineHeight + 7);
+            UiDraw.Rect(spriteBatch, pixel, panel, new Color(12, 10, 18) * 0.8f);
+            UiDraw.Border(spriteBatch, pixel, panel, Palette.Faith * 0.7f);
+            font.DrawCenteredLines(spriteBatch, wrapped, CirclesGame.VirtualWidth / 2f, top, Palette.Bone);
+        }
 
         // Gläubige unter der Minikarte
         string believers = $"Gläubige {_context.Progression.Meta.Believers}";

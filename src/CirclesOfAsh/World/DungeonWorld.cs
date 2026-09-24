@@ -58,6 +58,10 @@ public sealed class DungeonWorld : IDisposable
         Random = new Random(plan.Seed ^ 0x5EED);   // "^" = XOR: leitet einen zweiten, unabhängigen Seed ab
         Effects = new EffectSystem(Random);
         Chatter = new CompanionChatter(context, Random);
+        // Nur im ersten Verlies eines Laufs und nur, solange der Schalter steht. Der Regisseur
+        // schaltet ihn selbst ab, sobald der Spieler durch ist.
+        if (context.Settings.Tutorial && plan.CircleIndex == 0 && plan.DungeonIndex == 0)
+            Tutorial = new Tutorial.TutorialDirector(context);
         Camera = new Camera2D(CirclesGame.VirtualWidth, CirclesGame.VirtualHeight);
         Waves = new WaveDirector(plan, context.Definitions.Balance, layout.Rooms, context.Progression.Difficulty.WaveSize);
         Lighting = new LightingSystem(context.GraphicsDevice, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight)
@@ -119,8 +123,21 @@ public sealed class DungeonWorld : IDisposable
     /// <summary>Zwischenrufe der Begleitseelen. Blockiert nie – siehe <see cref="CompanionChatter"/>.</summary>
     public CompanionChatter Chatter { get; }
 
-    /// <summary>Kurzform für die Auslöser: der Aufrufer muss weder Liste noch Sperren kennen.</summary>
-    public void Say(string triggerId) => Chatter.Trigger(triggerId, _companions);
+    /// <summary>Führt durch die Grundlagen, oder null. Siehe <see cref="Tutorial.TutorialDirector"/>.</summary>
+    public Tutorial.TutorialDirector? Tutorial { get; }
+
+    /// <summary>
+    /// Meldet ein Ereignis. Beide Zuhörer bekommen es: die Begleitseelen (Zwischenruf) und das
+    /// Tutorial (nächster Schritt). Eine Meldestelle statt zweier – deshalb muss keine Spielregel
+    /// wissen, ob gerade ein Tutorial läuft.
+    /// </summary>
+    public void Say(string triggerId)
+    {
+        // Solange das Tutorial führt, schweigen die Zwischenrufe: Zwei Sprechblasen um dieselbe
+        // Figur würden einander überschreiben.
+        if (Tutorial is { IsFinished: false }) Tutorial.OnEvent(triggerId);
+        else Chatter.Trigger(triggerId, _companions);
+    }
     public IReadOnlyList<Npc> Npcs => _npcs;
     /// <summary>NPC in Interaktionsreichweite (für den Benutzen-Hinweis).</summary>
     public Npc? NpcInteractionTarget { get; private set; }
@@ -313,6 +330,8 @@ public sealed class DungeonWorld : IDisposable
         Effects.Ambient(Plan.Circle.AmbientParticles, Camera.VisibleArea, deltaSeconds);
         Effects.Update(deltaSeconds);
         Chatter.Update(deltaSeconds);
+        Tutorial?.Update(this, deltaSeconds);
+        if (Context.Input.WasPressed(Core.GameAction.Randomize)) Tutorial?.Skip(this);
         WatchPlayerHealth();
         _sigil.Update(deltaSeconds);
         CheckGoal();
@@ -391,7 +410,10 @@ public sealed class DungeonWorld : IDisposable
             return;
         }
         if (InteractionTarget is not null && interactPressed)
+        {
             InteractionTarget.Behavior.Interact(InteractionTarget, this);
+            Say(CompanionChatter.Interact);
+        }
     }
 
     private void OpenDialog(Npc npc)
@@ -619,6 +641,7 @@ public sealed class DungeonWorld : IDisposable
     private void KillEnemy(Enemy enemy)
     {
         enemy.Remove();
+        Say(CompanionChatter.Kill);
         Effects.Burst(enemy.Center, Palette.Ash, 14, 90f);
         for (int soul = 0; soul < enemy.Definition.SoulValue; soul++) SpawnPickup(PickupKind.Soul, enemy.Center, 1f);
 
