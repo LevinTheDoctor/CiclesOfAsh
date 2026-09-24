@@ -56,7 +56,13 @@ public sealed class AudioService : IDisposable
 
         SoundEffect? effect = null;
         string? path = _soundPaths.TryGetValue(soundId, out string? relativePath) ? _locator.TryResolve(relativePath) : null;
-        if (path is not null)
+        if (path is null)
+        {
+            // Bisher scheiterte das lautlos: kein Pfad -> null im Cache -> jeder Play tut nichts,
+            // ohne eine einzige Zeile im Log. Genau so verschwindet Ton unerklaerlich.
+            Log.Warn($"Klang '{soundId}' nicht gefunden (Manifest: '{relativePath ?? "fehlt"}').");
+        }
+        else
         {
             try
             {

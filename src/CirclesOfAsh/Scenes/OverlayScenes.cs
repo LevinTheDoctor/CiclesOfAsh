@@ -51,6 +51,9 @@ public sealed class PauseScene : SceneBase
     {
         _menu.Add("Fortsetzen", () => Context.Scenes.Pop());
         _menu.Add("Inventar", () => Context.Scenes.Push(new InventoryScene(Context, run, player)));
+        // Optionen gehoeren in JEDES Pausenmenue. Bisher kam man nur vom Titel und aus dem Tempel
+        // heran - mitten im Verlies liess sich die Lautstaerke nicht mehr aendern.
+        _menu.Add("Optionen", () => Context.Scenes.Push(new SettingsScene(Context)));
         _menu.Add("Zum Titel (Verlies startet neu)", () =>
         {
             Context.Progression.SaveMeta();   // Missionsfortschritt & Befreiungen nicht verlieren

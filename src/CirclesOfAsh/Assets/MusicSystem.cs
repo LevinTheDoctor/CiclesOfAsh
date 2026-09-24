@@ -75,6 +75,9 @@ public sealed class MusicSystem : IDisposable
             _currentGain = 0f;          // von der Stille hochblenden
             _current.Volume = 0f;
             _current.Play();
+            // Dauerhafte Zeile: Bei einer "kein Ton"-Meldung ist damit sofort belegbar, ob das
+            // Spiel ueberhaupt abspielt und mit welcher Lautstaerke.
+            Log.Info($"Musik '{id}' gestartet (Lautstaerke {MusicVolume * MasterVolume:0.##}).");
         }
         catch (Exception exception)     // bewusst breit: Musik darf das Spiel nie zum Absturz bringen
         {
@@ -135,7 +138,13 @@ public sealed class MusicSystem : IDisposable
 
         SoundEffect? effect = null;
         string? path = _musicPaths.TryGetValue(musicId, out string? relativePath) ? _locator.TryResolve(relativePath) : null;
-        if (path is not null)
+        if (path is null)
+        {
+            // Bisher scheiterte das lautlos: kein Pfad -> null im Cache -> jeder Play tut nichts,
+            // ohne eine einzige Zeile im Log. Genau so verschwindet Ton unerklaerlich.
+            Log.Warn($"Musikstück '{musicId}' nicht gefunden (Manifest: '{relativePath ?? "fehlt"}').");
+        }
+        else
         {
             try
             {
@@ -146,10 +155,6 @@ public sealed class MusicSystem : IDisposable
                 Log.Warn($"Musik deaktiviert ({exception.GetType().Name}): {exception.Message}");
                 _isAvailable = false;
             }
-        }
-        else
-        {
-            Log.Warn($"Musikstück '{musicId}' ist nicht im Manifest oder die Datei fehlt.");
         }
         _cache[musicId] = effect;
         return effect;
