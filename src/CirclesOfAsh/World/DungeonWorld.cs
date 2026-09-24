@@ -706,7 +706,13 @@ public sealed class DungeonWorld : IDisposable
             return;
         }
         bool equipped = EquipmentService.AddItem(Run, item);
-        if (equipped) EquipmentService.Apply(Context.Definitions, Run, Player);
+        if (equipped)
+        {
+            EquipmentService.Apply(Context.Definitions, Run, Player);
+            // Ohne das blieb eine im Verlies aufgesammelte Rüstung bis zum nächsten Verlies
+            // unsichtbar – Apply rührt nur die Werte an, nicht die Sprite-Ebenen.
+            if (item.Slot == ItemSlot.Armor) Player.RefreshAppearance(Context, Run);
+        }
         Announce(equipped ? $"{item.Name} – ausgerüstet" : $"{item.Name} – im Inventar");
     }
 

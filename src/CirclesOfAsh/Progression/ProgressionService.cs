@@ -67,6 +67,9 @@ public sealed class ProgressionService
             CompanionIds = companionIds.Take(Balance.CompanionSlots).ToList(),
         };
         foreach (string abilityId in playerClass.StartingAbilities) run.AbilityLevels[abilityId] = 1;
+        // Startrüstung über den normalen Weg anlegen: AddItem setzt die Trefferzahl gleich mit.
+        if (_definitions.Items.TryGet(playerClass.StartingArmor, out ItemDefinition? armor))
+            EquipmentService.AddItem(run, armor);
 
         Meta.RunsStarted++;
         CurrentRun = run;

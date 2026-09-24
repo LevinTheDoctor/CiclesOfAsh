@@ -25,6 +25,12 @@ public sealed class ClassDefinition : IDefinition
     /// <summary>Einfärbbare Akzent-Ebene (Wappenrock, Stola, Schal).</summary>
     public string AccentSprite { get; init; } = "";
     public Dictionary<string, float> BaseStats { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Rüstung, die man von Anfang an trägt (Item-Id aus items.json). Leer = ohne starten.
+    /// Vorbild ist Ghosts 'n Goblins: Man beginnt gepanzert, verliert den Panzer im Kampf und
+    /// läuft danach ungeschützt weiter, bis man eine neue findet.
+    /// </summary>
+    public string StartingArmor { get; init; } = "";
     public List<string> StartingAbilities { get; init; } = new();
     /// <summary>Fähigkeiten, die beim Level-Up angeboten werden dürfen.</summary>
     public List<string> AbilityPool { get; init; } = new();

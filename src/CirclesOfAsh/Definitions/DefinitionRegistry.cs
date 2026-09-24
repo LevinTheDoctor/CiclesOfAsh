@@ -125,6 +125,8 @@ public sealed class DefinitionRegistry
             // Concat verbindet zwei Listen zu einer Sequenz, Distinct entfernt Duplikate
             foreach (string abilityId in playerClass.StartingAbilities.Concat(playerClass.AbilityPool).Distinct())
                 Require(Abilities.Contains(abilityId), $"Klasse '{playerClass.Id}': Fähigkeit '{abilityId}' existiert nicht.");
+            Require(playerClass.StartingArmor.Length == 0 || Items.Contains(playerClass.StartingArmor),
+                $"Klasse '{playerClass.Id}': Startrüstung '{playerClass.StartingArmor}' existiert nicht.");
         }
 
         foreach (AbilityDefinition ability in Abilities.All)
@@ -188,8 +190,13 @@ public sealed class DefinitionRegistry
         }
 
         foreach (ItemDefinition item in Items.All)
+        {
+            // Ein falsch benanntes Rüstungssprite fiele sonst nirgends auf: Die Ebene bliebe
+            // einfach weg und die Rüstung wäre unsichtbar, ohne eine einzige Fehlermeldung.
+            WarnIfSpriteMissing(item.Sprite, $"Item '{item.Id}'");
             foreach (StatModifierDefinition modifier in item.Modifiers)
                 Require(StatSheet.TryParse(modifier.Stat, out _), $"Item '{item.Id}': unbekannter Stat '{modifier.Stat}'.");
+        }
 
         foreach (PropDefinition prop in Props.All)
         {

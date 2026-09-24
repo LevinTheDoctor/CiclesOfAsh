@@ -5,6 +5,7 @@
     "description": "Nahkampf. Viel Leben und Rüstung, schwere Hiebe mit Rückstoß. Verzeiht Fehler, braucht aber Nähe zum Feind.",
     "outfitSprite": "outfit.warrior", "accentSprite": "accent.warrior",
     "baseStats": { "MaxHealth": 140, "MaxMana": 40, "ManaRegen": 2, "MoveSpeed": 105, "JumpPower": 460, "Armor": 2 },
+    "startingArmor": "leather_jerkin",
     "startingAbilities": [ "ash_cleave" ],
     "abilityPool": [ "ash_cleave", "consecration", "holy_bolt", "orbiting_candles" ]
   },
@@ -14,6 +15,7 @@
     "description": "Fernkampf und Flächenschaden. Wenig Leben, dafür große Manareserven. Hält Horden auf Abstand.",
     "outfitSprite": "outfit.mage", "accentSprite": "accent.mage",
     "baseStats": { "MaxHealth": 90, "MaxMana": 100, "ManaRegen": 5, "MoveSpeed": 108, "JumpPower": 460, "Armor": 0 },
+    "startingArmor": "leather_jerkin",
     "startingAbilities": [ "holy_bolt", "soul_nova" ],
     "abilityPool": [ "holy_bolt", "soul_nova", "orbiting_candles", "soul_lance" ]
   },
@@ -23,6 +25,7 @@
     "description": "Tarnung und Tempo. Aus dem Schleier (Q) heraus verursacht der erste Treffer vielfachen Schaden. Gegner verlieren dich aus den Augen.",
     "outfitSprite": "outfit.shadow", "accentSprite": "accent.shadow",
     "baseStats": { "MaxHealth": 100, "MaxMana": 60, "ManaRegen": 3, "MoveSpeed": 125, "JumpPower": 480, "Armor": 0, "StealthDamage": 2.5 },
+    "startingArmor": "leather_jerkin",
     "startingAbilities": [ "shadow_dagger", "shadow_veil" ],
     "abilityPool": [ "shadow_dagger", "shadow_veil", "phantom_blades", "ash_cleave" ]
   },
@@ -33,6 +36,7 @@
     // Outfit vorerst vom Magier geliehen – eigene Engel-Sprites kommen mit Auftrag G6 (GLM_TASKS.md).
     "outfitSprite": "outfit.mage", "accentSprite": "accent.mage",
     "baseStats": { "MaxHealth": 95, "MaxMana": 80, "ManaRegen": 4, "MoveSpeed": 118, "JumpPower": 470, "Armor": 0 },
+    "startingArmor": "leather_jerkin",
     "startingAbilities": [ "holy_bolt", "seraph_wings" ],
     "abilityPool": [ "holy_bolt", "seraph_wings", "soul_nova", "orbiting_candles", "wings_of_ash" ]
   }

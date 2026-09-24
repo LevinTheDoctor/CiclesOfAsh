@@ -38,10 +38,14 @@ public static class EquipmentService
     /// <summary>
     /// Wie viele Treffer diese Rüstung abfängt. Ohne ausdrückliche Angabe aus der Robustheit
     /// abgeleitet, damit vorhandene Daten ohne Änderung sinnvolle Werte ergeben
-    /// (60 → 1, 110 → 2, 180 → 3, 300 → 4).
+    /// (60 → 2, 110 → 3, 180 → 4, 300 → 5).
+    ///
+    /// Das "+ 1" ist Absicht: JEDE Rüstung fängt mindestens einen Treffer ganz ab, bevor sie
+    /// zerspringt. Ohne das war das Lederwams bei 60 Robustheit sofort hin – man sah die
+    /// Splitter, aber nie den Moment, in dem der Panzer einen Schlag schluckt.
     /// </summary>
     public static int ArmorHitsOf(ItemDefinition item) =>
-        item.ArmorHits > 0 ? item.ArmorHits : Math.Clamp((int)MathF.Round(item.Durability / 60f), 1, 4);
+        item.ArmorHits > 0 ? item.ArmorHits : Math.Clamp((int)MathF.Round(item.Durability / 60f) + 1, 1, 5);
 
     /// <summary>Ergebnis eines Treffers auf die Rüstung.</summary>
     public enum ArmorResult { None, Absorbed, Shattered }
