@@ -300,6 +300,67 @@ In `world.py`, Stil wie die übrigen Props des Kreises.
 
 ---
 
+# Dritter Stapel — sichtbare Rüstung und erkennbare Figuren
+
+Der Nutzer will zweierlei: **Rüstung soll man sehen**, und **ohne Rüstung soll man die Figur
+erkennen** — „bei der Frau die Taille, bei dem Trainierten das Sixpack".
+
+Heute geht beides nicht. `outfit_frame` zeichnet einen vollen Brustpanzer bzw. eine Robe über den
+kompletten Rumpf (im Code steht wörtlich `# Rumpf (vom Outfit verdeckt)`), und die Körpertypen
+unterscheiden sich **nur im Umriss**, nicht in der Binnenzeichnung. Nachgemessen: `f_average` und
+`f_athletic` haben derzeit **pixelgenau dieselbe Silhouette** — die Auswahl ist dort wirkungslos.
+
+**Entschieden mit dem Nutzer:** Das Klassen-Outfit wird zu leichter Kleidung, die Rüstung ist eine
+eigene Ebene darüber, und es gibt **ein Bild je Rüstung** (gleich für alle Klassen und Körpertypen).
+
+## G9 — Körper mit erkennbarer Statur
+
+Gib den sechs Körpern in `body_frame` (`characters.py`) **Binnenzeichnung**, nicht nur Breite. Der
+Rumpf liegt bei y ≈ 9–17, gearbeitet wird mit `TINT_LIGHT`, `TINT_MID` und `TINT_DARK`:
+
+| Körpertyp | woran man ihn erkennen soll |
+|---|---|
+| `f_average`, `f_heavy`, `f_athletic` | eingezogene **Taille** — ein bis zwei Pixel Schatten links und rechts auf Hüfthöhe (y ≈ 13–15) |
+| `m_athletic`, `f_athletic` | **Bauchmuskeln** — zwei bis drei waagerechte Schattenlinien über die Rumpfmitte |
+| `*_heavy` | **weichere Rundung** — Schatten nur am Rand, keine Muskellinien, Bauch leicht vorgewölbt |
+
+**Wichtig:** `f_average` und `f_athletic` müssen sich danach unterscheiden — heute tun sie das
+nicht. Kopf, Hals und Fußlinie bleiben unverändert, sonst passen Haare und Kleidung nicht mehr.
+
+## G10 — Leichte Kleidung statt Vollpanzer
+
+`outfit_frame` und `accent_frame` für alle **vier** Klassen (`warrior`, `mage`, `shadow`, `angel`)
+so umbauen, dass der Rumpf **frei bleibt**. Als Faustregel: Hose bzw. Rock, Gürtel, Gurte oder
+Schärpe — aber keine geschlossene Fläche über y ≈ 9–16.
+
+Die Klasse muss trotzdem erkennbar bleiben. Das Zubehör trägt das bereits und soll bleiben:
+Klinge beim Krieger, Stab beim Magier, Kapuze beim Schatten, Heiligenschein beim Engel.
+
+## G11 — Rüstungs-Ebenen
+
+Vier Ebenen, gleiches Format wie die Outfits (16 × 24, vier Zeilen), **in Graustufen** — ich färbe
+sie im Code nicht ein, aber Graustufen halten sie neutral zu jedem Hautton:
+
+| Sprite-ID | Datei | Motiv |
+|---|---|---|
+| `armor.leather_jerkin` | `char_armor_leather.png` | schlichtes Lederwams, Schnürung vorn |
+| `armor.chainmail`      | `char_armor_chain.png`   | Kettengeflecht, kurze Ärmel |
+| `armor.scale_mail`     | `char_armor_scale.png`   | Schuppen, Schulterstücke |
+| `armor.ash_harness`    | `char_armor_ash.png`     | schwerer Harnisch mit Glutadern |
+
+Sie liegen **über** der leichten Kleidung und decken den Rumpf ab — hier darf also wieder eine
+geschlossene Fläche entstehen, das ist ja der Sinn.
+
+Trag die IDs ins Manifest ein. **In `items.json` fügst du bei jeder Rüstung das Feld hinzu:**
+
+```json
+"sprite": "armor.leather_jerkin"
+```
+
+Das Feld lese ich im Code aus; fehlt es, wird schlicht keine Rüstung gezeichnet.
+
+---
+
 ## Rückmeldungen an Claude
 
 Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Sitzung.
