@@ -27,16 +27,28 @@ MATERIALS = {
 
 
 def bricks(draw, ox, base, mortar, light=None, jitter=0):
+    """16-Bit: vier Tonwerte — Ziegel mit Lichtkante oben links neben der Fuge,
+    Fugenschatten unten, individuelles Steinkorn. Reihenversatz wie im klassischen Mauerwerk."""
+    base_l = shift(base + (255,), 26)[:3]                     # Ziegel-Licht
+    base_d = shift(base + (255,), -26)[:3]                    # Ziegel-Schatten
     rect(draw, ox, 0, 16, 16, base)
     for row in range(4):
         y = row * 4
-        rect(draw, ox, y, 16, 1, mortar)
         offset = 0 if row % 2 == 0 else 4
-        for x in range(offset, 16, 8):
-            rect(draw, ox + x, y, 1, 4, mortar)
-        for x in range(0, 16):                        # Steinstruktur: vereinzelte hellere/dunklere Pixel
+        rect(draw, ox, y, 16, 1, mortar)                       # Fugenlinie
+        for x in range(offset - 4, 16, 8):
+            rect(draw, ox + x, y, 1, 4, mortar)                 # Stoßfuge (versetzt)
+            if 0 <= x + 1 < 16:
+                pixel(draw, ox + x + 1, y, base_l)               # Lichtkante rechts der Stoßfuge
+        for x in range(0, 16):                                  # Steinstruktur: individuelles Korn
             if rng.random() < 0.12:
                 pixel(draw, ox + x, y + 1 + rng.randrange(3), shift(base + (255,), rng.choice((-14, 12)))[:3])
+            if rng.random() < 0.06:
+                pixel(draw, ox + x, y + 2, base_d)
+        if y + 3 < 16:                                         # Fugenschatten unten
+            for x in range(0, 16):
+                if rng.random() < 0.5:
+                    pixel(draw, ox + x, y + 3, shift(mortar + (255,), -12)[:3])
     if light:
         rect(draw, ox, 0, 16, 2, light)
     if jitter:
@@ -113,6 +125,9 @@ def tileset(name):
 
 # ------------------------------------------------------------------ Hintergründe
 def background(name):
+    """16-Bit-Anhebung (G14): Silhouetten bekommen eine Lichtkante oben links und
+    Binnenstruktur (Zinnen-Schatten, Fensterrahmen, Ziegel-Reihen), Himmel bekommt
+    eine zweite Farbzone am Horizont. Grundgerüst bleibt identisch."""
     width, height = 480, 270
     image = new_image(width, height)
     draw = ImageDraw.Draw(image)
@@ -121,9 +136,18 @@ def background(name):
         "greed": ((58, 40, 24), (14, 9, 6), (30, 20, 12)),
         "wrath": ((80, 18, 14), (12, 4, 6), (30, 8, 10)),
     }[name]
+    horizon = (48, 36, 74) if name == "limbo" else ((64, 45, 28) if name == "greed" else (86, 22, 16))
     for y in range(height):
         t = y / height
-        draw.line([(0, y), (width, y)], fill=tuple(int(top[i] * (1 - t) + bottom[i] * t) for i in range(3)) + (255,))
+        if y > 200:                                  # dunklere Zone direkt über dem Horizont
+            t2 = (y - 200) / 70
+            base = tuple(int(top[i] * (1 - t) + bottom[i] * t) for i in range(3))
+            col = tuple(int(base[i] * (1 - t2 * 0.35) + horizon[i] * t2 * 0.35) for i in range(3))
+        else:
+            col = tuple(int(top[i] * (1 - t) + bottom[i] * t) for i in range(3))
+        draw.line([(0, y), (width, y)], fill=col + (255,))
+    sil_light = tuple(min(255, c + 18) for c in silhouette[:3]) + (255,)   # Silhouetten-Licht oben links
+    sil_dark = tuple(max(0, c - 10) for c in silhouette[:3]) + (255,)
     if name == "limbo":
         for _ in range(90):
             pixel(draw, rng.randrange(width), rng.randrange(170), (200, 190, 220, rng.randrange(90, 255)))
@@ -131,40 +155,64 @@ def background(name):
         draw.ellipse([360, 40, 372, 52], fill=(200, 190, 175, 255))
         # Burg: Türme mit Zinnen und Fenstern (intakte Festung des Limbus)
         rect(draw, 0, 215, width, 55, silhouette)
+        rect(draw, 0, 215, width, 2, sil_light)                       # Mauer-Lichtkante
         for x, spire_height in [(40, 110), (120, 80), (180, 130), (300, 95), (430, 120)]:
             tower_w = 34
             top = 215 - spire_height
             rect(draw, x - tower_w // 2, top, tower_w, spire_height, silhouette)
+            rect(draw, x - tower_w // 2, top, tower_w, 1, sil_light)   # Turm-Lichtkante
+            rect(draw, x - tower_w // 2, top, 2, spire_height, sil_light)   # linke Lichtseite
             for z in range(x - tower_w // 2, x + tower_w // 2, 8):            # Zinnenkranz
                 rect(draw, z, top - 6, 5, 6, silhouette)
+                rect(draw, z, top - 6, 5, 1, sil_light)
             rect(draw, x - 4, top + 18, 8, 14, (28, 20, 40, 255))             # Fenster
+            rect(draw, x - 5, top + 17, 10, 1, sil_dark)                       # Fensterrahmen oben
             rect(draw, x - 3, top + 48, 6, 10, (28, 20, 40, 255))
+            rect(draw, x - 4, top + 47, 8, 1, sil_dark)
             if spire_height > 100:                                            # Turmspitze
                 draw.polygon([(x - tower_w // 2 - 4, top), (x, top - 26), (x + tower_w // 2 + 4, top)], fill=silhouette)
+                draw.line([(x - tower_w // 2 - 4, top), (x, top - 26)], fill=sil_light)   # Dach-Licht
+            for by in range(top + 8, 215, 12):                                # Ziegel-Reihen andeuten
+                if rng.random() < 0.5:
+                    rect(draw, x - tower_w // 2 + rng.randrange(3, 28), by, 4, 1, sil_dark)
     elif name == "greed":
         for x in range(0, width, 40):                                        # Höhlendecke mit Stalaktiten
             draw.polygon([(x, 0), (x + 40, 0), (x + 20 + rng.randrange(-6, 6), 30 + rng.randrange(40))], fill=silhouette)
+            draw.line([(x + 2, 0), (x + 16, 28)], fill=sil_light)           # Decken-Lichtkante
         for _ in range(40):
             pixel(draw, rng.randrange(width), rng.randrange(60, 200), (240, 200, 90, rng.randrange(60, 200)))  # Goldglitzern
+            if rng.random() < 0.4:
+                px2 = rng.randrange(width), rng.randrange(60, 200)
+                pixel(draw, px2[0], px2[1], (255, 230, 140, rng.randrange(120, 255)))   # heller Glanzkern
         # Ruinen: halb eingestürzte Mauern mit Lücken
         rect(draw, 0, 215, width, 55, silhouette)
+        rect(draw, 0, 215, width, 2, sil_light)
         for x, spire_height in [(60, 60), (200, 100), (260, 70), (390, 110)]:
             top = 215 - spire_height
             rect(draw, x - 10, top, 20, spire_height, silhouette)
+            rect(draw, x - 10, top, 20, 1, sil_light)
+            rect(draw, x - 10, top, 2, spire_height, sil_light)
             draw.polygon([(x - 12, top + 6), (x, top), (x + 12, top + 8)], fill=silhouette)
+            draw.line([(x - 12, top + 6), (x, top)], fill=sil_light)
             for gap in range(top + 14, 215, 22):                              # herausgebrochene Lücken
                 draw.polygon([(x - 10, gap), (x + 10, gap + 8), (x - 10, gap + 14)], fill=top_color(name, gap))
     else:
         for _ in range(70):
             pixel(draw, rng.randrange(width), rng.randrange(height), (255, 120, 60, rng.randrange(60, 220)))  # Glut
+            if rng.random() < 0.3:
+                pixel(draw, rng.randrange(width), rng.randrange(height), (255, 200, 90, rng.randrange(80, 255)))  # Glut-Kerne
         draw.ellipse([190, 150, 290, 250], fill=(160, 40, 20, 90))           # glühender Schlund
+        draw.ellipse([210, 170, 270, 230], fill=(200, 70, 30, 70))          # Schlund-Kern
         # Höhle: Stalaktiten oben, unregelmäßige Stalagmiten unten
         for x in range(0, width, 30):
             draw.polygon([(x, 0), (x + 30, 0), (x + 15 + rng.randrange(-8, 8), 40 + rng.randrange(50))], fill=silhouette)
+            draw.line([(x + 2, 0), (x + 12, 34)], fill=sil_light)
         rect(draw, 0, 215, width, 55, silhouette)
+        rect(draw, 0, 215, width, 2, sil_light)
         for x in range(-20, width, 44):
             spike_h = 30 + rng.randrange(70)
             draw.polygon([(x, 270), (x + 22, 270), (x + 11 + rng.randrange(-6, 6), 270 - spike_h)], fill=silhouette)
+            draw.line([(x + 2, 270), (x + 9 + rng.randrange(-4, 4), 270 - spike_h + 4)], fill=sil_light)   # Stalagmiten-Licht
     return image
 
 
@@ -205,28 +253,34 @@ def props(textures):
     def lamp(d, f):                                   # hängende Laterne 12x20
         rect(d, 5, 0, 1, 7, DARK_STEEL)
         rect(d, 3, 7, 6, 2, DARK_STEEL)
+        rect(d, 3, 7, 3, 1, STEEL)                     # Bügel-Licht
         rect(d, 3, 9, 6, 7, (60, 50, 40, 255))
         rect(d, 4, 10, 4, 5, FLAME if f else GOLD)
+        rect(d, 4, 10, 1, 2, (255, 240, 180, 255))     # Flammenkern oben
         rect(d, 3, 16, 6, 1, DARK_STEEL)
     build_sheet(12, 20, [prop_frames(12, 20, 2, lamp)]).save(textures / "prop_lamp.png")
 
     def torch(d, f):                                  # Wandfackel 8x16
         rect(d, 3, 8, 2, 8, WOOD)
+        rect(d, 3, 8, 1, 8, (120, 82, 58, 255))         # Holz-Lichtkante
         rect(d, 2, 10, 4, 1, DARK_STEEL)
         flames = [[(3, 2), (2, 4), (5, 4)], [(4, 1), (2, 5), (5, 3)], [(3, 3), (2, 5), (5, 5)]][f]
         d.polygon([(2, 8), (6, 8)] + [flames[0]], fill=EMBER)
         rect(d, 3, 5, 2, 3, FLAME)
+        pixel(d, 3, 6, (255, 240, 180, 255))           # Flammenkern
     build_sheet(8, 16, [prop_frames(8, 16, 3, torch)]).save(textures / "prop_torch.png")
 
     def candles(d, f):                                # Kerzengruppe 16x10
         for x, h in ((2, 5), (6, 7), (10, 4), (13, 6)):
             rect(d, x, 10 - h, 2, h, BONE)
+            pixel(d, x, 10 - h, (245, 238, 215, 255))  # Wachs-Licht oben
             pixel(d, x + (f + x) % 2, 10 - h - 1, FLAME)
             pixel(d, x, 10 - h - 2, EMBER)
     build_sheet(16, 10, [prop_frames(16, 10, 2, candles)]).save(textures / "prop_candles.png")
 
     def brazier(d, f, lit):                           # Kohlenbecken 16x16
         rect(d, 2, 7, 12, 3, DARK_STEEL)
+        rect(d, 2, 7, 5, 1, (120, 120, 135, 255))       # Rand-Licht
         rect(d, 4, 10, 8, 2, DARK_STEEL)
         rect(d, 7, 12, 2, 3, DARK_STEEL)
         rect(d, 4, 15, 8, 1, DARK_STEEL)
@@ -234,28 +288,37 @@ def props(textures):
         if lit:
             d.polygon([(3, 7), (13, 7), (8 + (f - 1) * 2, 0)], fill=EMBER)
             d.polygon([(5, 7), (11, 7), (8 - (f - 1), 2)], fill=FLAME)
+            pixel(d, 8, 4, (255, 240, 180, 255))        # Flammenkern
     build_sheet(16, 16, [prop_frames(16, 16, 1, lambda d, f: brazier(d, f, False)),
                          prop_frames(16, 16, 3, lambda d, f: brazier(d, f, True))]).save(textures / "prop_brazier.png")
 
     def lever(d, f, on):                              # Hebel 12x14
         rect(d, 2, 10, 8, 4, DARK_STONE)
         rect(d, 3, 9, 6, 1, STONE)
+        rect(d, 3, 9, 3, 1, (146, 142, 158, 255))      # Sockel-Licht
         if on:
             d.line([(6, 10), (10, 3)], fill=DARK_STEEL, width=2)
+            pixel(d, 10, 3, (210, 210, 225, 255))      # Hebel-Glanz
             rect(d, 9, 1, 3, 3, SOUL)
+            pixel(d, 9, 1, (200, 245, 225, 255))
         else:
             d.line([(6, 10), (2, 3)], fill=DARK_STEEL, width=2)
+            pixel(d, 2, 3, (210, 210, 225, 255))
             rect(d, 0, 1, 3, 3, BLOOD)
+            pixel(d, 0, 1, (200, 50, 70, 255))
     build_sheet(12, 14, [prop_frames(12, 14, 1, lambda d, f: lever(d, f, False)),
                          prop_frames(12, 14, 1, lambda d, f: lever(d, f, True))]).save(textures / "prop_lever.png")
 
     def pillar(d, f, state):                          # Runensäule 16x32
         rect(d, 2, 28, 12, 4, DARK_STONE)
         rect(d, 4, 4, 8, 24, STONE)
-        rect(d, 2, 0, 12, 4, DARK_STONE)
         rect(d, 5, 5, 1, 22, shift(STONE, 25))
+        rect(d, 4, 4, 3, 2, (146, 142, 158, 255))      # Kapitell-Licht
+        rect(d, 2, 0, 12, 4, DARK_STONE)
         glow = {0: (60, 55, 70, 255), 1: SOUL, 2: BLOOD}[state]
         rect(d, 6, 9, 4, 8, glow)                     # Feld für das Runensymbol (im Code überlagert)
+        if state == 1:
+            pixel(d, 6, 9, (200, 245, 225, 255))      # Runen-Glanz oben links
     build_sheet(16, 32, [prop_frames(16, 32, 1, lambda d, f: pillar(d, f, 0)),
                          prop_frames(16, 32, 1, lambda d, f: pillar(d, f, 1)),
                          prop_frames(16, 32, 1, lambda d, f: pillar(d, f, 2))]).save(textures / "prop_rune_pillar.png")
@@ -269,15 +332,19 @@ def props(textures):
 
     def chest(d, f, is_open):                         # Truhe 16x12
         rect(d, 1, 5, 14, 7, WOOD)
+        rect(d, 1, 5, 3, 2, (120, 82, 58, 255))        # Deckel-Licht
         rect(d, 1, 8, 14, 1, DARK_STEEL)
         rect(d, 1, 5, 1, 7, DARK_STEEL)
         rect(d, 14, 5, 1, 7, DARK_STEEL)
         if is_open:
             rect(d, 1, 0, 14, 3, DARK_WOOD)
             rect(d, 2, 4, 12, 2, (255, 210, 120, 255))
+            pixel(d, 3, 4, (255, 245, 200, 255))       # Gold-Glanz
         else:
             rect(d, 1, 2, 14, 3, DARK_WOOD)
+            rect(d, 1, 2, 3, 1, (84, 58, 42, 255))    # Deckel-Licht
             rect(d, 7, 6, 2, 2, GOLD)
+            pixel(d, 7, 6, (250, 220, 130, 255))
     build_sheet(16, 12, [prop_frames(16, 12, 1, lambda d, f: chest(d, f, False)),
                          prop_frames(16, 12, 1, lambda d, f: chest(d, f, True))]).save(textures / "prop_chest.png")
 
@@ -285,14 +352,17 @@ def props(textures):
         if not is_open:
             rect(d, 6, 11, 4, 9, (150, 150, 140, 200))           # Gefangene Seele
             rect(d, 6, 7, 4, 4, (200, 195, 180, 220))
+            rect(d, 6, 7, 2, 2, (225, 220, 205, 220))            # Kopf-Licht
             pixel(d, 7, 8, BLACK)
             pixel(d, 9, 8, BLACK)
         rect(d, 1, 3, 14, 2, DARK_STEEL)
+        rect(d, 1, 3, 5, 1, (120, 120, 135, 255))     # Deck-Licht
         rect(d, 1, 21, 14, 3, DARK_STEEL)
-        rect(d, 7, 0, 2, 3, DARK_STEEL)
+        rect(d, 7, 0, 2, 3, DARK_STEEL)                # Aufhängung oben
         bars = (1, 5, 9, 13) if not is_open else (1, 13)
         for x in bars:
             rect(d, x, 5, 2, 16, DARK_STEEL)
+            pixel(d, x, 5, (120, 120, 135, 255))      # Gitter-Licht oben
         if is_open:
             rect(d, 14, 6, 2, 14, DARK_STEEL)                     # aufgeschwungene Tür
     build_sheet(16, 24, [prop_frames(16, 24, 1, lambda d, f: cage(d, f, False)),
@@ -303,24 +373,29 @@ def props(textures):
         pixel(d, 3, 3, BLACK)
         pixel(d, 5, 3, BLACK)
         rect(d, 6, 4, 6, 1, BONE)
+        pixel(d, 6, 4, (245, 238, 215, 255))          # Knochen-Licht
         rect(d, 8, 5, 5, 1, shift(BONE, -30))
     build_sheet(14, 7, [prop_frames(14, 7, 1, bones)]).save(textures / "prop_bones.png")
 
     def coffin(d, f):                                 # stehender Sarg 12x24
         d.polygon([(3, 0), (9, 0), (11, 6), (9, 23), (3, 23), (1, 6)], fill=DARK_WOOD)
+        rect(d, 3, 1, 2, 4, (84, 58, 42, 255))        # Holz-Lichtkante
         rect(d, 5, 5, 2, 10, GOLD)
+        pixel(d, 5, 5, (250, 220, 130, 255))          # Gold-Glanz
         rect(d, 3, 8, 6, 2, GOLD)
     build_sheet(12, 24, [prop_frames(12, 24, 1, coffin)]).save(textures / "prop_coffin.png")
 
     def chains(d, f):                                 # hängende Kette 6x28
         for y in range(0, 26, 3):
             rect(d, 2 + (y // 3 + f) % 2, y, 2, 2, DARK_STEEL)
+            pixel(d, 2 + (y // 3 + f) % 2, y, (120, 120, 135, 255))   # Glied-Glanz
         d.polygon([(1, 25), (5, 25), (3, 28)], fill=DARK_STEEL)
     build_sheet(6, 28, [prop_frames(6, 28, 1, chains)]).save(textures / "prop_chains.png")
 
     def stalactite(d, f):
         d.polygon([(0, 0), (8, 0), (4, 15)], fill=DARK_STONE)
         d.line([(3, 1), (4, 10)], fill=STONE)
+        d.line([(2, 1), (3, 8)], fill=(146, 142, 158, 255))   # Licht links
     build_sheet(8, 16, [prop_frames(8, 16, 1, stalactite)]).save(textures / "prop_stalactite.png")
 
     def window(d, f):                                 # Bleiglasfenster 24x40
@@ -330,24 +405,31 @@ def props(textures):
         for y in range(4, 38, 5):
             for x in range(4, 20, 4):
                 d.rectangle([x, y, x + 2, y + 3], fill=colors[(x + y) % 4])
+                if (x + y) % 8 < 4:
+                    pixel(d, x, y, WHITE)               # Glas-Licht oben links
         rect(d, 11, 2, 2, 37, BLACK)
         rect(d, 3, 22, 18, 2, BLACK)
     build_sheet(24, 40, [prop_frames(24, 40, 1, window)]).save(textures / "prop_window.png")
 
     def statue(d, f):                                 # trauernder Engel 16x28
         c, s = (150, 146, 156, 255), (110, 106, 118, 255)
+        c_l = (176, 172, 184, 255)                     # Stein-Licht
         d.polygon([(8, 6), (0, 2), (2, 16)], fill=s)                   # Flügel
         d.polygon([(8, 6), (16, 2), (14, 16)], fill=s)
         rect(d, 5, 3, 6, 5, c)
+        rect(d, 5, 3, 3, 2, c_l)                        # Stirn-Licht
         rect(d, 4, 8, 8, 16, c)
+        rect(d, 4, 8, 3, 3, c_l)                        # Brust-Licht
         rect(d, 6, 9, 4, 4, s)                                          # Hände vor dem Gesicht
         rect(d, 2, 24, 12, 4, DARK_STONE)
+        rect(d, 2, 24, 5, 1, (146, 142, 158, 255))     # Sockel-Licht
     build_sheet(16, 28, [prop_frames(16, 28, 1, statue)]).save(textures / "prop_statue.png")
 
     def gold_pile(d, f):
         d.polygon([(0, 8), (8, 1), (16, 8)], fill=DARK_GOLD)
         for x, y in ((4, 5), (8, 3), (11, 6), (6, 7), (9, 5)):
             rect(d, x, y, 2, 1, GOLD)
+            pixel(d, x, y, (250, 220, 130, 255))       # Münz-Glanz
         pixel(d, 8 + f, 2, WHITE)
     build_sheet(16, 8, [prop_frames(16, 8, 2, gold_pile)]).save(textures / "prop_gold_pile.png")
 
@@ -355,35 +437,43 @@ def props(textures):
         rect(d, 0, 4, 16, 4, (40, 20, 20, 255))
         d.ellipse([3, 1 + f, 13, 8], fill=EMBER)
         rect(d, 6, 3 + f, 4, 2, FLAME)
+        pixel(d, 7, 4 + f, (255, 240, 180, 255))        # Glut-Kern
     build_sheet(16, 8, [prop_frames(16, 8, 2, lava_vent)]).save(textures / "prop_lava_vent.png")
 
     def banner(d, f):                                 # Banner 10x24 (Akzent Blutrot)
         rect(d, 0, 0, 10, 1, WOOD)
         d.polygon([(1, 1), (9, 1), (9, 22), (5, 18 + f), (1, 22)], fill=BLOOD)
+        rect(d, 1, 1, 2, 4, (190, 44, 60, 255))        # Stoff-Licht oben links
         rect(d, 4, 6, 2, 8, GOLD)
+        pixel(d, 4, 6, (250, 220, 130, 255))
         rect(d, 2, 8, 6, 2, GOLD)
     build_sheet(10, 24, [prop_frames(10, 24, 2, banner)]).save(textures / "prop_banner.png")
 
     def cobweb(d, f):
         web = (200, 200, 210, 150)
+        web_l = (230, 230, 240, 150)
         for i in range(0, 16, 4):
             d.line([(0, 0), (16 - i, i)], fill=web)
+        d.line([(0, 0), (16, 0)], fill=web_l)          # Licht oben
         d.arc([-8, -8, 8, 8], 0, 90, fill=web)
-        d.arc([-14, -14, 14, 14], 0, 90, fill=web)
+        d.arc([-14, -14, 14, 14], 0, 90, fill=web_l)
     build_sheet(16, 16, [prop_frames(16, 16, 1, cobweb, do_polish=False)]).save(textures / "prop_cobweb.png")
 
     # --- Zerstörbare Deko (v2)
     def urn(d, f):                                      # Graburne 12x16, leichtes Geistern-Licht
         d.polygon([(3, 3), (8, 1), (9, 3), (9, 13), (3, 13), (2, 5)], fill=(110, 118, 132, 255))
+        rect(d, 3, 4, 2, 4, (134, 142, 156, 255))        # Urne-Licht links
         rect(d, 4, 0, 4, 3, (70, 74, 86, 255))
         rect(d, 3, 12, 6, 1, DARK_STONE)
         pixel(d, 5, 6, (160, 200, 208, 220))
         pixel(d, 7, 8, (160, 200, 208, 180))
+        pixel(d, 5, 5, (200, 235, 240, 220))             # Geistern-Licht Kern
         rect(d, 2, 5, 7, 1, (84, 90, 104, 255))
     build_sheet(12, 16, [prop_frames(12, 16, 1, urn)]).save(textures / "prop_urn.png")
 
     def barrel(d, f):                                   # Altes Fass 14x18
         rect(d, 2, 1, 10, 16, WOOD)
+        rect(d, 2, 1, 2, 16, (120, 82, 58, 255))        # Daube-Licht links
         rect(d, 2, 4, 10, 1, DARK_WOOD)
         rect(d, 2, 12, 10, 1, DARK_WOOD)
         for x in range(3, 12, 3):                       # vertikale Dauben
@@ -398,10 +488,12 @@ def props(textures):
         d.polygon([(0, 9), (16, 9), (13, 4), (8, 2), (3, 5)], fill=(90, 86, 74, 255))
         rect(d, 3, 5, 3, 1, BONE)
         rect(d, 8, 3, 4, 1, BONE)
+        pixel(d, 3, 5, (245, 238, 215, 255))            # Knochen-Licht
         rect(d, 5, 7, 2, 1, BONE)
         rect(d, 11, 6, 3, 1, shift(BONE, -30))
         d.ellipse([6, 5, 9, 8], fill=BONE)              # Schädelrest
         pixel(d, 7, 6, BLACK)
+        pixel(d, 6, 5, (245, 238, 215, 255))
     build_sheet(16, 10, [prop_frames(16, 10, 1, bone_pile)]).save(textures / "prop_bone_pile.png")
 
     def bookshelf(d, f):                               # Morsches Regal 16x22
@@ -411,6 +503,7 @@ def props(textures):
             rect(d, 1, y, 14, 6, (30, 22, 16, 255))
             for x, col in ((2, BLOOD), (5, DARK_GOLD), (8, (60, 80, 60, 255)), (11, DARK_BLOOD)):
                 rect(d, x, y + 1, 2, 5, col)
+                pixel(d, x, y + 1, shift(col, 40))      # Buchrücken-Licht
         pixel(d, 3, 20, (50, 60, 40, 255))             # Schimmel
         pixel(d, 12, 18, (50, 60, 40, 255))
     build_sheet(16, 22, [prop_frames(16, 22, 1, bookshelf)]).save(textures / "prop_bookshelf.png")
@@ -418,9 +511,11 @@ def props(textures):
     # --- Fluchtkreaturen (v2)
     def rat(d, f):                                      # Höhlenratte 10x6
         fur = (74, 62, 58, 255)
+        fur_l = (100, 86, 80, 255)                       # Fell-Licht
         step = f % 2
         rect(d, 1, 2, 7, 3, fur)
-        rect(d, 0, 3, 2, 2, shift(fur, 25))            # Kopf
+        rect(d, 1, 2, 3, 1, fur_l)
+        rect(d, 0, 3, 2, 2, shift(fur, 25))             # Kopf
         pixel(d, 0, 3, BLOOD)
         rect(d, 8, 1 + step, 2, 1, (150, 130, 110, 255))   # Schwanz
         rect(d, 2, 5 + (step == 0), 1, 1, BLACK)
@@ -429,10 +524,13 @@ def props(textures):
 
     def moth(d, f):                                     # Grabmotte 8x8
         wing = (170, 160, 150, 235)
+        wing_l = (200, 192, 182, 235)                    # Flügel-Licht
         body = (60, 50, 46, 255)
         up = f % 2
         d.polygon([(3, 3 + up), (0, 1 + up), (1, 5 + up)], fill=wing)
         d.polygon([(4, 3 + up), (7, 1 + up), (6, 5 + up)], fill=wing)
+        pixel(d, 2, 3 + up, wing_l)                      # Flügel-Licht innen
+        pixel(d, 5, 3 + up, wing_l)
         rect(d, 3, 2, 2, 4, body)
         pixel(d, 3, 2, BONE)
         pixel(d, 4, 2, BONE)
