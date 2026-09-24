@@ -517,9 +517,12 @@ public sealed class Player : Actor
             ability.Behavior.Update(world, this, ability, deltaSeconds);
 
             AbilityDefinition definition = ability.Definition;
+            // Im Bosskampf kann die Automatik abgeschaltet sein: Dann zählt nur, was der Spieler
+            // selbst macht. Außerhalb bleibt sie an, sonst würde das Grundspiel zum Dauergeklicke.
+            bool autoAllowed = !world.Context.Settings.ManualBossFights || world.ActiveBoss is null;
             bool wantsToFire = definition.Activation switch
             {
-                AbilityActivation.Auto => true,
+                AbilityActivation.Auto => autoAllowed,
                 AbilityActivation.Manual => input.WasPressed(definition.InputAction),
                 _ => false,
             };

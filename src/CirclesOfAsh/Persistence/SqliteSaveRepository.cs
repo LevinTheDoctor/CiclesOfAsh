@@ -384,6 +384,7 @@ public sealed class SqliteSaveRepository : ISaveRepository
         settings.RumbleIntensity = ReadFloat(values, "rumble", settings.RumbleIntensity);
         settings.ShowDamageNumbers = ReadLong(values, "damage_numbers", settings.ShowDamageNumbers ? 1 : 0) != 0;
         settings.Tutorial = ReadLong(values, "tutorial", settings.Tutorial ? 1 : 0) != 0;
+        settings.ManualBossFights = ReadLong(values, "manual_boss", settings.ManualBossFights ? 1 : 0) != 0;
         if (values.TryGetValue("difficulty", out string? difficulty) && difficulty.Length > 0) settings.DifficultyId = difficulty;
         // Bewusst KEIN Sanitize() hier: es würde die 0 bei screen_scale auf 1 klemmen und damit
         // die Unterscheidung "nicht gesetzt" zerstören. Der Aufrufer (GameContext) setzt erst den
@@ -413,6 +414,7 @@ public sealed class SqliteSaveRepository : ISaveRepository
         Write("rumble", settings.RumbleIntensity.ToString("0.###", CultureInfo.InvariantCulture));
         Write("damage_numbers", settings.ShowDamageNumbers ? "1" : "0");
         Write("tutorial", settings.Tutorial ? "1" : "0");
+        Write("manual_boss", settings.ManualBossFights ? "1" : "0");
         Write("difficulty", settings.DifficultyId);
         transaction.Commit();
     }

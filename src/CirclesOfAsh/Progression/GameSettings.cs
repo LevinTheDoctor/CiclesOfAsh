@@ -34,6 +34,13 @@ public sealed class GameSettings
     /// selbst ab; hier lässt es sich jederzeit wieder einschalten oder vorher abwählen.
     /// </summary>
     public bool Tutorial { get; set; } = true;
+    /// <summary>
+    /// true = Im Bosskampf feuern die automatischen Fähigkeiten NICHT; es zählt nur, was du selbst
+    /// machst (Angriff, Block, Drehsprung). Außerhalb des Bosskampfs bleibt alles wie gehabt –
+    /// sonst würde das Grundspiel zum Dauergeklicke.
+    /// </summary>
+    public bool ManualBossFights { get; set; }
+
     /// <summary>Id aus difficulties.json ("devout" = Standard). Wirkt ab dem nächsten Dungeon.</summary>
     public string DifficultyId { get; set; } = "devout";
 
