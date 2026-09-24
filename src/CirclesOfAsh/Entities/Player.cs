@@ -48,7 +48,7 @@ public sealed class Player : Actor
     private const float WaterMaxFall = 70f;
     private const float WaterJumpFactor = 0.55f;
 
-    private readonly LayeredSprite _visual;
+    private LayeredSprite _visual;
     private bool _wasInWater;
     private float _coyoteTimer;
     private float _jumpBufferTimer;
@@ -372,6 +372,14 @@ public sealed class Player : Actor
         return Stats[StatType.StealthDamage];
     }
 
+    /// <summary>
+    /// Baut das Ebenen-Sprite neu – nötig, wenn sich die getragene Rüstung ändert. Bewusst kein
+    /// readonly-Feld mehr: Die Rüstung ist die einzige Ebene, die sich mitten im Lauf ändert.
+    /// </summary>
+    public void RefreshAppearance(GameContext context, Progression.RunState run) =>
+        _visual = Progression.CharacterVisuals.Create(context, Class, run.Appearance,
+            Progression.EquipmentService.ArmorSprite(context.Definitions, run));
+
     // ------------------------------------------------------------------ Kampf & Ressourcen
     public void TakeHit(DungeonWorld world, float amount, Vector2 source, float knockback)
     {
@@ -408,6 +416,7 @@ public sealed class Player : Actor
             RefreshDerivedStats();
             Stats.SetSource(Progression.EquipmentService.StatSource,
                 Progression.EquipmentService.CollectModifiers(world.Context.Definitions, world.Run));
+            RefreshAppearance(world.Context, world.Run);   // Panzer verschwindet auch sichtbar
         }
 
         _stealthTimer = 0f;

@@ -54,7 +54,13 @@ public sealed class InventoryScene : SceneBase
     private void Toggle(ItemDefinition item)
     {
         EquipmentService.Toggle(_run, item);
-        if (_player is not null) EquipmentService.Apply(Context.Definitions, _run, _player);
+        if (_player is not null)
+        {
+            EquipmentService.Apply(Context.Definitions, _run, _player);
+            // Ruestung ist sichtbar -> Ebenen neu bauen, sonst traegt die Figur sie erst nach
+            // dem naechsten Verlies.
+            if (item.Slot == ItemSlot.Armor) _player.RefreshAppearance(Context, _run);
+        }
         else Context.Progression.SaveRun(_run);
         Rebuild(_menu.SelectedIndex);
     }

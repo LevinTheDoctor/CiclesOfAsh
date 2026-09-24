@@ -83,8 +83,14 @@ ist dann abgelegt **und** aus dem Inventar verschwunden. Ab- und wieder Anlegen 
 Haltbarkeit zurück — sonst könnte man Schaden durch Aus- und Einpacken heilen. Gespeichert in
 `run_profile`, also ohne Migration. Im Inventar steht `aktuell/maximal` hinter dem Namen.
 
-**Offen:** Die `durability`-Werte in `items.json` (GLMs Datei) — Nachtrag zu G5 eingetragen. Bis
-dahin ist die Rüstung unzerstörbar.
+**Nachgezogen:** `durability`-Werte von GLM geliefert. Rüstung ist jetzt außerdem **sichtbar** —
+`ItemDefinition.Sprite` trägt die Ebene, `CharacterVisuals` zeichnet sie über der Kleidung, und
+`Player.RefreshAppearance` baut die Ebenen neu, wenn sich die Rüstung ändert (An-/Ablegen im
+Inventar, Zerspringen im Kampf).
+
+**Offen bei GLM (Aufträge G9–G11):** Körper mit erkennbarer Statur (Taille, Bauchmuskeln —
+`f_average` und `f_athletic` sind derzeit pixelgleich), leichte Kleidung statt Vollpanzer, und die
+vier Rüstungs-Sprites. Bis dahin gibt es kein Bild zu zeichnen, die Figur sieht aus wie bisher.
 
 ### [x] A4 Flügel als Funktion und Engel-Klasse
 

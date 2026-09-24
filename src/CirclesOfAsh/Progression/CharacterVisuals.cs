@@ -7,7 +7,12 @@ namespace CirclesOfAsh.Progression;
 /// <summary>Baut aus Klasse + Aussehen das Ebenen-Sprite (Körper, Haare, Outfit, Akzent).</summary>
 public static class CharacterVisuals
 {
-    public static LayeredSprite Create(GameContext context, ClassDefinition playerClass, CharacterAppearance look)
+    /// <param name="armorSprite">
+    /// Sprite der getragenen Rüstung oder null. Liegt über der Kleidung – ohne Rüstung bleibt der
+    /// Körper sichtbar, und man erkennt Statur und Taille.
+    /// </param>
+    public static LayeredSprite Create(GameContext context, ClassDefinition playerClass, CharacterAppearance look,
+                                       string? armorSprite = null)
     {
         AppearanceDefinition options = context.Definitions.Appearance;
         var layers = new List<(SpriteSheet Sheet, Color Tint)>();
@@ -35,6 +40,11 @@ public static class CharacterVisuals
             layers.Add((context.Assets.GetSpriteSheet(playerClass.OutfitSprite), Color.White));
         if (!string.IsNullOrEmpty(playerClass.AccentSprite))
             layers.Add((context.Assets.GetSpriteSheet(playerClass.AccentSprite), Pick(options.AccentColors, look.AccentColor)));
+
+        // Rüstung ganz oben: Sie deckt Kleidung und Rumpf ab. Genau deshalb sieht man ohne sie
+        // die Figur – Taille, Bauchmuskeln, Statur.
+        if (!string.IsNullOrEmpty(armorSprite))
+            layers.Add((context.Assets.GetSpriteSheet(armorSprite), Color.White));
         return new LayeredSprite(layers);
     }
 

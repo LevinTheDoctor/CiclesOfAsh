@@ -51,6 +51,15 @@ public static class EquipmentService
         return true;
     }
 
+    /// <summary>Sprite-Ebene der getragenen Rüstung, oder null (keine getragen / kein Bild hinterlegt).</summary>
+    public static string? ArmorSprite(DefinitionRegistry definitions, RunState run)
+    {
+        if (!run.Equipped.TryGetValue(ItemSlot.Armor, out string? armorId) || !definitions.Items.Contains(armorId))
+            return null;
+        string sprite = definitions.Items.Get(armorId).Sprite;
+        return string.IsNullOrEmpty(sprite) ? null : sprite;
+    }
+
     public static bool IsEquipped(RunState run, ItemDefinition item) =>
         run.Equipped.TryGetValue(item.Slot, out string? current) && current == item.Id;
 

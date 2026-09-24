@@ -27,7 +27,9 @@ public static class PlayerFactory
             for (int stack = 0; stack < stacks; stack++) LevelUpService.ApplyStatUpgrade(stats, definitions.Upgrades.Get(upgradeId));
         }
 
-        var player = new Player(playerClass, CharacterVisuals.Create(context, playerClass, run.Appearance), stats, spawn);
+        var player = new Player(playerClass,
+            CharacterVisuals.Create(context, playerClass, run.Appearance, EquipmentService.ArmorSprite(context.Definitions, run)),
+            stats, spawn);
 
         // Fähigkeiten aus dem Lauf + permanent freigeschaltete (Boss-Belohnungen), ohne Duplikate
         var abilityLevels = new Dictionary<string, int>(run.AbilityLevels, StringComparer.OrdinalIgnoreCase);
@@ -74,7 +76,11 @@ public static class PlayerFactory
         CharacterAppearance appearance = context.Progression.CurrentRun?.Appearance ?? CharacterAppearance.Default;
         var stats = new StatSheet(StatSheet.ParseAll(playerClass.BaseStats));
         stats.AddPercent(StatType.Might, context.Progression.BelieverBonus(context.Definitions.Balance.MightPerHundredBelievers));
-        var player = new Player(playerClass, CharacterVisuals.Create(context, playerClass, appearance), stats, Vector2.Zero);
+        // Im Tempel traegt der Spieler seine Ruestung ebenfalls sichtbar.
+        string? hubArmor = context.Progression.CurrentRun is { } hubRun
+            ? EquipmentService.ArmorSprite(context.Definitions, hubRun)
+            : null;
+        var player = new Player(playerClass, CharacterVisuals.Create(context, playerClass, appearance, hubArmor), stats, Vector2.Zero);
         // Erst jetzt ist die Größe der Kollisionsbox bekannt -> Ecke daraus ableiten.
         player.Position = bottomCenter - new Vector2(player.Size.X / 2f, player.Size.Y);
         return player;

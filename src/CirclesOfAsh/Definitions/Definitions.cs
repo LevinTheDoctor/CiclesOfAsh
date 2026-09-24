@@ -268,6 +268,10 @@ public sealed class ItemDefinition : IDefinition
     /// Nur für Rüstung: Wie viel Schaden sie abfängt, bevor sie zerspringt. 0 = unzerstörbar.
     /// </summary>
     public int Durability { get; init; }
+    /// <summary>
+    /// Nur für Rüstung: Sprite-Ebene, die über der Kleidung gezeichnet wird. Leer = unsichtbar.
+    /// </summary>
+    public string Sprite { get; init; } = "";
 }
 
 public enum PropAnchor { Floor, Ceiling, Wall }
