@@ -438,6 +438,68 @@ def props(textures):
         pixel(d, 4, 2, BONE)
     build_sheet(8, 8, [prop_frames(8, 8, 2, moth)]).save(textures / "prop_moth.png")
 
+    # --- Rätsel-Props (G8): Druckplatte, Spiegel, Schiebeblock
+    def pressure_plate(d, f, pressed):                  # Bodenplatte 16x6: erhaben / eingedrückt
+        if pressed:
+            rect(d, 1, 3, 14, 3, DARK_STONE)            # versenkte Platte
+            rect(d, 2, 4, 12, 2, STONE)
+            rect(d, 3, 5, 10, 1, shift(STONE, -30))
+            pixel(d, 4, 4, GOLD)                        # Aufdruck
+            pixel(d, 11, 4, GOLD)
+        else:
+            rect(d, 1, 1, 14, 4, STONE)                 # erhabene Platte mit Rand
+            rect(d, 2, 2, 12, 2, shift(STONE, 20))
+            rect(d, 1, 1, 14, 1, shift(STONE, 35))
+            pixel(d, 4, 3, GOLD)
+            pixel(d, 11, 3, GOLD)
+            rect(d, 0, 5, 16, 1, DARK_STONE)            # Sockellinie
+    build_sheet(16, 6, [prop_frames(16, 6, 1, lambda d, f: pressure_plate(d, f, False)),
+                        prop_frames(16, 6, 1, lambda d, f: pressure_plate(d, f, True))]).save(textures / "prop_pressure_plate.png")
+
+    def mirror(d, f):                                   # drehbarer Spiegel 16x16: 4 Winkel
+        angle = f * 45                                  # 0, 45, 90, 135 Grad
+        frame_col = DARK_GOLD
+        glass = (170, 210, 225, 200)
+        glass_dark = (120, 150, 175, 200)
+        if angle == 0:                                  # senkrecht: Strich vertikal, Sockel unten
+            rect(d, 7, 1, 2, 11, frame_col)
+            rect(d, 7, 2, 1, 9, glass)
+            rect(d, 8, 2, 1, 9, glass_dark)
+            rect(d, 5, 12, 6, 2, DARK_STONE)
+            rect(d, 4, 14, 8, 2, STONE)
+        elif angle == 90:                               # waagerecht: Strich horizontal
+            rect(d, 2, 5, 12, 2, frame_col)
+            rect(d, 3, 5, 10, 1, glass)
+            rect(d, 3, 6, 10, 1, glass_dark)
+            rect(d, 6, 8, 4, 2, DARK_STONE)
+            rect(d, 7, 10, 2, 4, STONE)
+        else:                                           # 45/135 Grad: diagonale Spiegelfläche
+            for i in range(11):
+                x = 2 + i if angle == 45 else 13 - i
+                rect(d, x, 12 - i, 2, 1, frame_col)
+            for i in range(9):
+                x = 3 + i if angle == 45 else 12 - i
+                rect(d, x, 11 - i, 1, 1, glass)
+            if angle == 45:
+                rect(d, 12, 12, 4, 2, DARK_STONE)       # Fuß am unteren Ende der Diagonale
+            else:
+                rect(d, 0, 12, 4, 2, DARK_STONE)
+            rect(d, 7, 14, 2, 2, STONE)
+    build_sheet(16, 16, [prop_frames(16, 16, 4, mirror)]).save(textures / "prop_mirror.png")
+
+    def push_block(d, f):                               # schiebbarer Steinblock 16x16
+        rect(d, 1, 1, 14, 14, STONE)
+        rect(d, 2, 2, 12, 12, DARK_STONE)
+        rect(d, 3, 3, 10, 10, STONE)
+        d.line([(3, 3), (12, 12)], fill=shift(STONE, -25))     # Laufspur-Kerben
+        d.line([(12, 3), (12, 8)], fill=shift(STONE, -25))
+        pixel(d, 4, 4, shift(STONE, 30))
+        pixel(d, 11, 4, shift(STONE, 30))
+        pixel(d, 4, 11, shift(STONE, 30))
+        pixel(d, 11, 11, shift(STONE, 30))
+        rect(d, 7, 6, 2, 4, shift(STONE, -35))          # Griffmulde mittig
+    build_sheet(16, 16, [prop_frames(16, 16, 1, push_block)]).save(textures / "prop_push_block.png")
+
 
 # ------------------------------------------------------------------ Items (Icons 12x12, eine Spalte pro Item)
 ITEM_ORDER = ["grave_lantern", "saint_lamp", "hellfire_lantern", "rosary", "bleeding_heart", "eye_of_vigil",
