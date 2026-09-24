@@ -83,6 +83,14 @@ ist dann abgelegt **und** aus dem Inventar verschwunden. Ab- und wieder Anlegen 
 Haltbarkeit zurück — sonst könnte man Schaden durch Aus- und Einpacken heilen. Gespeichert in
 `run_profile`, also ohne Migration. Im Inventar steht `aktuell/maximal` hinter dem Namen.
 
+**Umgebaut nach Ghosts 'n Goblins.** Die Rüstung hat anfangs gar nicht geschützt: `TakeDamage`
+lief zuerst, die Rüstung litt nur zusätzlich mit — eine zweite Lebensleiste statt eines Schildes.
+Jetzt **fängt sie den Treffer vollständig ab** und verliert eine Stufe (Leder 1, Kette 2, Schuppe 3,
+Asche 4 Treffer, abgeleitet aus `durability`). Beim letzten Treffer zerspringt sie in drei
+gestaffelten Partikelschüben und ist aus dem Inventar weg. Wichtig dabei: ein
+Unverwundbarkeitsfenster nach jedem abgefangenen Treffer — sonst nähme **ein** Gegnerkontakt der
+Reihe nach alle Stufen mit.
+
 **Nachgezogen:** `durability`-Werte von GLM geliefert. Rüstung ist jetzt außerdem **sichtbar** —
 `ItemDefinition.Sprite` trägt die Ebene, `CharacterVisuals` zeichnet sie über der Kleidung, und
 `Player.RefreshAppearance` baut die Ebenen neu, wenn sich die Rüstung ändert (An-/Ablegen im
@@ -114,7 +122,7 @@ damit es keine Warnung über fehlende Sprites gibt.
 
 ## Paket B — Charakter & Begleiter
 
-### [~] B1 Geschlecht und Körpertypen — Code fertig, Sprites bei GLM
+### [x] B1 Geschlecht und Körpertypen
 
 Heute gibt es genau **einen** Körper-Sprite (`appearance.json`, `bodySprite`). Geplant: Auswahl
 männlich/weiblich und Körpertyp von mehrgewichtig bis trainiert, also mehrere Körper-Sprite-Sätze.
@@ -127,13 +135,20 @@ bleiben gültig, `run_profile` ist Schlüssel/Wert und braucht keine Migration).
 zeichnet Flügel hinter der Figur, dann Körpertyp, Make-up unter den Haaren. Der Charakter-Editor
 blendet die neuen Zeilen nur ein, wenn `appearance.json` auch Auswahlmöglichkeiten liefert.
 
-**Offen:** Die Sprites und die JSON-Listen — Auftrag G1/G2/G3 in [GLM_TASKS.md](GLM_TASKS.md).
-Bis dahin bleibt alles beim heutigen Einzelkörper, ohne Warnung und ohne leere Menüzeilen.
+**Sprites geliefert** (GLM, G1–G3 und G9): sechs Körper mit Binnenzeichnung — Taille bei den
+weiblichen, Bauchmuskeln bei den trainierten, weiche Rundung bei den kräftigen.
 
-### [~] B2 Make-up — Code fertig, Sprites bei GLM
+**Bekannte Einschränkung:** Nachgemessen unterscheiden sich die Körpertypen **nach dem Anziehen**
+nur um 7–11 von 384 Pixeln. Bei 16 × 24 und mit Gürtel und Riemen darüber bleibt zu wenig übrig.
+Genau das ist der Anlass für Paket E.
+
+### [x] B2 Make-up
 
 Weitere Farbebene über dem Gesicht, technisch wie Haare und Akzent. Der Ebenen-Aufbau in
 `Progression/CharacterVisuals.cs` trägt das ohne Umbau.
+
+**Erledigt.** Vier Stile (Lidstrich, Lidschatten, Lippen, Kriegsbemalung) plus eigene Farbliste,
+gezeichnet über dem Körper und **unter** den Haaren.
 
 ### [ ] B3 Mehr Begleiter-Skins und sprechende Begleiter
 
@@ -185,6 +200,56 @@ Es gibt **kein** Tutorial; nur `tips.json` auf den Ladebildschirmen. Geplant: ei
 Einstieg, den man im Titel oder beim ersten Start wählen kann — geführt von einem sprechenden
 Begleiter (siehe B3), der Bewegung, Ducken, Kampf, Block und Interaktion erklärt. Überspringbar und
 jederzeit wiederholbar.
+
+---
+
+## Paket E — 16-Bit-Stil und größere Figuren
+
+**Anlass:** Messung an den fertigen Sprites. Nach dem Anziehen unterscheiden sich die Körpertypen
+nur um **7–11 von 384 Pixeln**, und nur **14 von 72 Rumpf-Pixeln** zeigen überhaupt Haut. Taille
+und Bauchmuskeln sind gezeichnet, gehen bei 16 × 24 unter Gürtel und Riemen aber unter. Mehr Fläche
+löst das an der Wurzel.
+
+Mit dem Nutzer entschieden: Figuren auf **24 × 32**, Grafik insgesamt im **16-Bit-Stil** — gemeint
+ist die Bildsprache der SNES-/Mega-Drive-Zeit (mehr Farbabstufungen je Material, weichere
+Übergänge, lesbare Silhouetten), nicht bloß mehr Pixel.
+
+### [x] E1 Kollisionsboxen von der Sprite-Größe lösen
+
+**Problem:** Die Box stand als feste `10 × 22` im Code, dazu Steh- und Hockhöhe und eine
+`- 22`-Annahme im Generator. Beim Umstieg hätte man jede dieser Zahlen einzeln nachziehen müssen;
+wer eine vergisst, bekommt eine Figur, die in Wänden steckt oder schwebt.
+
+**Erledigt.** Die Box leitet sich aus der Bildgröße ab (62 % Breite, 92 % Höhe, geduckt 55 %
+davon). Bei 16 × 24 ergibt das **exakt** die bisherigen 10 × 22 und 12 — heute ändert sich also
+nichts; bei 24 × 32 werden daraus 15 × 29 und 16, ohne Codeänderung. `LayeredSprite.FrameSize`
+liefert die Größe, NPCs rechnen genauso. Der Generator gibt den Spawn jetzt als **Mitte der Füße**,
+die Ecke leitet `PlayerFactory` ab.
+
+**Nachgemessen als Randbedingung:** Türen sind 4 Kacheln (64 px) hoch — eine 32-px-Figur passt
+bequem durch, die Levelgeometrie bleibt unangetastet. Kacheln bleiben bei 16 px.
+
+### [ ] E2 Figuren auf 24 × 32 (GLM, G12)
+
+Alle 30 Figuren-Ebenen plus die Manifest-Einträge. Nur die Figuren — Gegner, Props und Effekte
+behalten ihre Maße.
+
+### [ ] E3 16-Bit-Anhebung der Figuren (GLM, G13)
+
+Vier bis sechs Tonwerte je Material statt drei, Licht von oben links, Materialkontrast zwischen
+Leder, Kette, Bronze und Stein.
+
+### [ ] E4 Gegner, Props und Kacheln nachziehen (GLM, G14)
+
+**Erst nach Abnahme von E2/E3 durch den Nutzer** — sonst steckt viel Arbeit in einem Stil, der
+vielleicht noch nachjustiert wird.
+
+### Merkregel aus einem Fehler
+
+Die Rüstungen waren zunächst in Graustufen gezeichnet — so stand es in meinem Auftrag, und die
+Vorgabe war falsch: Der Code zeichnet die Rüstungsebene **ungetönt**, Graustufen bleiben also grau
+und alle vier sahen aus wie derselbe helle Klotz. **Graustufen nur dort, wo der Code auch einfärbt**
+(Haare, Make-up, Flügel, Akzent). Körper, Outfits und Rüstung brauchen eigene Farben.
 
 ---
 
