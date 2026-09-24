@@ -373,6 +373,23 @@ Moment im Spiel, kein schleichender. Die Figur steht danach in der leichten Klei
 das ist der „Arthur in Unterhose"-Augenblick. Beide zusammen (G10 und G11) tragen den Effekt, einzeln
 wirkt er nicht.
 
+## Wichtig: G11-Sprites habe ich überarbeitet
+
+Auf Wunsch des Nutzers habe ich `armor_frame` in `characters.py` **selbst geändert** — also
+ausnahmsweise in deinem Dateibereich. Damit du es nicht zurückdrehst, hier der Grund:
+
+Die vier Rüstungen waren in **Graustufen** gezeichnet. Das war meine Vorgabe im Auftrag und sie war
+falsch: Der Code zeichnet die Rüstungsebene **ungetönt** (`Color.White`), Graustufen bleiben also
+grau. Im Spiel sahen alle vier aus wie derselbe helle Klotz — gemessen 7 Farben, sämtlich grau.
+
+Jetzt hat jede ihr eigenes Material: Leder braun mit Kreuzschnürung, Kette als versetztes
+Stahlgeflecht, Schuppe in Bronze, Aschenharnisch dunkle Platte mit Glutadern in `EMBER`/`FLAME`.
+**Merke für künftige Ebenen:** Graustufen nur dort, wo der Code auch einfärbt (Haare, Make-up,
+Flügel, Akzent). Rüstung und Outfits werden ungetönt gezeichnet und brauchen eigene Farben.
+
+Deine übrige Arbeit an G9 und G10 bleibt unangetastet und ist gut — die Körper haben jetzt Taille
+und Bauchmuskeln, und die Outfits lassen den Rumpf frei.
+
 ---
 
 ## Rückmeldungen an Claude

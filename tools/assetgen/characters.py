@@ -9,7 +9,8 @@ Zeilen: 0 idle, 1 run, 2 jump, 3 hurt (je bis zu 4 Frames).
 """
 from PIL import Image, ImageDraw
 
-from .core import (BLACK, DARK_STEEL, DEEP_PURPLE, GOLD, LEATHER, MANA, OUTLINE, PURPLE, SHADOW, SOUL, STEEL,
+from .core import (ASH, BLACK, DARK_GOLD, DARK_STEEL, DARK_STONE, DARK_WOOD, DEEP_PURPLE, EMBER, FLAME, GOLD,
+                   LEATHER, MANA, OUTLINE, PURPLE, SHADOW, SOUL, STEEL,
                    TINT_DARK, TINT_EYE, TINT_LIGHT, TINT_MID, WOOD, build_sheet, new_image, pixel, polish, rect, shift)
 
 ANIMATIONS = (("idle", 4), ("run", 4), ("jump", 4), ("hurt", 2))
@@ -330,48 +331,53 @@ def wings_frame(kind, p):
 # ------------------------------------------------------------------ Rüstung (G11: Graustufen, Ebene über der Kleidung)
 def armor_frame(kind, p):
     """Deckt den Rumpf (y 9-17) ab — hier darf eine geschlossene Fläche entstehen.
-    In Graustufen gehalten, neutral zu jedem Hautton; der Code färbt sie nicht ein."""
+
+    Bewusst FARBIG statt in Graustufen: Der Code zeichnet die Rüstung ungetönt (Color.White),
+    Graustufen blieben also grau und alle vier sahen aus wie derselbe helle Klotz. Mit eigenem
+    Material erkennt man auf einen Blick, was man trägt.
+    """
     image = new_image(16, 24)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
     if kind == "leather":
-        rect(draw, 5, 9 + b, 6, 7, TINT_MID)               # Lederwams
-        rect(draw, 5, 9 + b, 6, 1, TINT_LIGHT)             # Kragen/Lichtecke oben
-        for y in range(10 + b, 16 + b):                    # Schnürung vorn
-            pixel(draw, 8 if (y - b) % 2 else 7, y, TINT_DARK)
-        rect(draw, 5, 15 + b, 6, 1, TINT_DARK)             # Saum
+        light, mid, dark = (150, 104, 68, 255), LEATHER, DARK_WOOD
+        rect(draw, 5, 9 + b, 6, 7, mid)
+        rect(draw, 5, 9 + b, 6, 1, light)                  # Kragen
+        for y in range(10 + b, 15 + b):                    # Kreuzschnürung vorn
+            pixel(draw, 7 if (y - b) % 2 else 8, y, dark)
+            pixel(draw, 8 if (y - b) % 2 else 7, y, light)
+        rect(draw, 5, 15 + b, 6, 1, dark)                  # Saum
+        pixel(draw, 5, 11 + b, dark)                       # Seitennaht
+        pixel(draw, 10, 13 + b, dark)
     elif kind == "chain":
-        rect(draw, 5, 9 + b, 6, 7, TINT_MID)               # Kettengeflecht
-        for y in range(9 + b, 16 + b):                     # Maschenmuster versetzt
+        rect(draw, 5, 9 + b, 6, 7, STEEL)
+        for y in range(9 + b, 16 + b):                     # versetztes Maschenmuster
             for x in range(5, 11):
-                if (x + y) % 2 == 0:
-                    pixel(draw, x, y, TINT_DARK)
-        rect(draw, 4, 9 + b, 2, 2, TINT_MID)               # kurze Ärmel
-        rect(draw, 10, 9 + b, 2, 2, TINT_MID)
-        rect(draw, 5, 15 + b, 6, 1, TINT_DARK)             # Saum
+                pixel(draw, x, y, DARK_STEEL if (x + y) % 2 == 0 else STEEL)
+        rect(draw, 4, 9 + b, 2, 2, DARK_STEEL)             # kurze Ärmel
+        rect(draw, 10, 9 + b, 2, 2, DARK_STEEL)
+        rect(draw, 5, 9 + b, 6, 1, (210, 210, 225, 255))   # Lichtkante oben
+        rect(draw, 5, 15 + b, 6, 1, DARK_STEEL)
     elif kind == "scale":
-        rect(draw, 5, 9 + b, 6, 7, TINT_MID)               # Schuppenpanzer
-        for y in range(10 + b, 16 + b, 2):                  # überlappende Schuppenreihen
-            for x in range(5 + (y - b) % 4, 11, 2):
-                pixel(draw, x, y, TINT_DARK)
-                pixel(draw, x, y + 1, TINT_LIGHT if x % 4 else TINT_MID)
-        rect(draw, 4, 9 + b, 2, 2, TINT_LIGHT)             # Schulterstücke
-        rect(draw, 10, 9 + b, 2, 2, TINT_LIGHT)
-        rect(draw, 5, 15 + b, 6, 1, TINT_DARK)
+        rect(draw, 5, 9 + b, 6, 7, DARK_GOLD)              # Bronzegrund
+        for y in range(9 + b, 16 + b):                     # überlappende Schuppenreihen
+            for x in range(5 + ((y - b) % 2), 11, 2):
+                pixel(draw, x, y, GOLD)
+        rect(draw, 4, 9 + b, 2, 2, GOLD)                   # Schulterstücke
+        rect(draw, 10, 9 + b, 2, 2, GOLD)
+        rect(draw, 5, 15 + b, 6, 1, DARK_WOOD)             # Lederkante unten
     else:  # ash: schwerer Harnisch mit Glutadern
-        rect(draw, 4, 9 + b, 8, 7, TINT_MID)               # schwerer, breiter Harnisch
-        rect(draw, 4, 9 + b, 8, 1, TINT_LIGHT)
-        rect(draw, 4, 9 + b, 1, 7, TINT_LIGHT)
-        pixel(draw, 6, 10 + b, TINT_LIGHT)                 # Glutadern
-        pixel(draw, 7, 11 + b, TINT_LIGHT)
-        pixel(draw, 9, 12 + b, TINT_LIGHT)
-        pixel(draw, 6, 13 + b, TINT_LIGHT)
-        pixel(draw, 9, 14 + b, TINT_LIGHT)
-        pixel(draw, 7, 15 + b, TINT_LIGHT)
-        rect(draw, 3, 9 + b, 1, 2, TINT_DARK)              # breite Schulterklappen
-        rect(draw, 12, 9 + b, 1, 2, TINT_DARK)
-        rect(draw, 4, 15 + b, 8, 1, TINT_DARK)
-    return polish(image, outline=TINT_OUTLINE, light=10, dark=-20, gradient=0)
+        rect(draw, 4, 9 + b, 8, 7, DARK_STONE)             # breiter, schwerer Harnisch
+        rect(draw, 4, 9 + b, 8, 1, ASH)                    # Lichtkante
+        rect(draw, 4, 9 + b, 1, 7, ASH)
+        for x, y in ((6, 10), (7, 11), (6, 12), (9, 11), (9, 13), (8, 14)):
+            pixel(draw, x, y + b, EMBER)                   # Glutadern ziehen sich durch die Platte
+        for x, y in ((7, 12), (9, 12), (8, 13)):
+            pixel(draw, x, y + b, FLAME)                   # hellere Kerne
+        rect(draw, 3, 9 + b, 1, 3, ASH)                    # breite Schulterklappen
+        rect(draw, 12, 9 + b, 1, 3, ASH)
+        rect(draw, 4, 15 + b, 8, 1, BLACK)                 # schwerer Saum
+    return polish(image, outline=OUTLINE, light=10, dark=-20, gradient=0)
 
 
 def layer_sheet(frame_function):
