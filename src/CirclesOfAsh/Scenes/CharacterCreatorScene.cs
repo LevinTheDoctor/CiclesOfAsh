@@ -15,7 +15,12 @@ namespace CirclesOfAsh.Scenes;
 public sealed class CharacterCreatorScene : SceneBase
 {
     private enum Step { Look, Companion }
-    private enum Row { Name, Class, Body, Skin, Hair, HairColor, Makeup, MakeupColor, Wings, Accent, Continue }
+    /// <summary>
+    /// Die Deklarationsreihenfolge IST die Anzeigereihenfolge (siehe <c>_rows</c>). Erst wird die
+    /// Figur festgelegt – Geschlecht, Statur –, dann die Klasse, dann die Feinheiten.
+    /// <c>Continue</c> muss letzter Eintrag bleiben: <c>DrawOptions</c> bricht dort ab.
+    /// </summary>
+    private enum Row { Name, Gender, Body, Class, Skin, Hair, HairColor, Makeup, MakeupColor, Wings, Accent, Continue }
 
     private const int MaxNameLength = 14;
     /// <summary>Höhe beider Panels. Darunter bleibt Platz für die Hilfezeile bei y = 256.</summary>
@@ -40,11 +45,17 @@ public sealed class CharacterCreatorScene : SceneBase
     /// leere Auswahl anzubieten.
     /// </summary>
     private readonly Row[] _rows;
+    private readonly BodyTypeCatalog _bodies;
     private Step _step = Step.Look;
     private int _rowIndex;
     private string _name;
     private int _classIndex, _skin, _hair, _hairColor, _accent;
-    private int _bodyType, _makeup, _makeupColor, _wings;
+    private int _makeup, _makeupColor, _wings;
+    /// <summary>
+    /// Zwei Achsen statt eines Körpertyp-Index. Der gespeicherte Index entsteht erst beim
+    /// Auslesen (<see cref="Look"/>) – siehe <see cref="BodyTypeCatalog"/>.
+    /// </summary>
+    private int _gender, _build;
     private LayeredSprite _preview = null!;
     private float _time;
 
@@ -52,6 +63,7 @@ public sealed class CharacterCreatorScene : SceneBase
     {
         _classes = context.Definitions.Classes.All.ToList();
         _options = context.Definitions.Appearance;
+        _bodies = new BodyTypeCatalog(_options.BodyTypes);
         _name = RandomNames[_random.Next(RandomNames.Length)];
         _rows = Enum.GetValues<Row>().Where(HasOptions).ToArray();
         RebuildPreview();
@@ -60,6 +72,9 @@ public sealed class CharacterCreatorScene : SceneBase
     /// <summary>Gibt es für diese Zeile überhaupt etwas zu wählen?</summary>
     private bool HasOptions(Row row) => row switch
     {
+        // Lässt sich aus den Daten kein Geschlecht ablesen (fremde IDs aus einem Mod), fällt die
+        // Zeile weg und "Statur" listet wieder alle Körpertypen.
+        Row.Gender => _bodies.HasGenders,
         Row.Body => _options.BodyTypes.Count > 0,
         Row.Makeup => _options.MakeupStyles.Count > 0,
         Row.MakeupColor => _options.MakeupStyles.Count > 0 && _options.MakeupColors.Count > 0,
@@ -70,7 +85,7 @@ public sealed class CharacterCreatorScene : SceneBase
     private Row CurrentRow => _rows[_rowIndex];
     private ClassDefinition SelectedClass => _classes[_classIndex];
     private CharacterAppearance Look => new(_name.Trim().Length > 0 ? _name.Trim() : "Namenloser",
-        _skin, _hair, _hairColor, _accent, _bodyType, _makeup, _makeupColor, _wings);
+        _skin, _hair, _hairColor, _accent, _bodies.ToBodyType(_gender, _build), _makeup, _makeupColor, _wings);
 
     public override void OnEnter()
     {
@@ -160,7 +175,11 @@ public sealed class CharacterCreatorScene : SceneBase
             case Row.Hair: _hair = CharacterVisuals.Wrap(_hair + step, _options.HairStyles.Count); break;
             case Row.HairColor: _hairColor = CharacterVisuals.Wrap(_hairColor + step, _options.HairColors.Count); break;
             case Row.Accent: _accent = CharacterVisuals.Wrap(_accent + step, _options.AccentColors.Count); break;
-            case Row.Body: _bodyType = CharacterVisuals.Wrap(_bodyType + step, _options.BodyTypes.Count); break;
+            // Geschlecht wechseln behält die Statur: von "Weiblich · Trainiert" kommt man auf
+            // "Männlich · Trainiert", nicht auf einen beliebigen Körper.
+            case Row.Gender: _gender = CharacterVisuals.Wrap(_gender + step, Math.Max(1, _bodies.Genders.Length)); break;
+            case Row.Body when _bodies.HasGenders: _build = CharacterVisuals.Wrap(_build + step, _bodies.Builds.Length); break;
+            case Row.Body: _build = CharacterVisuals.Wrap(_build + step, _options.BodyTypes.Count); break;
             case Row.Makeup: _makeup = CharacterVisuals.Wrap(_makeup + step, _options.MakeupStyles.Count); break;
             case Row.MakeupColor: _makeupColor = CharacterVisuals.Wrap(_makeupColor + step, _options.MakeupColors.Count); break;
             case Row.Wings: _wings = CharacterVisuals.Wrap(_wings + step, _options.WingStyles.Count); break;
@@ -178,7 +197,8 @@ public sealed class CharacterCreatorScene : SceneBase
         _hair = _random.Next(Math.Max(1, _options.HairStyles.Count));
         _hairColor = _random.Next(Math.Max(1, _options.HairColors.Count));
         _accent = _random.Next(Math.Max(1, _options.AccentColors.Count));
-        _bodyType = _random.Next(Math.Max(1, _options.BodyTypes.Count));
+        _gender = _random.Next(Math.Max(1, _bodies.Genders.Length));
+        _build = _random.Next(Math.Max(1, _bodies.HasGenders ? _bodies.Builds.Length : _options.BodyTypes.Count));
         _makeup = _random.Next(Math.Max(1, _options.MakeupStyles.Count));
         _makeupColor = _random.Next(Math.Max(1, _options.MakeupColors.Count));
         _wings = _random.Next(Math.Max(1, _options.WingStyles.Count));
@@ -259,7 +279,8 @@ public sealed class CharacterCreatorScene : SceneBase
                 Row.Skin => "Hautton",
                 Row.Hair => "Frisur",
                 Row.HairColor => "Haarfarbe",
-                Row.Body => "Gestalt",
+                Row.Gender => "Geschlecht",
+                Row.Body => _bodies.HasGenders ? "Statur" : "Gestalt",
                 Row.Makeup => "Bemalung",
                 Row.MakeupColor => "Bemalungsfarbe",
                 Row.Wings => "Flügel",
@@ -287,8 +308,12 @@ public sealed class CharacterCreatorScene : SceneBase
                     string hairName = _options.HairStyles.Count == 0 ? "-" : _options.HairStyles[_hair].Name;
                     font.DrawShadowed(spriteBatch, $"‹ {hairName} ›", valuePosition, Palette.Faith);
                     break;
+                case Row.Gender:
+                    font.DrawShadowed(spriteBatch, $"‹ {_bodies.GenderName(_gender)} ›", valuePosition, Palette.Faith);
+                    break;
                 case Row.Body:
-                    font.DrawShadowed(spriteBatch, $"‹ {OptionName(_options.BodyTypes, _bodyType)} ›", valuePosition, Palette.Faith);
+                    string bodyName = _bodies.HasGenders ? _bodies.BuildName(_build) : OptionName(_options.BodyTypes, _build);
+                    font.DrawShadowed(spriteBatch, $"‹ {bodyName} ›", valuePosition, Palette.Faith);
                     break;
                 case Row.Makeup:
                     font.DrawShadowed(spriteBatch, $"‹ {OptionName(_options.MakeupStyles, _makeup)} ›", valuePosition, Palette.Faith);
