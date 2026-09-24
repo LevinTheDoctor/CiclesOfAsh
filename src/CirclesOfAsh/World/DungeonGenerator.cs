@@ -57,13 +57,15 @@ public sealed class DungeonGenerator
         int gridWidth = plan.PathLength + 1;
         var rooms = new Dictionary<Point, RoomNode>();
         List<RoomNode> path = BuildCriticalPath(plan, gridWidth, rooms);
-        string puzzleKey = AssignRoomTypes(plan, path);
+        AssignRoomTypes(plan, path);
         if (!plan.IsBossDungeon)
         {
             AddDetours(plan, path, rooms, gridWidth);
             AddTreasureBranches(plan, path, rooms, gridWidth);
             if (plan.HasPrison) AddPrison(path, rooms, gridWidth);
         }
+        // Erst jetzt, wenn alle Ausgaenge feststehen (siehe AssignPuzzleRoom).
+        string puzzleKey = AssignPuzzleRoom(plan, path);
 
         // ---------- 2. Themen
         foreach (RoomNode room in rooms.Values) room.Theme = PickTheme(plan, room);
@@ -145,8 +147,8 @@ public sealed class DungeonGenerator
     private static readonly HashSet<string> NeedsPuzzleRoom =
         new(StringComparer.OrdinalIgnoreCase) { "rune_order", "braziers", "weights", "mirrors" };
 
-    /// <summary>Setzt Start, Ziel, Arenen und ggf. den Rätselraum. Gibt den tatsächlich nutzbaren Rätsel-Schlüssel zurück.</summary>
-    private string AssignRoomTypes(DungeonPlan plan, List<RoomNode> path)
+    /// <summary>Setzt Start, Ziel und Arenen. Der Rätselraum kommt später (siehe <see cref="AssignPuzzleRoom"/>).</summary>
+    private void AssignRoomTypes(DungeonPlan plan, List<RoomNode> path)
     {
         path[0].Type = RoomType.Start;
         path[^1].Type = plan.IsBossDungeon ? RoomType.Boss : RoomType.Exit;   // "^1" = Index vom Ende (letztes Element)
@@ -159,16 +161,31 @@ public sealed class DungeonGenerator
             path[Math.Clamp(index, 1, path.Count - 2)].Type = RoomType.Arena;
         }
 
+    }
+
+    /// <summary>
+    /// Wählt den Rätselraum – und zwar ERST, nachdem Umwege, Schatzabzweige und Kerker stehen.
+    /// Die hängen nämlich weitere Ausgänge an bestehende Räume: Ein Raum, der bei der Typvergabe
+    /// noch schachtfrei war, kann danach einen bekommen haben.
+    ///
+    /// Ausgeschlossen sind nur Ausgänge nach UNTEN. Die öffnen die Bodenreihe auf vier Kacheln
+    /// (<see cref="CarveExit"/>), und genau auf dieser Reihe stellen die Raumrätsel ihre Teile in
+    /// fester Geometrie auf: Druckplatten würden über dem Loch schweben, Schiebeblöcke
+    /// hindurchfallen. Ein Ausgang nach oben öffnet die Decke und stört nicht.
+    ///
+    /// Gibt den tatsächlich nutzbaren Rätsel-Schlüssel zurück.
+    /// </summary>
+    private string AssignPuzzleRoom(DungeonPlan plan, List<RoomNode> path)
+    {
         string key = plan.PuzzleKey;
-        if (NeedsPuzzleRoom.Contains(key))
-        {
-            RoomNode? puzzleRoom = path.Skip(1).Take(middleCount)
-                .Where(room => room.Type == RoomType.Corridor)
-                .OrderBy(_ => _random.Next())
-                .FirstOrDefault();
-            if (puzzleRoom is null) key = "levers";   // kein freier Raum -> auf Hebel ausweichen
-            else puzzleRoom.Type = RoomType.Puzzle;
-        }
+        if (!NeedsPuzzleRoom.Contains(key)) return key;
+
+        RoomNode? puzzleRoom = path.Skip(1).Take(Math.Max(0, path.Count - 2))
+            .Where(room => room.Type == RoomType.Corridor && !room.Exits.ContainsKey(Direction.Down))
+            .OrderBy(_ => _random.Next())
+            .FirstOrDefault();
+        if (puzzleRoom is null) return "levers";   // kein freier Raum -> auf Hebel ausweichen
+        puzzleRoom.Type = RoomType.Puzzle;
         return key;
     }
 
@@ -521,8 +538,11 @@ public sealed class DungeonGenerator
                 // Bloecke bewusst NICHT auf den Platten: sie stehen dazwischen und muessen
                 // geschoben werden. Eine Kachel Abstand reicht, der Block rutscht je Druck eine weiter.
                 int[] blockColumns = { 10, 18 };
+                int blocks = 0;
                 for (int index = 0; index < blockColumns.Length; index++)
-                    PlacePropAt(puzzleRoom, "push_block", "block", index, blockColumns[index], FloorRow);
+                    if (PlacePropAt(puzzleRoom, "push_block", "block", index, blockColumns[index], FloorRow)) blocks++;
+                // Ohne beide Bloecke ist eine Platte zu viel und das Raetsel unloesbar.
+                if (blocks < blockColumns.Length) return PlacePuzzle("levers", path, rooms, leverCount);
                 return new PuzzleSpec(key, Array.Empty<int>());
             }
             case "mirrors":
@@ -641,8 +661,13 @@ public sealed class DungeonGenerator
     {
         if (!_definitions.Props.Contains(propId)) return false;
         PropDefinition prop = _definitions.Props.Get(propId);
-        var bottomCenter = new Vector2((room.TileBounds.X + column) * TileSize + TileSize / 2f,
-                                       (room.TileBounds.Y + standRow) * TileSize);
+        // Zweiter Riegel gegen Loecher im Boden: steht unter der Kachel nichts Festes, meldet die
+        // Methode Fehlschlag und der Aufrufer weicht auf ein Raetsel ohne feste Geometrie aus.
+        // Wandhaenger (standRow ausserhalb) sind davon ausgenommen.
+        int below = room.TileBounds.Y + standRow;
+        int at = room.TileBounds.X + column;
+        if (standRow == FloorRow && (!_map.IsInside(at, below) || !TileMap.IsBlocking(_map[at, below]))) return false;
+        var bottomCenter = new Vector2(at * TileSize + TileSize / 2f, below * TileSize);
         _props.Add(new PropPlacement(prop, bottomCenter, room, tag, index));
         UsedColumns(room, PropAnchor.Floor).Add(column);
         return true;

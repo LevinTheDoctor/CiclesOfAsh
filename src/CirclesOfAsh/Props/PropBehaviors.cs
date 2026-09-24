@@ -245,7 +245,7 @@ public sealed class PushBlockProp : IPropBehavior
         if (_slide < 1f) return false;   // rutscht noch
         int direction = world.Player.Center.X <= prop.Center.X ? 1 : -1;   // weg vom Spieler
         var target = new Vector2(prop.Position.X + direction * TileMap.TileSize, prop.Position.Y);
-        if (IsTargetBlocked(prop, world, target))
+        if (IsTargetBlocked(prop, world, target) || !HasFloorAt(prop, world, target))
         {
             world.Context.Audio.Play("error", 0.4f, -0.4f);
             return false;
@@ -265,10 +265,28 @@ public sealed class PushBlockProp : IPropBehavior
         prop.Position = Vector2.Lerp(_from, _to, _slide);
         if (_slide < 1f) return;
 
-        // Nach dem Rutschen so weit fallen lassen, wie der Boden es zulässt – sonst schwebt der
-        // Block über einer Grube und das Rätsel wäre unlösbar geworden, ohne dass man es sieht.
-        while (!IsSolidBelow(prop, world) && prop.Position.Y < world.Map.Height * TileMap.TileSize)
+        // Netz: Interact laesst gar keinen Schub ins Leere mehr zu, aber falls doch einmal Boden
+        // unter dem Block verschwindet (broeckelnde Kachel), faellt er nur bis zum unteren Rand
+        // SEINES Raums. Frueher rutschte er durch einen Schacht in den Raum darunter und war weg –
+        // das Raetsel blieb fuer immer unloesbar.
+        float roomBottom = (prop.Room.TileBounds.Bottom - 1) * TileMap.TileSize;
+        while (!IsSolidBelow(prop, world) && prop.Position.Y + prop.Size.Y < roomBottom)
             prop.Position = new Vector2(prop.Position.X, prop.Position.Y + TileMap.TileSize);
+    }
+
+    /// <summary>Liegt unter der Zielkachel fester Boden? Sonst wuerde der Block ins Loch geschoben.</summary>
+    private static bool HasFloorAt(Prop prop, DungeonWorld world, Vector2 target)
+    {
+        int row = TileMap.ToTile(target.Y + prop.Size.Y);
+        int left = TileMap.ToTile(target.X + 2);
+        int right = TileMap.ToTile(target.X + prop.Size.X - 3);
+        for (int column = left; column <= right; column++)
+        {
+            if (!world.Map.IsInside(column, row)) return false;
+            TileType tile = world.Map[column, row];
+            if (TileMap.IsBlocking(tile) || TileMap.IsPlatform(tile)) return true;
+        }
+        return false;
     }
 
     private static bool IsTargetBlocked(Prop prop, DungeonWorld world, Vector2 target)
