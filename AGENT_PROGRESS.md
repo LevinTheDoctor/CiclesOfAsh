@@ -201,11 +201,38 @@ Gegnerpools aufgenommen (Limbus nur das Junge, Zorn den Aschdrachen mit Gewicht 
 
 ## Paket C — Welt & Inhalte
 
-### [ ] C1 Mehr Rätseltypen
+### [x] C1 Mehr Rätseltypen — `bd64ddc`
 
-Heute drei (`levers`, `rune_order`, `braziers`, alle in `Puzzles/Puzzles.cs`). Geplant:
-Druckplatten, Spiegel für Lichtstrahlen, Gewichts-/Schieberätsel. Neuer Typ = neue `IPuzzle`-Klasse,
-eine Registry-Zeile und ein Zweig in `DungeonGenerator.PlacePuzzle`.
+Aus drei sind **fünf** geworden. GLM hatte die Props in G8 geliefert — Druckplatte, Spiegel in vier
+Stellungen, Schiebeblock lagen fertig im Manifest, waren aber an nichts angeschlossen.
+
+**`weights`** — Drei Druckplatten müssen **gleichzeitig** beschwert sein, es gibt aber nur zwei
+Schiebeblöcke: auf der dritten muss der Spieler selbst stehen bleiben. Die Platte meldet jeden
+Zustandswechsel, auch das Hochkommen — sonst könnte man sie nacheinander abklappern.
+
+Der Block rutscht auf Tastendruck eine Kachel weiter, statt sich mit dem Körper schieben zu lassen.
+Mit echter Kollision würde der Spieler bei jedem Sprung daran hängenbleiben. Nach dem Rutschen
+fällt er so weit, wie der Boden es zulässt — sonst schwebt er über einer Grube und das Rätsel wäre
+unlösbar, ohne dass man es sieht.
+
+**`mirrors`** — Lichtstrahl vom Leuchter zum Standbild lenken. Diagonal gestellt lenkt der Spiegel
+um 90°, flach lässt er einen Strahl seiner eigenen Richtung durch und blockt den querlaufenden.
+Einer der drei drehbaren steht deshalb bewusst im Weg und muss flach gedreht werden. Drei feste
+Spiegel hängen hoch an der Wand und zeigen den gedachten Weg.
+
+Beim Nachrechnen fiel eine **triviale Lösung** auf: alle drei flach gestellt, und der Strahl lief
+einfach die Bodenreihe entlang ins Ziel. Der feste Sperrspiegel in Spalte 16 liegt genau in dem
+Stück Bodenreihe, das der gedachte Weg überspringt — damit ist die Lösung eindeutig (1 von 64
+Kombinationen, nachgerechnet).
+
+`AssignRoomTypes` legte einen Rätselraum bisher nur für zwei fest verdrahtete Schlüssel an; das ist
+jetzt eine Menge, in die ein neues Raumrätsel nur noch eingetragen wird.
+
+**Geprüft:** 300 Seeds kopflos durch den Generator — in jedem entsteht der Rätselraum, alle Teile
+werden platziert, und der Strahl trifft mit der Soll-Lösung jedes Mal das Standbild.
+
+**Nicht beurteilt:** Ob die Rätsel sich gut *anfühlen* — besonders ob das Schieben per Taste
+eingängig ist — zeigt erst ein Durchgang.
 
 ### [x] C2 Mehr Gegner, aber weniger überfüllte Karte
 
