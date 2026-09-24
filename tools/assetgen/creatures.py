@@ -543,4 +543,5 @@ def generate(textures):
     wisp(VIOLET, MANA).save(textures / "companion_moon.png")
     wisp((200, 200, 210, 255), (120, 120, 140, 255), "chain").save(textures / "companion_chain.png")
     wisp(GOLD, (255, 230, 150, 255), "bell").save(textures / "companion_bell.png")
+    build_sheet(12, 12, [[companion_dragonling(i) for i in range(4)]]).save(textures / "companion_dragonling.png")
     _ = (math, SHADOW)  # (Importe für spätere Erweiterungen)

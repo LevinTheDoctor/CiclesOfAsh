@@ -14,5 +14,8 @@
   { "id": "bell_soul", "name": "Glockenseele", "description": "Ein befreiter Küster. Heilt stärker, aber seltener.",
     "spriteSheet": "companion.bell", "behavior": "healer", "power": 14, "interval": 7, "unlockAtBelievers": -1 },
   { "id": "pilgrim_soul", "name": "Pilgerseele", "description": "Eine befreite Pilgerin. Speist dich mit Mana und Hoffnung.",
-    "spriteSheet": "companion.moon", "behavior": "mana", "power": 18, "interval": 3, "unlockAtBelievers": -1 }
+    "spriteSheet": "companion.moon", "behavior": "mana", "power": 18, "interval": 3, "unlockAtBelievers": -1 },
+  { "id": "dragonling", "name": "Drachenling", "description": "Ein zahmes Drachenjunges. Spuckt Glut auf deine Feinde.",
+    "spriteSheet": "companion.dragonling", "behavior": "attacker", "power": 10, "interval": 1.6, "range": 140,
+    "projectileSprite": "projectile.ember", "unlockAtBelievers": 240 }
 ]
