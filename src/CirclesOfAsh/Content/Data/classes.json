@@ -25,5 +25,15 @@
     "baseStats": { "MaxHealth": 100, "MaxMana": 60, "ManaRegen": 3, "MoveSpeed": 125, "JumpPower": 480, "Armor": 0, "StealthDamage": 2.5 },
     "startingAbilities": [ "shadow_dagger", "shadow_veil" ],
     "abilityPool": [ "shadow_dagger", "shadow_veil", "phantom_blades", "ash_cleave" ]
+  },
+  {
+    "id": "angel",
+    "name": "Gefallener Engel",
+    "description": "Gleitet mit den Schwingen durch die Kreise (Springen im Fallen halten). Wenig Rüstung, dafür Reichweite und Beweglichkeit.",
+    // Outfit vorerst vom Magier geliehen – eigene Engel-Sprites kommen mit Auftrag G6 (GLM_TASKS.md).
+    "outfitSprite": "outfit.mage", "accentSprite": "accent.mage",
+    "baseStats": { "MaxHealth": 95, "MaxMana": 80, "ManaRegen": 4, "MoveSpeed": 118, "JumpPower": 470, "Armor": 0 },
+    "startingAbilities": [ "holy_bolt", "seraph_wings" ],
+    "abilityPool": [ "holy_bolt", "seraph_wings", "soul_nova", "orbiting_candles", "wings_of_ash" ]
   }
 ]

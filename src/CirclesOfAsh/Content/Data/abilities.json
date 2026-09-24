@@ -49,6 +49,9 @@
   { "id": "wings_of_ash", "name": "Aschenschwingen", "description": "Ein zusätzlicher Sprung in der Luft.",
     "behavior": "air_jump", "activation": "Passive", "count": 1, "maxLevel": 1 },
 
+  { "id": "seraph_wings", "name": "Seraphenschwingen", "description": "Halte Springen im Fallen, um zu gleiten.",
+    "behavior": "glide", "activation": "Passive", "speed": 55, "maxLevel": 1 },
+
   { "id": "last_judgement", "name": "Jüngstes Gericht", "description": "Gewaltige heilige Explosion (E). Hoher Manaverbrauch.",
     "behavior": "nova", "activation": "Manual", "inputAction": "AbilityTwo", "cooldown": 10, "manaCost": 30,
     "damage": 45, "radius": 110, "knockback": 200, "maxLevel": 1, "sound": "roar" }

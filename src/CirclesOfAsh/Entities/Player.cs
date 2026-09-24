@@ -92,6 +92,15 @@ public sealed class Player : Actor
     public float Mana { get; private set; }
     public float MaxMana => Stats[StatType.MaxMana];
     public int MaxAirJumps { get; set; }
+
+    /// <summary>
+    /// Maximale Sinkgeschwindigkeit beim Gleiten (0 = kein Gleiten). Wird von der Fähigkeit
+    /// "glide" gesetzt; gegleitet wird, solange im Fallen die Sprungtaste gehalten wird.
+    /// </summary>
+    public float GlideFallSpeed { get; set; }
+
+    /// <summary>Nur zur Anzeige und fuer Effekte: gleitet der Spieler gerade?</summary>
+    public bool IsGliding { get; private set; }
     public bool IsDashing => _dashTimer > 0f;
     public bool IsStealthed => _stealthTimer > 0f;
     public IReadOnlyList<AbilityInstance> Abilities => _abilities;
@@ -151,6 +160,16 @@ public sealed class Player : Actor
 
         float gravity = TilePhysics.Gravity * (inWater ? WaterGravityFactor : 1f);
         float maxFall = inWater ? WaterMaxFall : TilePhysics.MaxFallSpeed;
+
+        // Gleiten: nur im Fallen, nur an der Luft, nur mit gehaltener Sprungtaste. Die Schwerkraft
+        // wirkt weiter, wird aber sofort auf die Gleitgeschwindigkeit gedeckelt.
+        IsGliding = GlideFallSpeed > 0f && !OnGround && !inWater && Velocity.Y > 0f
+                    && input.IsDown(GameAction.Jump);
+        if (IsGliding)
+        {
+            gravity *= 0.35f;
+            maxFall = GlideFallSpeed;
+        }
         Velocity.Y = MathF.Min(Velocity.Y + gravity * deltaSeconds, maxFall);
         LastCollision = TilePhysics.MoveAndCollide(this, world.Map, deltaSeconds, ignorePlatforms: _dropThroughTimer > 0f);
         OnGround = LastCollision.HasFlag(CollisionResult.Landed);

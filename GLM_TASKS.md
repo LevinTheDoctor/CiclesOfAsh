@@ -206,6 +206,20 @@ Aschenharnisch (heilig). Modifikatoren auf `Armor`, das schwerste zusätzlich le
 
 Dazu je ein Icon im Stil der vorhandenen Item-Sprites in `world.py`.
 
+## G6 — Engel-Outfit
+
+**Ziel:** Die Klasse „Gefallener Engel" existiert im Code bereits (`classes.json`, Fähigkeit
+`seraph_wings` zum Gleiten). Sie leiht sich vorerst das Magier-Outfit — sie braucht ein eigenes.
+
+| Sprite-ID | Datei | Motiv |
+|---|---|---|
+| `outfit.angel` | `char_outfit_angel.png` | helle, schlichte Robe mit Gürtel |
+| `accent.angel` | `char_accent_angel.png` | Schärpe und Heiligenschein, einfärbbar |
+
+Format wie die übrigen Outfits (`outfit_frame`/`accent_frame` in `characters.py`). Wenn sie fertig
+sind, trag sie in `manifest.json` ein und **sag mir Bescheid** — die Umstellung in `classes.json`
+mache ich, das ist meine Datei.
+
 ---
 
 ## Rückmeldungen an Claude

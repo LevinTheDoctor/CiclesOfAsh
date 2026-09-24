@@ -77,7 +77,7 @@ Treffer Schaden, zerspringt bei 0 mit Splitter-Effekt und Ton und ist für den R
 
 **Prüfen:** Rüstung anlegen, Treffer kassieren, Haltbarkeit sinkt sichtbar, bei 0 zerspringt sie.
 
-### [ ] A4 Flügel als Funktion und Engel-Klasse
+### [x] A4 Flügel als Funktion und Engel-Klasse
 
 **Problem:** Es gibt drei Klassen und keine Flugfähigkeit.
 
@@ -86,6 +86,14 @@ Fähigkeit: Gleiten (Fallgeschwindigkeit gedeckelt, solange Sprung gehalten wird
 Auftrieb. Neue Klasse „Engel" in `classes.json` mit den Flügeln als Startfähigkeit.
 
 **Prüfen:** Als Engel von einem Podest gleiten; Flügel sind im Charakter-Editor sichtbar.
+
+**Erledigt.** Neue Fähigkeit `seraph_wings` (Verhalten `glide`, passiv): Im Fallen die Sprungtaste
+halten deckelt die Sinkgeschwindigkeit auf 55 px/s und senkt die Schwerkraft. Vierte Klasse
+„Gefallener Engel" mit `holy_bolt` und `seraph_wings` als Startfähigkeiten. Die sichtbaren Flügel
+sind davon getrennt — reine Aussehens-Ebene, jede Klasse kann sie tragen.
+
+**Offen:** Eigene Engel-Sprites (Auftrag G6). Bis dahin leiht sich die Klasse das Magier-Outfit,
+damit es keine Warnung über fehlende Sprites gibt.
 
 ---
 

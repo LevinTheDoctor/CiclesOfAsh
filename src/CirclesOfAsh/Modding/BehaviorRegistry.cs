@@ -35,6 +35,7 @@ public sealed class BehaviorRegistry
         registry.RegisterAbility("stealth", () => new StealthAbility());
         registry.RegisterAbility("dash", () => new DashAbility());
         registry.RegisterAbility("air_jump", () => new AirJumpAbility());
+        registry.RegisterAbility("glide", () => new GlideAbility());
 
         registry.RegisterEnemyBrain("walker", () => new WalkerBrain());
         registry.RegisterEnemyBrain("flyer", () => new FlyerBrain());

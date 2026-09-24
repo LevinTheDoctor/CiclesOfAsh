@@ -337,6 +337,82 @@ def golem(anim, frame):
     return polish(image)
 
 
+# ------------------------------------------------------------------ Drachen (G4)
+def drake(anim, frame):
+    """Drache 24x20: fliegender Angreifer, Flügel schlagen (idle = Flug)."""
+    image = new_image(24, 20)
+    draw = ImageDraw.Draw(image)
+    flap = frame % 2
+    scale = (96, 44, 48, 255)
+    dark = (56, 22, 28, 255)
+    belly = (150, 130, 100, 255)
+    wing = (72, 30, 40, 255)
+    # Flügel links/rechts, schlagen mit dem Frame
+    for wy, wx in ((2, 2), (2, 14)):
+        draw.polygon([(wx + 3, 8 + flap * 2), (wx - 2, 1 + flap * 3), (wx + 7, 5 + flap * 2)], fill=wing)
+    rect(draw, 7, 4 + flap, 10, 7, scale)                      # Leib
+    rect(draw, 8, 8 + flap, 8, 2, belly)                       # heller Bauch
+    rect(draw, 15, 3 + flap, 6, 5, scale)                      # Kopf mit Schnauze
+    rect(draw, 20, 5 + flap, 2, 1, dark)                       # Maul
+    pixel(draw, 17, 4 + flap, FLAME)                           # Auge
+    for x in (9, 12, 15):                                      # Rückenstacheln
+        pixel(draw, x, 3 + flap, dark)
+    draw.polygon([(5, 8 + flap), (1, 11 + flap), (5, 12 + flap)], fill=dark)   # Schwanz mit Spitze
+    rect(draw, 8, 12, 2, 2, scale)                             # Beine angezogen
+    rect(draw, 13, 12, 2, 2, scale)
+    pixel(draw, 8, 14, DARK_GOLD)                              # Krallen
+    pixel(draw, 14, 14, DARK_GOLD)
+    if anim == "cast":
+        rect(draw, 21, 7 + flap, 2, 2, FLAME)                  # Feuer speiend
+        pixel(draw, 23, 8 + flap, EMBER)
+    return polish(image)
+
+
+def dragon_whelp(anim, frame):
+    """Drachenjunges 16x16: kleiner Schwarm-Drache, hüpfend-flatternd."""
+    image = new_image(16, 16)
+    draw = ImageDraw.Draw(image)
+    bob = frame % 2
+    scale = (108, 62, 52, 255)
+    dark = (64, 34, 30, 255)
+    wing = (80, 46, 40, 255)
+    draw.polygon([(5, 5 + bob), (0, 1 + bob * 2), (3, 6 + bob)], fill=wing)    # Flügel
+    draw.polygon([(8, 5 + bob), (13, 1 + bob * 2), (10, 6 + bob)], fill=wing)
+    rect(draw, 4, 4 + bob, 7, 6, scale)                        # Leib
+    rect(draw, 9, 5 + bob, 5, 4, scale)                        # Kopf
+    rect(draw, 13, 7 + bob, 2, 1, dark)                        # Maul
+    pixel(draw, 11, 6 + bob, EMBER)                            # Auge
+    pixel(draw, 6, 3 + bob, dark)                              # Stachel
+    pixel(draw, 9, 3 + bob, dark)
+    rect(draw, 5, 10 + bob, 2, 3, scale)                       # Beine
+    rect(draw, 8, 10 + bob, 2, 3, scale)
+    pixel(draw, 5, 13 + bob, DARK_GOLD)
+    pixel(draw, 9, 13 + bob, DARK_GOLD)
+    if anim == "run":
+        rect(draw, 2, 9 + bob, 2, 1, dark)                      # wedelnder Schwanz
+    return polish(image)
+
+
+def companion_dragonling(frame):
+    """Begleiter-Drache 12x12: kleines, treues Drachenjunges."""
+    image = new_image(12, 12)
+    draw = ImageDraw.Draw(image)
+    bob = frame % 2
+    scale = (128, 78, 60, 255)
+    dark = (70, 40, 34, 255)
+    wing = (90, 54, 46, 255)
+    draw.polygon([(3, 4 + bob), (0, 1 + bob * 2), (2, 5 + bob)], fill=wing)
+    draw.polygon([(6, 4 + bob), (9, 1 + bob * 2), (7, 5 + bob)], fill=wing)
+    rect(draw, 2, 3 + bob, 6, 5, scale)                         # Leib
+    rect(draw, 6, 4 + bob, 4, 3, scale)                         # Kopf
+    pixel(draw, 9, 5 + bob, dark)                               # Maul
+    pixel(draw, 8, 4 + bob, GOLD)                               # freundliches Auge
+    pixel(draw, 3, 2 + bob, dark)                               # Stachelchen
+    rect(draw, 3, 8 + bob, 2, 2, scale)                        # Beinchen
+    rect(draw, 6, 8 + bob, 2, 2, scale)
+    return polish(image, light=18, dark=-14, gradient=0)
+
+
 # ------------------------------------------------------------------ NPCs (v2)
 def npc_pilgrim(frame):
     """Betender Pilger 16x20: kniet, gefaltete Hände, warmes Licht."""
@@ -451,6 +527,9 @@ def generate(textures):
                          [knight("cast", i) for i in range(4)]]).save(textures / "enemy_knight.png")
     build_sheet(16, 8, [[leech("idle", i) for i in range(4)], [leech("run", i) for i in range(4)]]).save(textures / "enemy_leech.png")
     build_sheet(24, 24, [[golem("idle", i) for i in range(4)], [golem("run", i) for i in range(4)]]).save(textures / "enemy_golem.png")
+    # --- Drachen (G4): fliegender Angreifer + Schwarm-Drache
+    build_sheet(24, 20, [[drake("idle", i) for i in range(4)], [drake("cast", i) for i in range(4)]]).save(textures / "enemy_drake.png")
+    build_sheet(16, 16, [[dragon_whelp("idle", i) for i in range(4)], [dragon_whelp("run", i) for i in range(4)]]).save(textures / "enemy_dragon_whelp.png")
     # --- NPCs (v2): Pilger, Eremit, Tempelwärtin
     build_sheet(16, 20, [[npc_pilgrim(i) for i in range(4)]]).save(textures / "npc_pilgrim.png")
     build_sheet(16, 20, [[npc_hermit(i) for i in range(4)]]).save(textures / "npc_hermit.png")

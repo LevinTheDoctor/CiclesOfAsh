@@ -45,23 +45,72 @@ def draw_legs(draw, p, color, boot):
 
 # ------------------------------------------------------------------ Körper
 def body_frame(p):
+    return variant_body_frame(p, "m_average")
+
+
+def variant_body_frame(p, variant):
+    """Körpervarianten: Silhouette variiert (Rumpfbreite, Schultern, Taille, Hüfte),
+    Kopf/Hals/Fußlinie bleiben identisch, damit Haare und Outfits weiterhin passen."""
     image = new_image(16, 24)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
-    draw_legs(draw, p, TINT_MID, TINT_DARK)
-    rect(draw, 5, 9 + b, 6, 9, TINT_MID)               # Rumpf (vom Outfit verdeckt)
-    rect(draw, 4, 10 + b + p["arm"], 1, 5, TINT_MID)    # hinterer Arm
+    torso_mid, torso_top = 9 + b, 10 + b
+    heavy = variant.endswith("heavy")
+    athletic = variant.endswith("athletic")
+    female = variant.startswith("f")
+    if heavy:
+        # breiter Rumpf, wenig Taille
+        left, width = 4, 8
+        draw_legs(draw, p, TINT_MID, TINT_DARK)
+        rect(draw, left, torso_mid, width, 9, TINT_MID)
+        if female:
+            rect(draw, 4, 10 + b, 8, 2, TINT_LIGHT)     # breite Brust
+            rect(draw, 4, 16 + b, 8, 2, TINT_DARK)      # Hüfte
+        else:
+            rect(draw, 3, 9 + b, 10, 3, TINT_LIGHT)     # massiver Oberkörper
+            rect(draw, 4, 16 + b, 8, 2, TINT_MID)       # Bauch über dem Gürtel
+    elif athletic:
+        # schmale Taille, breite Schultern (m) bzw. schmale Taille + Hüfte (f)
+        left, width = (5, 6) if female else (4, 8)
+        draw_legs(draw, p, TINT_MID, TINT_DARK)
+        rect(draw, left, torso_mid, width, 9, TINT_MID)
+        if female:
+            rect(draw, 5, 9 + b, 6, 2, TINT_LIGHT)      # Schultern
+            rect(draw, 6, 12 + b, 4, 3, TINT_DARK)      # schmale Taille
+            rect(draw, 5, 15 + b, 6, 2, TINT_LIGHT)     # Hüfte
+        else:
+            rect(draw, 4, 9 + b, 8, 2, TINT_LIGHT)      # breite Schultern
+            rect(draw, 6, 11 + b, 4, 4, TINT_DARK)      # trainierte Taille
+            rect(draw, 5, 15 + b, 6, 2, TINT_MID)
+    else:
+        # average: der bisherige Standardkörper
+        left, width = 5, 6
+        draw_legs(draw, p, TINT_MID, TINT_DARK)
+        rect(draw, left, torso_mid, width, 9, TINT_MID)
+        if female:
+            rect(draw, 6, 12 + b, 4, 2, TINT_DARK)      # angedeutete Taille
+            rect(draw, 5, 15 + b, 6, 2, TINT_LIGHT)     # Hüfte
+    rect(draw, 4, 10 + b + p["arm"], 1, 5, TINT_MID)     # hinterer Arm
+    if heavy:
+        rect(draw, 3, 10 + b + p["arm"], 1, 6, TINT_MID)
+        rect(draw, 12, 10 + b - p["arm"], 1, 6, TINT_LIGHT)
+    elif athletic and not female:
+        rect(draw, 3, 10 + b + p["arm"], 1, 5, TINT_MID)
+        rect(draw, 12, 10 + b - p["arm"], 1, 5, TINT_LIGHT)
     rect(draw, 11, 10 + b - p["arm"], 1, 5, TINT_LIGHT)  # vorderer Arm
-    pixel(draw, 11, 15 + b - p["arm"], TINT_LIGHT)      # Hand
-    rect(draw, 7, 8 + b, 2, 1, TINT_MID)                # Hals
-    rect(draw, 5, 3 + b, 6, 6, TINT_LIGHT)              # Kopf
-    rect(draw, 5, 7 + b, 1, 2, TINT_MID)                # Wangen-/Kieferschatten
+    pixel(draw, 11, 15 + b - p["arm"], TINT_LIGHT)       # Hand
+    if heavy:
+        pixel(draw, 12, 15 + b + p["arm"], TINT_MID)
+        pixel(draw, 12, 16 + b - p["arm"], TINT_LIGHT)
+    rect(draw, 7, 8 + b, 2, 1, TINT_MID)                 # Hals
+    rect(draw, 5, 3 + b, 6, 6, TINT_LIGHT)               # Kopf
+    rect(draw, 5, 7 + b, 1, 2, TINT_MID)                 # Wangen-/Kieferschatten
     pixel(draw, 10, 7 + b, TINT_MID)
-    pixel(draw, 8, 5 + b, TINT_MID)                     # Brauenlinie
+    pixel(draw, 8, 5 + b, TINT_MID)                      # Brauenlinie
     pixel(draw, 10, 5 + b, TINT_MID)
-    pixel(draw, 8, 6 + b, TINT_EYE)                     # Augen (Blick nach rechts)
+    pixel(draw, 8, 6 + b, TINT_EYE)                      # Augen (Blick nach rechts)
     pixel(draw, 10, 6 + b, TINT_EYE)
-    pixel(draw, 9, 8 + b, TINT_DARK)                    # Mund
+    pixel(draw, 9, 8 + b, TINT_DARK)                     # Mund
     return polish(image, outline=TINT_OUTLINE, light=12, dark=-22, gradient=10)
 
 
@@ -166,6 +215,72 @@ def accent_frame(cls, p):
     return polish(image, outline=(50, 50, 56, 255), light=10, dark=-20, gradient=0)
 
 
+# ------------------------------------------------------------------ Make-up (Graustufen, wird eingefärbt)
+def makeup_frame(style, p):
+    """Wenige Pixel im Gesicht (Kopf y 3-9, Augen y 6). Wandert mit p['bob'] mit."""
+    image = new_image(16, 24)
+    draw = ImageDraw.Draw(image)
+    b = p["bob"]
+    if style == "liner":                       # Lidstrich: dunkle Linie unter den Brauen
+        pixel(draw, 7, 5 + b, TINT_DARK)
+        pixel(draw, 8, 5 + b, TINT_DARK)
+        pixel(draw, 9, 5 + b, TINT_DARK)
+        pixel(draw, 10, 5 + b, TINT_DARK)
+        pixel(draw, 7, 4 + b, TINT_MID)        # kleiner Flügel am äußeren Lid
+    elif style == "shadow":                   # Lidschatten: Fläche über den Augen
+        rect(draw, 7, 4 + b, 4, 2, TINT_MID)
+        pixel(draw, 7, 4 + b, TINT_LIGHT)
+        pixel(draw, 10, 4 + b, TINT_DARK)
+    elif style == "lips":                     # betonter Mund
+        rect(draw, 8, 8 + b, 3, 1, TINT_DARK)
+        pixel(draw, 8, 7 + b, TINT_MID)
+        pixel(draw, 10, 7 + b, TINT_MID)
+    elif style == "war":                      # Kriegsbemalung: Streifen über die Wangen
+        rect(draw, 5, 6 + b, 1, 3, TINT_MID)
+        rect(draw, 10, 6 + b, 1, 3, TINT_MID)
+        pixel(draw, 5, 5 + b, TINT_LIGHT)
+        pixel(draw, 10, 5 + b, TINT_LIGHT)
+        pixel(draw, 5, 9 + b, TINT_DARK)
+        pixel(draw, 10, 9 + b, TINT_DARK)
+    return polish(image, outline=None, light=8, dark=-12, gradient=0)
+
+
+# ------------------------------------------------------------------ Flügel (Graustufen, hinter dem Körper)
+def wings_frame(kind, p):
+    """Ragt links und rechts über die Figur hinaus, Fußlinie bleibt gleich. In jump weiter geöffnet."""
+    image = new_image(16, 24)
+    draw = ImageDraw.Draw(image)
+    b = p["bob"]
+    spread = 2 if p["jump"] else 0            # Sprung = erkennbar weiter geöffnet
+    flap = p["frame"] % 2
+    if kind == "feathered":                   # gefiedert, hell (Engel)
+        for side, dir_x in ((4, -1), (11, 1)):
+            top = 6 + b - flap + spread
+            for i in range(5):                # federige Treppenstufen
+                rect(draw, dir_x if dir_x < 0 else dir_x, top + i * 2, 3, 2, TINT_LIGHT if i < 2 else TINT_MID)
+            # Treppenstufen nach außen abflachen lassen
+        for i, y in enumerate(range(top, top + 10)):
+            width = max(0, 3 - i // 3)
+            rect(draw, 1 + flap, y, 1, 1, TINT_MID)
+            rect(draw, 14 - flap, y, 1, 1, TINT_MID)
+    elif kind == "tattered":                  # zerfetzt, dunkel (gefallen)
+        for side, dir_x in ((3, -1), (12, 1)):
+            top = 7 + b - flap + spread
+            for i in range(4):
+                if (i + p["frame"]) % 3 != 2:  # Lücken = zerfetzter Look
+                    rect(draw, dir_x if dir_x < 0 else dir_x, top + i * 2, 2, 2, TINT_DARK)
+        pixel(draw, 2, top + 9, TINT_DARK)
+        pixel(draw, 13, top + 9, TINT_DARK)
+    else:                                     # ember: glühend, aus Asche
+        for side, dir_x in ((4, -1), (11, 1)):
+            top = 6 + b - flap + spread
+            for i in range(4):
+                rect(draw, dir_x if dir_x < 0 else dir_x, top + i * 2, 3 if i % 2 else 1, 2,
+                     TINT_LIGHT if i < 2 else TINT_DARK)
+            pixel(draw, dir_x if dir_x < 0 else dir_x, top, TINT_LIGHT)
+    return polish(image, outline=None, light=14, dark=-18, gradient=8)
+
+
 def layer_sheet(frame_function):
     rows = [[frame_function(pose(anim, i)) for i in range(count)] for anim, count in ANIMATIONS]
     return build_sheet(16, 24, rows)
@@ -173,8 +288,14 @@ def layer_sheet(frame_function):
 
 def generate(textures):
     layer_sheet(body_frame).save(textures / "char_body.png")
+    for variant in ("m_heavy", "m_average", "m_athletic", "f_heavy", "f_average", "f_athletic"):
+        layer_sheet(lambda p, v=variant: variant_body_frame(p, v)).save(textures / f"char_body_{variant}.png")
     for style in ("short", "long", "braid", "mohawk", "hooded_curls"):
         layer_sheet(lambda p, s=style: hair_frame(s, p)).save(textures / f"char_hair_{style}.png")
+    for style in ("liner", "shadow", "lips", "war"):
+        layer_sheet(lambda p, s=style: makeup_frame(s, p)).save(textures / f"char_makeup_{style}.png")
+    for kind in ("feathered", "tattered", "ember"):
+        layer_sheet(lambda p, k=kind: wings_frame(k, p)).save(textures / f"char_wings_{kind}.png")
     for cls in ("warrior", "mage", "shadow"):
         layer_sheet(lambda p, c=cls: outfit_frame(c, p)).save(textures / f"char_outfit_{cls}.png")
         layer_sheet(lambda p, c=cls: accent_frame(c, p)).save(textures / f"char_accent_{cls}.png")

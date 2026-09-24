@@ -163,3 +163,17 @@ public sealed class AirJumpAbility : IAbilityBehavior
 
     public bool TryActivate(DungeonWorld world, Player owner, AbilityInstance ability) => false;
 }
+
+/// <summary>
+/// "glide": Flügel als Funktion. Passiv – der Spieler gleitet, solange er im Fallen die Sprungtaste
+/// hält. Die Fallgeschwindigkeit wird dabei gedeckelt, gesteuert wird weiter normal.
+/// Die sichtbaren Flügel sind davon unabhängig (reine Aussehens-Ebene im Charakter-Editor).
+/// </summary>
+public sealed class GlideAbility : IAbilityBehavior
+{
+    public void OnEquip(Player owner, AbilityInstance ability) =>
+        // Speed steht in abilities.json und ist hier die maximale Sinkgeschwindigkeit.
+        owner.GlideFallSpeed = ability.Definition.Speed > 0f ? ability.Definition.Speed : 60f;
+
+    public bool TryActivate(DungeonWorld world, Player owner, AbilityInstance ability) => false;
+}
