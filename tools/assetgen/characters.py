@@ -1,11 +1,17 @@
 """
-Spielerfigur als EBENEN (16x24 pro Frame), damit der Charakter-Editor sie frei kombinieren kann:
+Spielerfigur als EBENEN (24x32 pro Frame), damit der Charakter-Editor sie frei kombinieren kann:
   body   - Haut (Graustufen -> im Spiel mit Hautton eingefärbt)
   hair_* - Frisuren (Graustufen -> Haarfarbe)
   outfit_<klasse> - feste Farben der Klasse
   accent_<klasse> - Wappenrock/Stola/Schal (Graustufen -> Akzentfarbe)
+  armor_<art>     - feste Rüstungsmaterialien, ungetönt gezeichnet
 Zeichenreihenfolge im Spiel: body, hair, outfit, accent.
 Zeilen: 0 idle, 1 run, 2 jump, 3 hurt (je bis zu 4 Frames).
+
+16-Bit-Sprache (Auftrag G12/G13): vier bis sechs Tonwerte je Material statt drei,
+Lichtquelle oben links, Materialkontrast (Leder matt, Kette glänzend, Bronze warm, Stein stumpf).
+Graustufen-Ebenen bekommen zusaetzliche Zwischentoene (TINT_TOP), damit die Tonwertabstufung
+der Farbtönung mehr Spielraum gibt.
 """
 from PIL import Image, ImageDraw
 
@@ -15,6 +21,10 @@ from .core import (ASH, BLACK, DARK_GOLD, DARK_STEEL, DARK_STONE, DARK_WOOD, DEE
 
 ANIMATIONS = (("idle", 4), ("run", 4), ("jump", 4), ("hurt", 2))
 TINT_OUTLINE = (60, 60, 66, 255)
+TINT_TOP = (225, 225, 225, 255)   # 4. Graustufe: Zwischenwert ueber TINT_MID (16-Bit)
+TINT_DEEP = (110, 110, 110, 255)  # 5. Graustufe: unter TINT_DARK
+
+W, H = 24, 32                     # Frame-Groesse der Figuren-Ebenen
 
 
 def pose(anim, frame):
@@ -22,7 +32,7 @@ def pose(anim, frame):
     run = anim == "run"
     return {
         "bob": 1 if anim in ("idle", "hurt") and frame in (1, 2) else 0,
-        "legs": [(-1, 1, 0, 1), (0, 0, 1, 0), (1, -1, 1, 0), (0, 0, 0, 1)][frame] if run else (0, 0, 0, 0),
+        "legs": [(-2, 2, 0, 1), (0, 0, 2, 0), (2, -2, 2, 0), (0, 0, 0, 2)][frame] if run else (0, 0, 0, 0),
         "arm": [1, 0, -1, 0][frame] if run else 0,
         "jump": anim == "jump",
         "run": run,
@@ -30,359 +40,430 @@ def pose(anim, frame):
     }
 
 
-def draw_legs(draw, p, color, boot):
+def draw_legs(draw, p, color, boot, shade=None):
+    """Beine auf 24x32: 2 px breit, 8 px hoch, vo = Verschleiß-/Schattenfarbe."""
+    shade = shade or shift(color, -35)
     if p["jump"]:
-        rect(draw, 5, 18, 2, 4, color)
-        rect(draw, 9, 17, 2, 4, color)
-        rect(draw, 5, 21, 2, 1, boot)
-        rect(draw, 9, 20, 2, 1, boot)
+        rect(draw, 7, 24, 3, 6, color)
+        rect(draw, 13, 23, 3, 6, color)
+        rect(draw, 7, 24, 1, 6, shift(color, 20))            # Lichtkante links
+        rect(draw, 13, 26, 1, 3, shade)                     # Schattenkante
+        rect(draw, 7, 29, 3, 1, boot)
+        rect(draw, 13, 28, 3, 1, boot)
         return
-    left_shift, right_shift, left_lift, right_lift = p["legs"]
-    rect(draw, 5 + left_shift, 18, 2, 6 - left_lift, color)
-    rect(draw, 9 + right_shift, 18, 2, 6 - right_lift, color)
-    rect(draw, 5 + left_shift, 23 - left_lift, 2, 1, boot)
-    rect(draw, 9 + right_shift, 23 - right_lift, 2, 1, boot)
+    ls, rs, ll, rl = p["legs"]
+    rect(draw, 7 + ls, 24, 3, 8 - ll, color)
+    rect(draw, 13 + rs, 24, 3, 8 - rl, color)
+    rect(draw, 7 + ls, 24, 1, 8 - ll, shift(color, 20))     # Licht oben links
+    rect(draw, 9 + ls, 24 + 3, 1, 5 - ll, shade)            # Schattenkante
+    rect(draw, 13 + rs, 26, 1, 6 - rl, shade)
+    rect(draw, 7 + ls, 31 - ll, 3, 1, boot)
+    rect(draw, 13 + rs, 31 - rl, 3, 1, boot)
 
 
-# ------------------------------------------------------------------ Körper
+# ------------------------------------------------------------------ Körper (G9 + G13)
 def body_frame(p):
     return variant_body_frame(p, "m_average")
 
 
+def head_and_neck(draw, p):
+    """Kopf/Hals aller Körpertypen IDENTISCH (damit Haare und Make-up passen).
+    16-Bit: 5 Hauttonwerte, Licht oben links, Wangen-, Brauen- und Mundschatten."""
+    b = p["bob"]
+    rect(draw, 9, 11 + b, 4, 2, TINT_MID)                   # Hals
+    rect(draw, 9, 11 + b, 1, 2, TINT_TOP)                   # Hals-Lichtkante
+    rect(draw, 7, 3 + b, 8, 9, TINT_LIGHT)                  # Kopf
+    rect(draw, 7, 3 + b, 3, 2, TINT_TOP + (0,) if False else (250, 250, 250, 255))  # Stirnlicht
+    rect(draw, 7, 8 + b, 2, 3, TINT_MID)                    # Wangen-/Kieferschatten
+    rect(draw, 12, 9 + b, 2, 2, TINT_MID)
+    pixel(draw, 8, 9 + b, TINT_DEEP)                        # Kinn-Schatten
+    rect(draw, 8, 6 + b, 2, 1, TINT_MID)                    # Brauen
+    rect(draw, 11, 6 + b, 2, 1, TINT_MID)
+    pixel(draw, 8, 7 + b, TINT_EYE)                         # Augen (Blick nach rechts)
+    pixel(draw, 11, 7 + b, TINT_EYE)
+    pixel(draw, 8, 11 + b, TINT_DARK)                       # Mund
+
+
 def variant_body_frame(p, variant):
-    """Körpervarianten: Silhouette UND Binnenzeichnung variieren (Taille, Muskeln, Rundung),
-    Kopf/Hals/Fußlinie bleiben identisch, damit Haare und Kleidung weiterhin passen."""
-    image = new_image(16, 24)
+    """Körpervarianten auf 24x32: Silhouette UND Binnenzeichnung.
+    Rumpf y 13-23, Beine ab 24. Kopf (y 3-11) und Fußlinie (y 31) bleiben identisch."""
+    image = new_image(W, H)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
     heavy = variant.endswith("heavy")
     athletic = variant.endswith("athletic")
     female = variant.startswith("f")
+    draw_legs(draw, p, TINT_MID, TINT_DARK, TINT_DEEP)
     if heavy:
-        # breiter Rumpf, weiche Rundung: Schatten nur am Rand, Bauch leicht vorgewölbt
-        draw_legs(draw, p, TINT_MID, TINT_DARK)
-        rect(draw, 4, 9 + b, 8, 9, TINT_MID)
-        rect(draw, 3, 9 + b, 10, 3, TINT_LIGHT)     # breite, weiche Schultern/Kasten oben
-        rect(draw, 4, 16 + b, 8, 2, TINT_DARK)      # vorgewölbte Bauch-Unterkante
-        pixel(draw, 5, 12 + b, TINT_DARK)           # Rand-Deutung statt Muskeln
-        pixel(draw, 10, 12 + b, TINT_DARK)
-        pixel(draw, 5, 14 + b, TINT_DARK)
-        pixel(draw, 10, 14 + b, TINT_DARK)
+        # breiter Rumpf, weiche Rundung: Schatten nur am Rand, Bauch vorgewölbt
+        rect(draw, 6, 13 + b, 12, 10, TINT_MID)
+        rect(draw, 5, 13 + b, 14, 4, TINT_LIGHT)             # massiver Kasten oben
+        rect(draw, 5, 13 + b, 5, 2, (250, 250, 250, 255))   # Licht oben links
+        rect(draw, 6, 21 + b, 12, 2, TINT_DEEP)             # vorgewölbte Bauch-Unterkante
+        for y in (15, 17, 19):                               # Rand-Deutung statt Muskeln
+            pixel(draw, 6, y + b, TINT_DEEP)
+            pixel(draw, 17, y + b, TINT_DEEP)
         if female:
-            rect(draw, 4, 10 + b, 8, 2, TINT_LIGHT)
-            pixel(draw, 6, 13 + b, TINT_DARK)       # sanfter Busen-Schatten
-            pixel(draw, 9, 13 + b, TINT_DARK)
-            rect(draw, 5, 14 + b, 1, 2, TINT_DARK)  # angedeutete Taille unter dem Busen
-            rect(draw, 10, 14 + b, 1, 2, TINT_DARK)
+            rect(draw, 6, 15 + b, 2, 2, TINT_TOP)            # sanfter Brust-Schatten
+            rect(draw, 15, 15 + b, 2, 2, TINT_TOP)
+            pixel(draw, 8, 16 + b, TINT_DEEP)
+            pixel(draw, 15, 16 + b, TINT_DEEP)
+            rect(draw, 7, 18 + b, 1, 2, TINT_DEEP)          # angedeutete Taille
+            rect(draw, 16, 18 + b, 1, 2, TINT_DEEP)
         else:
-            rect(draw, 3, 10 + b, 1, 4, TINT_DARK)   # seitliche Wamst-Rundung
-            rect(draw, 12, 10 + b, 1, 4, TINT_DARK)
+            rect(draw, 5, 16 + b, 1, 5, TINT_DEEP)          # seitliche Wamst-Rundung
+            rect(draw, 18, 16 + b, 1, 5, TINT_DEEP)
+            rect(draw, 6, 20 + b, 12, 1, TINT_DARK)         # Bauchfalte
     elif athletic:
-        # schmale Taille, breite Schultern — plus Bauchmuskeln als waagerechte Schattenlinien
-        draw_legs(draw, p, TINT_MID, TINT_DARK)
+        # breite Schultern, schmale Taille — plus Bauchmuskeln (auf 24x32 echtes Sixpack)
         if female:
-            # f_athletic: breitere Schultern (x 4-11) UND schmalerer Rumpf als f_average —
-            # die Silhouette MUSS sich von f_average unterscheiden (Auftrag G9)
-            rect(draw, 4, 9 + b, 8, 2, TINT_LIGHT)    # breite trainierte Schultern
-            rect(draw, 6, 11 + b, 4, 3, TINT_MID)     # Rumpf auf 4 px Taille verjüngt
-            rect(draw, 5, 14 + b, 6, 4, TINT_MID)     # Hüfte ausgestellt, bis y 17 durchgehend
-            pixel(draw, 5, 12 + b, TINT_DARK)        # eingezogene Taille, beidseitig
-            pixel(draw, 5, 13 + b, TINT_DARK)
-            pixel(draw, 10, 12 + b, TINT_DARK)
-            pixel(draw, 10, 13 + b, TINT_DARK)
-            for y in (11, 13, 15):                    # Bauchmuskeln: waagerechte Linien
-                pixel(draw, 7, y + b, TINT_DARK)
-                pixel(draw, 8, y + b, TINT_DARK)
+            rect(draw, 5, 13 + b, 14, 11, TINT_MID)
+            rect(draw, 5, 13 + b, 14, 3, TINT_LIGHT)        # breite trainierte Schultern
+            rect(draw, 5, 13 + b, 6, 2, (250, 250, 250, 255))
+            rect(draw, 8, 17 + b, 8, 4, TINT_MID)            # Taille auf 8 px verjüngt
+            pixel(draw, 7, 18 + b, TINT_DEEP)               # eingezogene Taille beidseitig
+            pixel(draw, 7, 19 + b, TINT_DEEP)
+            pixel(draw, 16, 18 + b, TINT_DEEP)
+            pixel(draw, 16, 19 + b, TINT_DEEP)
+            rect(draw, 6, 21 + b, 12, 2, TINT_LIGHT)        # Hüfte ausgestellt
+            for y in (17, 19, 21):                           # Bauchmuskeln
+                rect(draw, 10, y + b, 3, 1, TINT_DEEP)
+                rect(draw, 13, y + b, 2, 1, TINT_DEEP)
         else:
-            rect(draw, 4, 9 + b, 8, 9, TINT_MID)
-            rect(draw, 4, 9 + b, 8, 2, TINT_LIGHT)    # breite Schultern
-            rect(draw, 6, 11 + b, 4, 4, TINT_MID)     # trainierte Taille (schmaler als Schultern)
-            rect(draw, 5, 15 + b, 6, 2, TINT_MID)
-            for y in (11, 13, 15):                    # Sixpack: drei Schattenlinien
-                rect(draw, 7, y + b, 2, 1, TINT_DARK)
-            pixel(draw, 6, 12 + b, TINT_DARK)         # vertikale Mittelrinne
-            pixel(draw, 6, 14 + b, TINT_DARK)
-            pixel(draw, 6, 16 + b, TINT_DARK)
+            rect(draw, 4, 13 + b, 16, 11, TINT_MID)
+            rect(draw, 4, 13 + b, 16, 3, TINT_LIGHT)        # breite Schultern
+            rect(draw, 4, 13 + b, 7, 2, (250, 250, 250, 255))
+            rect(draw, 8, 16 + b, 8, 5, TINT_MID)            # trainierte Taille (schmaler)
+            for y in (17, 19, 21):                           # Sixpack: drei Schattenlinien
+                rect(draw, 10, y + b, 4, 1, TINT_DEEP)
+            rect(draw, 11, 16 + b, 1, 6, TINT_DEEP)          # vertikale Mittelrinne
+            rect(draw, 10, 22 + b, 4, 1, TINT_DARK)         # Leistenbeuge
+            rect(draw, 6, 21 + b, 12, 2, TINT_MID)
     else:
         # average: Standardkörper mit dezenter Zeichnung
-        draw_legs(draw, p, TINT_MID, TINT_DARK)
-        rect(draw, 5, 9 + b, 6, 9, TINT_MID)
+        rect(draw, 7, 13 + b, 10, 10, TINT_MID)
+        rect(draw, 7, 13 + b, 10, 3, TINT_LIGHT)
+        rect(draw, 7, 13 + b, 4, 2, (250, 250, 250, 255))
         if female:
-            rect(draw, 5, 10 + b, 6, 2, TINT_LIGHT)   # Brust
-            pixel(draw, 6, 12 + b, TINT_DARK)         # eingezogene Taille
-            pixel(draw, 6, 13 + b, TINT_DARK)
-            pixel(draw, 10, 12 + b, TINT_DARK)
-            pixel(draw, 10, 13 + b, TINT_DARK)
-            rect(draw, 5, 15 + b, 6, 2, TINT_LIGHT)   # Hüfte
+            rect(draw, 8, 15 + b, 3, 2, TINT_TOP)           # Brust
+            rect(draw, 13, 15 + b, 3, 2, TINT_TOP)
+            pixel(draw, 8, 18 + b, TINT_DEEP)                # eingezogene Taille
+            pixel(draw, 8, 19 + b, TINT_DEEP)
+            pixel(draw, 15, 18 + b, TINT_DEEP)
+            pixel(draw, 15, 19 + b, TINT_DEEP)
+            rect(draw, 7, 20 + b, 10, 2, TINT_LIGHT)        # Hüfte
         else:
-            pixel(draw, 6, 13 + b, TINT_DARK)          # leichte Taille andeuten
-            pixel(draw, 10, 13 + b, TINT_DARK)
-    rect(draw, 4, 10 + b + p["arm"], 1, 5, TINT_MID)     # hinterer Arm
+            pixel(draw, 8, 18 + b, TINT_DEEP)               # leichte Taille
+            pixel(draw, 15, 18 + b, TINT_DEEP)
+    # Arme: hinterer Arm (x 5-6), vorderer Arm (x 17-18) — breiter als vorher, mit Licht/Schatten
+    arm = p["arm"]
+    rect(draw, 5, 14 + b + arm, 2, 8, TINT_MID)
+    rect(draw, 5, 14 + b + arm, 1, 8, TINT_TOP)
+    rect(draw, 17, 14 + b - arm, 2, 8, TINT_LIGHT)
+    rect(draw, 18, 14 + b - arm, 1, 8, TINT_TOP)
+    pixel(draw, 17, 22 + b - arm, TINT_LIGHT)               # Hand vorn
+    pixel(draw, 18, 22 + b - arm, TINT_TOP)
+    pixel(draw, 5, 22 + b + arm, TINT_MID)                  # Hand hinten
     if heavy:
-        rect(draw, 3, 10 + b + p["arm"], 1, 6, TINT_MID)
-        rect(draw, 12, 10 + b - p["arm"], 1, 6, TINT_LIGHT)
-    elif athletic and not female:
-        rect(draw, 3, 10 + b + p["arm"], 1, 5, TINT_MID)
-        rect(draw, 12, 10 + b - p["arm"], 1, 5, TINT_LIGHT)
-    rect(draw, 11, 10 + b - p["arm"], 1, 5, TINT_LIGHT)  # vorderer Arm
-    pixel(draw, 11, 15 + b - p["arm"], TINT_LIGHT)       # Hand
-    if heavy:
-        pixel(draw, 12, 15 + b + p["arm"], TINT_MID)
-        pixel(draw, 12, 16 + b - p["arm"], TINT_LIGHT)
-    rect(draw, 7, 8 + b, 2, 1, TINT_MID)                 # Hals
-    rect(draw, 5, 3 + b, 6, 6, TINT_LIGHT)               # Kopf
-    rect(draw, 5, 7 + b, 1, 2, TINT_MID)                 # Wangen-/Kieferschatten
-    pixel(draw, 10, 7 + b, TINT_MID)
-    pixel(draw, 8, 5 + b, TINT_MID)                      # Brauenlinie
-    pixel(draw, 10, 5 + b, TINT_MID)
-    pixel(draw, 8, 6 + b, TINT_EYE)                      # Augen (Blick nach rechts)
-    pixel(draw, 10, 6 + b, TINT_EYE)
-    pixel(draw, 9, 8 + b, TINT_DARK)                     # Mund
-    return polish(image, outline=TINT_OUTLINE, light=12, dark=-22, gradient=10)
+        rect(draw, 4, 14 + b + arm, 1, 9, TINT_MID)         # wuchtigere Arme
+        rect(draw, 19, 14 + b - arm, 1, 9, TINT_LIGHT)
+    elif athletic:
+        rect(draw, 4, 14 + b + arm, 1, 8, TINT_MID)
+        rect(draw, 19, 14 + b - arm, 1, 8, TINT_LIGHT)
+    head_and_neck(draw, p)
+    return polish(image, outline=TINT_OUTLINE, light=14, dark=-24, gradient=12)
 
 
-# ------------------------------------------------------------------ Haare
+# ------------------------------------------------------------------ Haare (Graustufen)
 def hair_frame(style, p):
-    image = new_image(16, 24)
+    image = new_image(W, H)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
-    light, mid, dark = TINT_LIGHT, TINT_MID, TINT_DARK
+    light, mid, dark, top = TINT_LIGHT, TINT_MID, TINT_DARK, (250, 250, 250, 255)
     if style == "short":
-        rect(draw, 5, 2 + b, 6, 2, mid)
-        rect(draw, 4, 3 + b, 2, 3, mid)
-        rect(draw, 9, 3 + b, 2, 1, light)
-        pixel(draw, 6, 2 + b, light)
+        rect(draw, 7, 2 + b, 8, 3, mid)
+        rect(draw, 6, 4 + b, 3, 3, mid)
+        rect(draw, 6, 2 + b, 4, 1, top)
+        rect(draw, 13, 4 + b, 2, 1, light)
+        pixel(draw, 9, 2 + b, light)
     elif style == "long":
-        rect(draw, 5, 2 + b, 6, 2, mid)
-        rect(draw, 3, 3 + b, 3, 9, mid)                # langes Haar fällt über den Rücken
-        rect(draw, 3, 11 + b, 2, 2, dark)
-        rect(draw, 9, 3 + b, 2, 1, light)
-        pixel(draw, 7, 2 + b, light)
+        rect(draw, 7, 2 + b, 8, 3, mid)
+        rect(draw, 4, 4 + b, 4, 12, mid)                    # langes Haar über den Rücken
+        rect(draw, 4, 4 + b, 1, 10, TINT_TOP)              # Lichtkante links
+        rect(draw, 4, 14 + b, 3, 3, dark)
+        rect(draw, 13, 4 + b, 2, 1, light)
+        pixel(draw, 9, 2 + b, light)
+        rect(draw, 7, 2 + b, 3, 1, top)
     elif style == "braid":
-        rect(draw, 5, 2 + b, 6, 2, mid)
-        rect(draw, 4, 3 + b, 2, 3, mid)
-        for index, y in enumerate(range(6, 15)):       # geflochtener Zopf: abwechselnd hell/dunkel
-            pixel(draw, 3 + (index % 2), y + b, light if index % 2 else dark)
-        pixel(draw, 3, 15 + b, GOLD)                   # Zopfspange (feste Farbe)
+        rect(draw, 7, 2 + b, 8, 3, mid)
+        rect(draw, 6, 4 + b, 3, 4, mid)
+        rect(draw, 7, 2 + b, 4, 1, top)
+        for index, y in enumerate(range(8, 21)):           # Zopf: abwechselnd hell/dunkel
+            pixel(draw, 4 + (index % 2), y + b, light if index % 2 else dark)
+        rect(draw, 4, 21 + b, 2, 2, dark)                  # Zopfspitze
+        pixel(draw, 4, 22 + b, GOLD)                        # Zopfspange (feste Farbe)
     elif style == "mohawk":
-        rect(draw, 7, 0 + b, 2, 3, mid)
-        pixel(draw, 7, 0 + b, light)
-        rect(draw, 5, 3 + b, 1, 2, dark)               # rasierte Seiten
+        rect(draw, 10, 0 + b, 4, 4, mid)
+        pixel(draw, 10, 0 + b, top)
+        rect(draw, 8, 0 + b, 1, 3, light)
+        rect(draw, 7, 4 + b, 2, 3, dark)                    # rasierte Seiten
+        rect(draw, 15, 4 + b, 2, 3, dark)
     elif style == "hooded_curls":
-        for x, y in ((5, 2), (7, 1), (9, 2), (4, 4), (10, 3), (6, 2), (8, 2)):
+        for x, y in ((7, 2), (10, 1), (13, 2), (6, 4), (14, 3), (8, 2), (12, 2)):
             rect(draw, x, y + b, 2, 2, mid)
             pixel(draw, x, y + b, light)
+        rect(draw, 7, 2 + b, 2, 1, top)
     return polish(image, outline=TINT_OUTLINE, light=10, dark=-20, gradient=0)
 
 
-# ------------------------------------------------------------------ Outfits (feste Farben)
-# G10: leichte Kleidung statt Vollpanzer — der Rumpf (y 9-16) bleibt frei, damit der
-# Körpertyp sichtbar bleibt; die Klasse erkennen Klinge/Stab/Kapuze/Heiligenschein.
+# ------------------------------------------------------------------ Outfits (feste Farben, G10 + G13)
+# Leichte Kleidung — Rumpf (y 16-20) bleibt frei; Klasse erkennen Klinge/Stab/Kapuze/Schein.
 def outfit_frame(cls, p):
-    image = new_image(16, 24)
+    image = new_image(W, H)
     draw = ImageDraw.Draw(image)
     b, arm, frame = p["bob"], p["arm"], p["frame"]
     if cls == "warrior":
-        draw_legs(draw, p, DARK_STEEL, BLACK)              # Hose
-        rect(draw, 5, 15 + b, 6, 1, LEATHER)               # Gürtel
-        pixel(draw, 8, 15 + b, GOLD)                       # Schnalle
-        rect(draw, 5, 9 + b, 2, 1, LEATHER)                # Riemen über die Schultern (nur y 9)
-        rect(draw, 9, 9 + b, 2, 1, LEATHER)
-        rect(draw, 4, 9 + b, 2, 2, DARK_STEEL)             # Schulterplatten bleiben
-        rect(draw, 10, 9 + b, 2, 2, DARK_STEEL)
-        rect(draw, 11, 13 + b - arm, 1, 2, DARK_STEEL)     # Panzerhandschuh
-        rect(draw, 12, 5 + b, 1, 10, STEEL)                # Klinge
-        pixel(draw, 12, 5 + b, (230, 230, 240, 255))
-        rect(draw, 11, 15 + b, 3, 1, GOLD)                 # Parierstange
-        pixel(draw, 12, 16 + b, LEATHER)
+        steel_l = (200, 200, 218, 255)                     # Stahl-Licht
+        steel_m = DARK_STEEL                                # Stahl-Mittelton (Hose)
+        steel_d = (55, 55, 68, 255)                         # Stahl-Schatten
+        draw_legs(draw, p, steel_m, BLACK, steel_d)
+        rect(draw, 7, 21 + b, 10, 2, LEATHER)               # Gürtel
+        rect(draw, 11, 21 + b, 2, 2, GOLD)                  # Schnalle
+        rect(draw, 7, 13 + b, 3, 1, LEATHER)                # Riemen über die Schultern (nur y 13)
+        rect(draw, 14, 13 + b, 3, 1, LEATHER)
+        rect(draw, 6, 13 + b, 3, 3, steel_m)                # Schulterplatten
+        rect(draw, 6, 13 + b, 3, 1, steel_l)
+        rect(draw, 15, 13 + b, 3, 3, steel_m)
+        rect(draw, 15, 13 + b, 3, 1, steel_l)
+        rect(draw, 18, 18 + b - arm, 2, 3, steel_m)          # Panzerhandschuh am vorderen Arm
+        rect(draw, 19, 18 + b - arm, 1, 3, steel_l)
+        rect(draw, 21, 7 + b, 2, 13, STEEL)                  # Klinge
+        rect(draw, 21, 7 + b, 1, 13, steel_l)
+        pixel(draw, 21, 7 + b, (235, 235, 246, 255))
+        rect(draw, 20, 20 + b, 4, 1, GOLD)                   # Parierstange
+        pixel(draw, 22, 21 + b, LEATHER)
     elif cls == "mage":
         sway = [0, 1, 0, -1][frame] if p["run"] else 0
-        draw_legs(draw, p, DEEP_PURPLE, BLACK)            # Hose
-        rect(draw, 4 + sway, 17 + b, 8, 5, DEEP_PURPLE)   # knielanger Rock ab der Hüfte (Rumpf frei)
-        rect(draw, 4, 8 + b, 8, 2, PURPLE)                 # Kapuze (zurückgeschlagen)
-        rect(draw, 5, 15 + b, 6, 1, LEATHER)               # Kordel als Gürtel
-        rect(draw, 11, 11 + b - arm, 1, 4, PURPLE)         # Ärmel am vorderen Arm
-        rect(draw, 13, 4 + b, 1, 19, WOOD)                 # Stab
-        rect(draw, 12, 1 + b, 3, 3, SOUL if frame % 2 == 0 else MANA)
-        pixel(draw, 13, 0 + b, (220, 255, 240, 255))
+        robe_l = (78, 48, 110, 255)                         # Robe-Licht
+        robe_m = DEEP_PURPLE
+        robe_d = (36, 20, 56, 255)
+        draw_legs(draw, p, robe_m, BLACK, robe_d)
+        rect(draw, 6 + sway, 23 + b, 12, 6, robe_m)         # knielanger Rock ab der Hüfte
+        rect(draw, 6 + sway, 23 + b, 3, 6, robe_l)          # Lichtkante
+        rect(draw, 14 + sway, 27 + b, 4, 2, robe_d)         # Faltenwurf
+        rect(draw, 6, 12 + b, 12, 3, PURPLE)                # Kapuze (zurückgeschlagen)
+        rect(draw, 6, 12 + b, 5, 1, robe_l)
+        rect(draw, 7, 21 + b, 10, 1, LEATHER)               # Kordel als Gürtel
+        rect(draw, 18, 15 + b - arm, 2, 6, PURPLE)           # Ärmel am vorderen Arm
+        rect(draw, 18, 15 + b - arm, 1, 6, robe_l)
+        rect(draw, 21, 5 + b, 2, 25, WOOD)                  # Stab
+        rect(draw, 21, 5 + b, 1, 25, (120, 82, 58, 255))
+        rect(draw, 20, 1 + b, 4, 4, SOUL if frame % 2 == 0 else MANA)
+        pixel(draw, 21, 0 + b, (220, 255, 240, 255))
+        pixel(draw, 22, 2 + b, (240, 255, 250, 255))
     elif cls == "shadow":
-        draw_legs(draw, p, SHADOW, BLACK)                  # enge Hose
-        rect(draw, 5, 15 + b, 6, 1, SHADOW)                 # Hüfttuch
-        rect(draw, 4, 2 + b, 8, 3, BLACK)                  # Kapuze bleibt
-        rect(draw, 4, 2 + b, 2, 8, BLACK)
-        rect(draw, 11, 3 + b, 1, 5, BLACK)
-        rect(draw, 7, 7 + b, 4, 2, (40, 32, 52, 255))      # Maske
-        rect(draw, 3, 10 + b, 1, 5, BLACK)                 # Umhangstreifen hinter dem Rücken
-        rect(draw, 12, 13 + b - arm, 1, 4, STEEL)          # Dolch
-        rect(draw, 11, 16 + b - arm, 3, 1, DARK_STEEL)
+        cloak = (40, 32, 52, 255)
+        draw_legs(draw, p, SHADOW, BLACK, (22, 16, 32, 255))
+        rect(draw, 7, 21 + b, 10, 2, SHADOW)                 # Hüfttuch
+        rect(draw, 7, 21 + b, 4, 1, (52, 42, 66, 255))
+        rect(draw, 6, 3 + b, 12, 4, BLACK)                   # Kapuze
+        rect(draw, 6, 3 + b, 3, 10, BLACK)
+        rect(draw, 17, 4 + b, 2, 6, BLACK)
+        rect(draw, 10, 10 + b, 6, 3, cloak)                  # Maske
+        rect(draw, 11, 11 + b, 1, 1, (90, 110, 130, 255))    # Masken-Augen-Glanz
+        rect(draw, 14, 11 + b, 1, 1, (90, 110, 130, 255))
+        rect(draw, 4, 13 + b, 2, 7, BLACK)                   # Umhangstreifen hinter dem Rücken
+        rect(draw, 21, 17 + b - arm, 2, 5, STEEL)            # Dolch
+        rect(draw, 21, 17 + b - arm, 1, 5, (210, 210, 225, 255))
+        rect(draw, 20, 21 + b - arm, 4, 1, DARK_STEEL)
     else:  # angel
-        # Gefallener Engel: helle, schlichte Kleidung mit Gürtel (Rumpf frei)
         sway = [0, 1, 0, -1][frame] if p["run"] else 0
         robe = (218, 212, 198, 255)
-        robe_dark = (170, 164, 152, 255)
-        draw_legs(draw, p, robe_dark, BLACK)
-        rect(draw, 5 + sway, 17 + b, 6, 5, robe)           # knielanger Rock ab der Hüfte
-        rect(draw, 6, 9 + b, 4, 1, shift(robe, 15))        # heller Kragen (nur y 9)
-        rect(draw, 5, 15 + b, 6, 1, LEATHER)               # schlichter Gürtel
-        pixel(draw, 8, 15 + b, GOLD)                       # kleine Schnalle
-        rect(draw, 11, 11 + b - arm, 1, 4, robe_dark)      # Ärmel am vorderen Arm
-        rect(draw, 12, 10 + b - arm, 1, 2, (235, 232, 224, 255))  # Hand
+        robe_l = (238, 233, 220, 255)
+        robe_d = (170, 164, 152, 255)
+        draw_legs(draw, p, robe_d, BLACK, (140, 134, 122, 255))
+        rect(draw, 7 + sway, 23 + b, 10, 6, robe)           # knielanger Rock ab der Hüfte
+        rect(draw, 7 + sway, 23 + b, 3, 6, robe_l)          # Licht oben links
+        rect(draw, 13 + sway, 27 + b, 3, 2, robe_d)         # Falte
+        rect(draw, 8, 13 + b, 8, 1, robe_l)                 # heller Kragen (nur y 13)
+        rect(draw, 7, 21 + b, 10, 1, LEATHER)               # schlichter Gürtel
+        pixel(draw, 12, 21 + b, GOLD)                       # kleine Schnalle
+        rect(draw, 18, 15 + b - arm, 2, 6, robe_d)           # Ärmel am vorderen Arm
+        rect(draw, 18, 15 + b - arm, 1, 6, robe_l)
     return polish(image)
 
 
 def accent_frame(cls, p):
-    image = new_image(16, 24)
+    image = new_image(W, H)
     draw = ImageDraw.Draw(image)
     b, frame = p["bob"], p["frame"]
     if cls == "warrior":
-        rect(draw, 2, 10 + b, 2, 10, TINT_DARK)            # Umhang hinten
+        rect(draw, 3, 14 + b, 3, 13, TINT_DARK)             # Umhang hinten
+        rect(draw, 3, 14 + b, 1, 12, TINT_MID)              # Lichtkante
         if p["run"]:
-            rect(draw, 1, 12 + b + frame % 2, 1, 6, TINT_DARK)
-        rect(draw, 6, 9 + b, 4, 2, TINT_MID)               # kleines Wappen nur auf der Brust (y 9-10)
-        rect(draw, 7, 9 + b, 2, 1, TINT_LIGHT)
+            rect(draw, 1, 16 + b + frame % 2, 2, 8, TINT_DARK)
+        rect(draw, 8, 13 + b, 8, 2, TINT_MID)                # kleines Wappen auf der Brust (y 13-14)
+        rect(draw, 9, 13 + b, 6, 1, TINT_LIGHT)
     elif cls == "mage":
         sway = [0, 1, 0, -1][frame] if p["run"] else 0
-        rect(draw, 7, 9 + b, 2, 2, TINT_MID)               # kurze Stola über dem Brustbein (y 9-10)
-        pixel(draw, 7, 11 + b, TINT_LIGHT)
-        pixel(draw, 8, 11 + b, TINT_LIGHT)
-        rect(draw, 4 + sway, 21 + b, 8, 1, TINT_LIGHT)     # Saum unten bleibt
+        rect(draw, 9, 13 + b, 3, 3, TINT_MID)                # kurze Stola über dem Brustbein
+        rect(draw, 9, 13 + b, 2, 1, TINT_TOP)
+        pixel(draw, 10, 16 + b, TINT_LIGHT)
+        rect(draw, 6 + sway, 28 + b, 12, 1, TINT_LIGHT)      # Saum unten
     elif cls == "shadow":
-        rect(draw, 5, 9 + b, 6, 2, TINT_MID)               # Schal um den Hals
+        rect(draw, 7, 13 + b, 10, 2, TINT_MID)               # Schal um den Hals
+        rect(draw, 7, 13 + b, 5, 1, TINT_TOP)
         if p["run"]:
-            rect(draw, 1 + frame % 2, 10 + b, 4, 1, TINT_DARK)
+            rect(draw, 2 + frame % 2, 14 + b, 5, 1, TINT_DARK)
         else:
-            rect(draw, 4, 10 + b, 1, 3, TINT_DARK)
+            rect(draw, 5, 14 + b, 2, 4, TINT_DARK)
     else:  # angel
-        # Gefallener Engel: Schärpe über die Schulter + Heiligenschein, einfärbbar (Graustufen)
         sway = [0, 1, 0, -1][frame] if p["run"] else 0
-        rect(draw, 6, 9 + b, 2, 1, TINT_MID)               # Schärpe an der Schulter (nur y 9)
-        for y in range(10 + b, 16 + b):                   # diagonal über die Brust (dünn, 1 px)
-            pixel(draw, 6 + (y - 10 - b) // 3, y, TINT_MID)
-        pixel(draw, 8, 16 + b, TINT_DARK)                  # Quaste
-        pixel(draw, 9, 17 + b, TINT_DARK)
-        halo = (240, 240, 240, 255)                        # Heiligenschein als Ellipse über dem Kopf
-        draw.arc([4 + sway, 0 + b, 11 + sway, 4 + b], 180, 360, fill=TINT_LIGHT, width=1)
-        pixel(draw, 4 + sway, 1 + b, halo)
-        pixel(draw, 11 + sway, 1 + b, halo)
+        rect(draw, 8, 13 + b, 3, 1, TINT_MID)                # Schärpe an der Schulter (nur y 13)
+        for y in range(14 + b, 21 + b):                      # diagonal über die Brust (dünn, 1-2 px)
+            pixel(draw, 8 + (y - 14 - b) // 3, y, TINT_MID)
+            if (y - b) % 3 == 2:
+                pixel(draw, 9 + (y - 14 - b) // 3, y, TINT_DARK)
+        pixel(draw, 11, 22 + b, TINT_DARK)                   # Quaste
+        pixel(draw, 12, 23 + b, TINT_DARK)
+        halo = (240, 240, 240, 255)                          # Heiligenschein über dem Kopf
+        draw.arc([6 + sway, 0 + b, 17 + sway, 6 + b], 180, 360, fill=TINT_LIGHT, width=1)
+        pixel(draw, 6 + sway, 1 + b, halo)
+        pixel(draw, 17 + sway, 1 + b, halo)
     return polish(image, outline=(50, 50, 56, 255), light=10, dark=-20, gradient=0)
 
 
 # ------------------------------------------------------------------ Make-up (Graustufen, wird eingefärbt)
 def makeup_frame(style, p):
-    """Wenige Pixel im Gesicht (Kopf y 3-9, Augen y 6). Wandert mit p['bob'] mit."""
-    image = new_image(16, 24)
+    """Wenige Pixel im Gesicht (Kopf y 3-11, Augen y 7). Wandert mit p['bob'] mit."""
+    image = new_image(W, H)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
     if style == "liner":                       # Lidstrich: dunkle Linie unter den Brauen
-        pixel(draw, 7, 5 + b, TINT_DARK)
-        pixel(draw, 8, 5 + b, TINT_DARK)
-        pixel(draw, 9, 5 + b, TINT_DARK)
-        pixel(draw, 10, 5 + b, TINT_DARK)
-        pixel(draw, 7, 4 + b, TINT_MID)        # kleiner Flügel am äußeren Lid
-    elif style == "shadow":                   # Lidschatten: Fläche über den Augen
-        rect(draw, 7, 4 + b, 4, 2, TINT_MID)
-        pixel(draw, 7, 4 + b, TINT_LIGHT)
-        pixel(draw, 10, 4 + b, TINT_DARK)
-    elif style == "lips":                     # betonter Mund
-        rect(draw, 8, 8 + b, 3, 1, TINT_DARK)
-        pixel(draw, 8, 7 + b, TINT_MID)
-        pixel(draw, 10, 7 + b, TINT_MID)
-    elif style == "war":                      # Kriegsbemalung: Streifen über die Wangen
-        rect(draw, 5, 7 + b, 1, 3, TINT_MID)
-        rect(draw, 10, 7 + b, 1, 3, TINT_MID)
-        pixel(draw, 5, 10 + b, TINT_DARK)
-        pixel(draw, 10, 10 + b, TINT_DARK)
+        rect(draw, 8, 6 + b, 3, 1, TINT_DARK)
+        rect(draw, 11, 6 + b, 2, 1, TINT_DARK)
+        pixel(draw, 7, 5 + b, TINT_MID)         # kleiner Flügel am äußeren Lid
+    elif style == "shadow":                    # Lidschatten: Fläche über den Augen
+        rect(draw, 8, 5 + b, 5, 2, TINT_MID)
+        pixel(draw, 8, 5 + b, TINT_TOP)
+        pixel(draw, 12, 5 + b, TINT_DARK)
+    elif style == "lips":                      # betonter Mund
+        rect(draw, 9, 11 + b, 4, 1, TINT_DARK)
+        pixel(draw, 9, 10 + b, TINT_MID)
+        pixel(draw, 12, 10 + b, TINT_MID)
+    elif style == "war":                       # Kriegsbemalung: Streifen über die Wangen
+        rect(draw, 7, 9 + b, 1, 4, TINT_MID)
+        rect(draw, 15, 9 + b, 1, 4, TINT_MID)
+        pixel(draw, 7, 13 + b, TINT_DARK)
+        pixel(draw, 15, 13 + b, TINT_DARK)
     return polish(image, outline=None, light=8, dark=-12, gradient=0)
 
 
 # ------------------------------------------------------------------ Flügel (Graustufen, hinter dem Körper)
 def wings_frame(kind, p):
     """Ragt links und rechts über die Figur hinaus, Fußlinie bleibt gleich. In jump weiter geöffnet.
-    Wir nur die linke Flügelhälfte und spiegelt sie an x=8 auf die rechte Seite."""
-    image = new_image(16, 24)
-    draw = ImageDraw.Draw(image)
+    Zeichnet nur die linke Flügelhälfte und spiegelt sie an x=12 auf die rechte Seite."""
+    image = new_image(W, H)
     b = p["bob"]
-    spread = 2 if p["jump"] else 0            # Sprung = erkennbar weiter geöffnet
+    spread = 3 if p["jump"] else 0             # Sprung = erkennbar weiter geöffnet
     flap = p["frame"] % 2
-    top = 6 + b - flap + spread
-    half = new_image(8, 24)
+    top = 9 + b - flap + spread
+    half = new_image(12, H)
     hd = ImageDraw.Draw(half)
-    if kind == "feathered":                   # gefiedert, hell (Engel)
-        for i in range(5):                    # federige Treppenstufen nach außen
-            hd.rectangle([7 - min(4, i + 1), top + i * 2, 7, top + i * 2 + 1], fill=TINT_LIGHT if i < 2 else TINT_MID)
-        pixel(hd, 7, top + 10, TINT_MID)      # unterste Feder
-    elif kind == "tattered":                  # zerfetzt, dunkel (gefallen)
-        for i in range(4):
-            if (i + p["frame"]) % 3 != 2:     # Lücken = zerfetzter Look
-                hd.rectangle([7 - (2 if i % 2 else 1), top + i * 2, 7, top + i * 2 + 1], fill=TINT_DARK)
-        pixel(hd, 6, top + 8, TINT_DARK)
-        pixel(hd, 4, top + 9, TINT_DARK)
-    else:                                     # ember: glühend, aus Asche
-        for i in range(4):
-            hd.rectangle([7 - (3 if i % 2 else 1), top + i * 2, 7, top + i * 2 + 1],
-                        fill=TINT_LIGHT if i < 2 else TINT_DARK)
-        pixel(hd, 7, top, TINT_LIGHT)
+    if kind == "feathered":                    # gefiedert, hell (Engel)
+        for i in range(7):                     # federige Treppenstufen nach außen
+            x0 = 11 - min(9, i + 2)
+            hd.rectangle([x0, top + i * 2, 11, top + i * 2 + 1],
+                         fill=TINT_LIGHT if i < 3 else TINT_MID)
+            if i % 2 == 0:
+                hd.rectangle([x0, top + i * 2, x0 + 2, top + i * 2], fill=(250, 250, 250, 255))
+        hd.rectangle([10, top + 14, 11, top + 15], fill=TINT_MID)   # unterste Feder
+    elif kind == "tattered":                   # zerfetzt, dunkel (gefallen)
+        for i in range(6):
+            if (i + p["frame"]) % 3 != 2:      # Lücken = zerfetzter Look
+                x0 = 11 - (4 if i % 2 else 2)
+                hd.rectangle([x0, top + i * 2, 11, top + i * 2 + 1], fill=TINT_DARK)
+        pixel(hd, 9, top + 12, TINT_DEEP)
+        pixel(hd, 5, top + 14, TINT_DEEP)
+    else:                                      # ember: glühend, aus Asche
+        for i in range(6):
+            x0 = 11 - (5 if i % 2 else 2)
+            hd.rectangle([x0, top + i * 2, 11, top + i * 2 + 1],
+                         fill=TINT_LIGHT if i < 3 else TINT_DARK)
+        pixel(hd, 11, top, (250, 250, 250, 255))
     mirror = half.transpose(Image.FLIP_LEFT_RIGHT)   # rechte Flügelhälfte = Spiegel
     image.paste(half, (0, 0), half)
-    image.paste(mirror, (8, 0), mirror)
+    image.paste(mirror, (12, 0), mirror)
     return polish(image, outline=None, light=14, dark=-18, gradient=8)
 
 
-# ------------------------------------------------------------------ Rüstung (G11: Graustufen, Ebene über der Kleidung)
+# ------------------------------------------------------------------ Rüstung (feste Materialien, Ebene über der Kleidung)
 def armor_frame(kind, p):
-    """Deckt den Rumpf (y 9-17) ab — hier darf eine geschlossene Fläche entstehen.
-
-    Bewusst FARBIG statt in Graustufen: Der Code zeichnet die Rüstung ungetönt (Color.White),
-    Graustufen blieben also grau und alle vier sahen aus wie derselbe helle Klotz. Mit eigenem
-    Material erkennt man auf einen Blick, was man trägt.
-    """
-    image = new_image(16, 24)
+    """Deckt den Rumpf (y 13-21) ab — hier darf eine geschlossene Fläche entstehen.
+    16-Bit: je Material vier bis sechs Tonwerte mit Licht oben links.
+    Bewusst FARBIG statt in Graustufen: Der Code zeichnet die Rüstung ungetönt (Color.White)."""
+    image = new_image(W, H)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
     if kind == "leather":
-        light, mid, dark = (150, 104, 68, 255), LEATHER, DARK_WOOD
-        rect(draw, 5, 9 + b, 6, 7, mid)
-        rect(draw, 5, 9 + b, 6, 1, light)                  # Kragen
-        for y in range(10 + b, 15 + b):                    # Kreuzschnürung vorn
-            pixel(draw, 7 if (y - b) % 2 else 8, y, dark)
-            pixel(draw, 8 if (y - b) % 2 else 7, y, light)
-        rect(draw, 5, 15 + b, 6, 1, dark)                  # Saum
-        pixel(draw, 5, 11 + b, dark)                       # Seitennaht
-        pixel(draw, 10, 13 + b, dark)
+        # Leder: matt, warm, kaum Glanz — vier stumpfe Töne
+        light, mid, dark, deep = (150, 104, 68, 255), LEATHER, DARK_WOOD, (46, 28, 18, 255)
+        rect(draw, 7, 13 + b, 10, 9, mid)
+        rect(draw, 7, 13 + b, 10, 1, light)                  # Kragen
+        rect(draw, 7, 13 + b, 3, 9, (128, 86, 56, 255))     # linke Seite im Licht
+        for y in range(14 + b, 21 + b):                      # Kreuzschnürung vorn
+            pixel(draw, 11 if (y - b) % 2 else 12, y, dark)
+            pixel(draw, 12 if (y - b) % 2 else 11, y, light)
+        rect(draw, 7, 21 + b, 10, 1, dark)                   # Saum
+        pixel(draw, 7, 17 + b, deep)                          # Seitennähte
+        pixel(draw, 16, 19 + b, deep)
+        rect(draw, 8, 22 + b, 8, 1, dark)                     # untere Kante leicht ausgestellt
     elif kind == "chain":
-        rect(draw, 5, 9 + b, 6, 7, STEEL)
-        for y in range(9 + b, 16 + b):                     # versetztes Maschenmuster
-            for x in range(5, 11):
-                pixel(draw, x, y, DARK_STEEL if (x + y) % 2 == 0 else STEEL)
-        rect(draw, 4, 9 + b, 2, 2, DARK_STEEL)             # kurze Ärmel
-        rect(draw, 10, 9 + b, 2, 2, DARK_STEEL)
-        rect(draw, 5, 9 + b, 6, 1, (210, 210, 225, 255))   # Lichtkante oben
-        rect(draw, 5, 15 + b, 6, 1, DARK_STEEL)
+        # Kette: hart glänzend — Silber mit hellem Licht und tiefem Schatten
+        lite, mid, dark, deep = (210, 210, 225, 255), STEEL, DARK_STEEL, (52, 52, 64, 255)
+        rect(draw, 7, 13 + b, 10, 9, mid)
+        for y in range(13 + b, 22 + b):                      # versetztes Maschenmuster
+            for x in range(7, 17):
+                pixel(draw, x, y, dark if (x + y) % 2 == 0 else mid)
+        rect(draw, 7, 13 + b, 10, 1, lite)                   # Lichtkante oben
+        rect(draw, 7, 13 + b, 1, 9, (185, 185, 202, 255))   # Lichtkante links
+        rect(draw, 6, 13 + b, 3, 3, dark)                     # kurze Ärmel
+        rect(draw, 15, 13 + b, 3, 3, dark)
+        rect(draw, 7, 21 + b, 10, 1, deep)                   # Saum
+        pixel(draw, 9, 15 + b, (235, 235, 246, 255))         # Glanzpunkt (Glanzlicht oben links)
     elif kind == "scale":
-        rect(draw, 5, 9 + b, 6, 7, DARK_GOLD)              # Bronzegrund
-        for y in range(9 + b, 16 + b):                     # überlappende Schuppenreihen
-            for x in range(5 + ((y - b) % 2), 11, 2):
-                pixel(draw, x, y, GOLD)
-        rect(draw, 4, 9 + b, 2, 2, GOLD)                   # Schulterstücke
-        rect(draw, 10, 9 + b, 2, 2, GOLD)
-        rect(draw, 5, 15 + b, 6, 1, DARK_WOOD)             # Lederkante unten
-    else:  # ash: schwerer Harnisch mit Glutadern
-        rect(draw, 4, 9 + b, 8, 7, DARK_STONE)             # breiter, schwerer Harnisch
-        rect(draw, 4, 9 + b, 8, 1, ASH)                    # Lichtkante
-        rect(draw, 4, 9 + b, 1, 7, ASH)
-        for x, y in ((6, 10), (7, 11), (6, 12), (9, 11), (9, 13), (8, 14)):
-            pixel(draw, x, y + b, EMBER)                   # Glutadern ziehen sich durch die Platte
-        for x, y in ((7, 12), (9, 12), (8, 13)):
-            pixel(draw, x, y + b, FLAME)                   # hellere Kerne
-        rect(draw, 3, 9 + b, 1, 3, ASH)                    # breite Schulterklappen
-        rect(draw, 12, 9 + b, 1, 3, ASH)
-        rect(draw, 4, 15 + b, 8, 1, BLACK)                 # schwerer Saum
+        # Bronze: warm glänzend — Goldtöne mit hartem Licht
+        lite, mid, dark, deep = (240, 210, 130, 255), GOLD, DARK_GOLD, (100, 70, 26, 255)
+        rect(draw, 7, 13 + b, 10, 9, dark)                   # Bronzegrund
+        for y in range(13 + b, 21 + b):                      # überlappende Schuppenreihen
+            for x in range(7 + ((y - b) % 3), 17, 3):
+                pixel(draw, x, y, mid)
+                if y > 13 + b:
+                    pixel(draw, x, y - 1, lite)
+        rect(draw, 6, 13 + b, 3, 3, mid)                     # Schulterstücke
+        rect(draw, 15, 13 + b, 3, 3, mid)
+        rect(draw, 6, 13 + b, 3, 1, lite)
+        rect(draw, 7, 21 + b, 10, 1, DARK_WOOD)              # Lederkante unten
+        pixel(draw, 16, 17 + b, deep)                         # Schattenkante rechts
+    else:  # ash: schwerer Harnisch mit Glutadern — Stein: stumpf, rau
+        lite, mid, dark = (140, 134, 152, 255), (96, 92, 108, 255), DARK_STONE
+        rect(draw, 6, 13 + b, 12, 9, mid)                    # breite, schwere Platte
+        rect(draw, 6, 13 + b, 12, 1, lite)                   # Lichtkante
+        rect(draw, 6, 13 + b, 2, 9, (118, 112, 130, 255))   # linke Lichtseite
+        rect(draw, 6, 21 + b, 12, 1, BLACK)                  # schwerer Saum
+        for x, y in ((9, 15), (10, 16), (9, 17), (14, 16), (14, 18), (13, 19)):
+            pixel(draw, x, y + b, EMBER)                     # Glutadern durch die Platte
+        for x, y in ((10, 16), (14, 16), (13, 18)):
+            pixel(draw, x, y + b, FLAME)                     # hellere Kerne
+        rect(draw, 5, 13 + b, 2, 4, mid)                     # breite Schulterklappen
+        rect(draw, 17, 13 + b, 2, 4, mid)
+        rect(draw, 5, 13 + b, 2, 1, lite)
     return polish(image, outline=OUTLINE, light=10, dark=-20, gradient=0)
 
 
 def layer_sheet(frame_function):
     rows = [[frame_function(pose(anim, i)) for i in range(count)] for anim, count in ANIMATIONS]
-    return build_sheet(16, 24, rows)
+    return build_sheet(W, H, rows)
 
 
 def generate(textures):
@@ -398,8 +479,8 @@ def generate(textures):
     for cls in ("warrior", "mage", "shadow", "angel"):
         layer_sheet(lambda p, c=cls: outfit_frame(c, p)).save(textures / f"char_outfit_{cls}.png")
         layer_sheet(lambda p, c=cls: accent_frame(c, p)).save(textures / f"char_accent_{cls}.png")
-    for kind, name in (("leather", "leather"), ("chain", "chain"), ("scale", "scale"), ("ash", "ash")):
-        layer_sheet(lambda p, k=kind: armor_frame(k, p)).save(textures / f"char_armor_{name}.png")
+    for kind in ("leather", "chain", "scale", "ash"):
+        layer_sheet(lambda p, k=kind: armor_frame(k, p)).save(textures / f"char_armor_{kind}.png")
 
 
 __all__ = ["generate", "OUTLINE"]
