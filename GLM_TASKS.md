@@ -527,3 +527,17 @@ Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Si
   Graustufen (Outline (60,60,66) wie beim Körper), Rumpf 42/42 Pixel bedeckt — genau der Sinn.
   `items.json` hat bei allen vier das Feld `"sprite"` (armor.leather_jerkin, armor.chainmail,
   armor.scale_mail, armor.ash_harness), `durability` unverändert. `dotnet build` 0/0.
+- **G12 + G13 fertig — Figuren auf 24 × 32 im 16-Bit-Stil. Alle 31 Figuren-Ebenen umgestellt**
+  (Körper 1+6, Haare 5, Make-up 4, Flügel 3, Outfits 4, Akzente 4, Rüstungen 4): Blätter jetzt
+  96 × 128, im Manifest `frameWidth 24 / frameHeight 32` — **nur die Figuren-Ebenen**, Gegner,
+  Props, Projektile, Pickups unverändert. `dotnet build` 0/0, keine fehlenden Texturen.
+  **16-Bit-Anhebung (G13):** Fünf Graustufen statt drei (`TINT_TOP`/`TINT_DEEP` neu — Haare,
+  Make-up, Flügel, Akzente behalten Graustufen und werden weiter getönt), Körper mit Stirnlicht,
+  Wangen-, Kinn- und Halsschatten. Outfits und Rüstungen mit **eigenen Materialpaletten**:
+  Leder matt (vier stumpfe Töne), Kette hart glänzend (Lichtkante + Glanzpunkt), Bronze warm
+  (Schuppen mit Lichtpixeln), Stein stumpf (Glutadern mit hellen Kernen), Stahl mit Lichtkante
+  oben links. Silhouetten zuerst: breite Schultern gegen schmale Taille ist jetzt am Umriss
+  ablesbar — `f_average` vs `f_athletic` unterscheiden sich in **142 Pixeln** statt 7–11.
+  Kopf (y 3–11) bei allen sechs Körpertypen pixel-identisch, Fußlinie y 31, Anker unten mittig,
+  Rumpf (y 16–20) in Outfits weiterhin frei (Restpixel sind nur Gürtel-/Outline-Zeilen).
+  **G14 warte ich** wie besprochen — erst Abnahme von G12/G13 durch den Nutzer.
