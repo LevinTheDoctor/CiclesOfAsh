@@ -377,6 +377,32 @@ public sealed class DialogDefinition : IDefinition
 }
 
 /// <summary>
+/// Zwischenruf einer Begleitseele. Anders als ein Dialog hält er das Spiel NICHT an: Der Satz
+/// erscheint als Sprechblase über der Seele und verschwindet von selbst. Die Id ist der Auslöser
+/// ("run_start", "low_health", ...); welche Auslöser es gibt, steht in CompanionChatter.
+/// </summary>
+public sealed class ChatterDefinition : IDefinition
+{
+    public string Id { get; init; } = "";
+    /// <summary>Sekunden, bevor derselbe Auslöser wieder sprechen darf. 0 = nur einmal pro Lauf.</summary>
+    public float Repeat { get; init; }
+    public List<ChatterLineDefinition> Lines { get; init; } = new();
+}
+
+/// <summary>
+/// Eine mögliche Zeile. Leere Filter passen immer – so trägt ein Auslöser allgemeine Sätze und
+/// daneben besondere für einzelne Seelen, ohne dass die Datei in Varianten zerfällt.
+/// </summary>
+public sealed class ChatterLineDefinition
+{
+    public string Text { get; init; } = "";
+    /// <summary>Nur für diese Begleiter-Id (leer = jede).</summary>
+    public string Companion { get; init; } = "";
+    /// <summary>Nur für Begleiter mit diesem Verhalten: attacker, healer, mana (leer = jedes).</summary>
+    public string Behavior { get; init; } = "";
+}
+
+/// <summary>
 /// NPC in der Welt: Gläubiger, Pilger, Eremit. Interagierbar, spricht einen Dialog,
 /// kann einen Segen geben oder eine Bitte anbieten. Reine data-driven Definition.
 /// </summary>

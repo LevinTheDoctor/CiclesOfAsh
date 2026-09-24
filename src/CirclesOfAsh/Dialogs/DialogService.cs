@@ -10,6 +10,7 @@ namespace CirclesOfAsh.Dialogs;
 ///   blessing      – einmaliger Lauf-Buff (Macht +10 %, angewandt auf die Stat-Quelle "blessing")
 ///   accept_mission – eine verfügbare Bitte im DUNGEON annehmen (das größte Quest-Ärgernis)
 ///   pet_pet / feed_pet – Haustier-Interaktion (nur im Hub, siehe PetService)
+///   companion_skin – nächste Farbfassung der Begleitseele (siehe CompanionSkins)
 /// </summary>
 public sealed class DialogService
 {
@@ -71,6 +72,11 @@ public sealed class DialogService
                 return PetService.Pet(_context, npc?.Definition.Id ?? "");
             case "feed_pet":
                 return PetService.Feed(_context, npc?.Definition.Id ?? "");
+            case "companion_skin" when npc is not null:
+                // Die Haustier-"NPCs" im Tempel tragen die Begleiter-Id (siehe HubScene.OpenCompanionDialog).
+                return _context.Definitions.Companions.TryGet(npc.Definition.Id, out CompanionDefinition? companion)
+                    ? Companions.CompanionSkins.Cycle(_context, companion)
+                    : null;
             default:
                 return null;
         }

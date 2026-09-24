@@ -204,7 +204,11 @@ public sealed class Player : Actor
         bool wantsBlock = input.IsDown(GameAction.Block) && OnGround && Stamina > 0f;
         if (wantsBlock)
         {
-            if (!IsBlocking) _blockHeldTimer = 0f;   // frisch aufgesetzt -> Paradefenster laeuft
+            if (!IsBlocking)
+            {
+                _blockHeldTimer = 0f;   // frisch aufgesetzt -> Paradefenster laeuft
+                world.Say(Companions.CompanionChatter.FirstBlock);
+            }
             _blockHeldTimer += deltaSeconds;
             Stamina = MathF.Max(0f, Stamina - BlockDrainPerSecond * deltaSeconds);
             Velocity.X *= 0.4f;   // im Block kommt man kaum vom Fleck
@@ -276,6 +280,7 @@ public sealed class Player : Actor
         bool wantsCrouch = input.IsDown(GameAction.Down) && OnGround && !_wasInWater && !IsDashing;
         if (wantsCrouch)
         {
+            if (!IsCrouching) world.Say(Companions.CompanionChatter.FirstCrouch);
             SetHeight(_crouchHeight);
             IsCrouching = true;
             return;
@@ -414,6 +419,7 @@ public sealed class Player : Actor
         world.Effects.Ring(Center, 24f, Palette.Bone);
         world.Context.Audio.Play("crumble", 0.9f, -0.3f);
         world.Announce("Deine Ruestung zerspringt!");
+        world.Say(Companions.CompanionChatter.ArmorShattered);
         world.ShakeCamera(6f);
 
         RefreshDerivedStats();

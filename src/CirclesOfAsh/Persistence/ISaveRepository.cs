@@ -56,6 +56,9 @@ public sealed class PetState
     /// <summary>UtcNow als ISO-String: Streicheln nur einmal pro Tag (echte Haustier-Mechanik).</summary>
     public string? LastPettedAt { get; set; }
 
+    /// <summary>Gewählte Farbfassung (Index in <see cref="Companions.CompanionSkins"/>). 0 = Grundfassung.</summary>
+    public int Skin { get; set; }
+
     /// <summary>Loyalitäts-Stufe 0..5 (jede 20 Punkte). Bestimmt den Buff-Betrag.</summary>
     public int LoyaltyStage => Math.Clamp(Loyalty / 20, 0, 5);
 }

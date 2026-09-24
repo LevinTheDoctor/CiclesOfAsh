@@ -9,23 +9,39 @@ namespace CirclesOfAsh.Entities;
 /// <summary>Begleitseele: schwebt hinter dem Spieler und führt in festem Takt ihr Behavior aus.</summary>
 public sealed class Companion : Entity
 {
-    private readonly AnimationPlayer _animation;
     private readonly int _slotIndex;
+    private AnimationPlayer _animation;
     private float _actionTimer;
     private float _bobTime;
 
-    public Companion(CompanionDefinition definition, SpriteSheet sheet, ICompanionBehavior behavior, int slotIndex, Vector2 startCenter)
+    public Companion(CompanionDefinition definition, SpriteSheet sheet, string sheetId, ICompanionBehavior behavior,
+                     int slotIndex, Vector2 startCenter)
     {
         Definition = definition;
         Behavior = behavior;
         _slotIndex = slotIndex;
         _animation = new AnimationPlayer(sheet);
+        SheetId = sheetId;
         Size = new Point(8, 8);
         Position = startCenter;
     }
 
     public CompanionDefinition Definition { get; }
     public ICompanionBehavior Behavior { get; }
+
+    /// <summary>Gerade gezeichnete Farbfassung. Der Hub vergleicht sie mit der gespeicherten Wahl.</summary>
+    public string SheetId { get; private set; }
+
+    /// <summary>
+    /// Wechselt die Farbfassung im laufenden Spiel. Der Spieler sieht die neue Gestalt sofort,
+    /// ohne dass der Tempel neu aufgebaut werden muss.
+    /// </summary>
+    public void SetSheet(SpriteSheet sheet, string sheetId)
+    {
+        if (sheetId == SheetId) return;
+        _animation = new AnimationPlayer(sheet);
+        SheetId = sheetId;
+    }
 
     public override void Update(DungeonWorld world, float deltaSeconds)
     {

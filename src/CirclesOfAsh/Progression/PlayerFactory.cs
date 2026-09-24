@@ -57,7 +57,8 @@ public static class PlayerFactory
         {
             if (!context.Definitions.Companions.Contains(companionId)) continue;
             CompanionDefinition definition = context.Definitions.Companions.Get(companionId);
-            yield return new Companion(definition, context.Assets.GetSpriteSheet(definition.SpriteSheet),
+            string sheetId = Companions.CompanionSkins.SheetOf(context, definition);
+            yield return new Companion(definition, context.Assets.GetSpriteSheet(sheetId), sheetId,
                 context.Behaviors.CreateCompanion(definition.Behavior), slot++, spawn);
         }
     }

@@ -1,5 +1,6 @@
 using CirclesOfAsh.Assets;
 using CirclesOfAsh.Combat;
+using CirclesOfAsh.Companions;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
@@ -37,6 +38,7 @@ public sealed class DungeonWorld : IDisposable
     private readonly CrumbleSystem _crumble;
     private bool _goalTriggered;
     private bool _bossDefeated;
+    private bool _playerWasLow;
     private bool _playerDeathReported;
     private float _shakeStrength;
     private Vector2 _shakeOffset;
@@ -55,6 +57,7 @@ public sealed class DungeonWorld : IDisposable
         _companions = companions.ToList();
         Random = new Random(plan.Seed ^ 0x5EED);   // "^" = XOR: leitet einen zweiten, unabhängigen Seed ab
         Effects = new EffectSystem(Random);
+        Chatter = new CompanionChatter(context, Random);
         Camera = new Camera2D(CirclesGame.VirtualWidth, CirclesGame.VirtualHeight);
         Waves = new WaveDirector(plan, context.Definitions.Balance, layout.Rooms, context.Progression.Difficulty.WaveSize);
         Lighting = new LightingSystem(context.GraphicsDevice, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight)
@@ -112,6 +115,12 @@ public sealed class DungeonWorld : IDisposable
     public Prop? InteractionTarget { get; private set; }
     public int PendingLevelUps { get; set; }
     public IReadOnlyList<Companion> Companions => _companions;
+
+    /// <summary>Zwischenrufe der Begleitseelen. Blockiert nie – siehe <see cref="CompanionChatter"/>.</summary>
+    public CompanionChatter Chatter { get; }
+
+    /// <summary>Kurzform für die Auslöser: der Aufrufer muss weder Liste noch Sperren kennen.</summary>
+    public void Say(string triggerId) => Chatter.Trigger(triggerId, _companions);
     public IReadOnlyList<Npc> Npcs => _npcs;
     /// <summary>NPC in Interaktionsreichweite (für den Benutzen-Hinweis).</summary>
     public Npc? NpcInteractionTarget { get; private set; }
@@ -303,6 +312,8 @@ public sealed class DungeonWorld : IDisposable
         ApplyContactDamage();
         Effects.Ambient(Plan.Circle.AmbientParticles, Camera.VisibleArea, deltaSeconds);
         Effects.Update(deltaSeconds);
+        Chatter.Update(deltaSeconds);
+        WatchPlayerHealth();
         _sigil.Update(deltaSeconds);
         CheckGoal();
         RemoveDeadAndFlushSpawns();
@@ -312,6 +323,17 @@ public sealed class DungeonWorld : IDisposable
         Vector2 shake = _shakeStrength > 0.2f ? MathUtil.RandomDirection(Random) * _shakeStrength : Vector2.Zero;
         _shakeOffset = new Vector2(MathF.Round(shake.X), MathF.Round(shake.Y));   // einmal pro Frame -> Licht und Welt wackeln gleich
         Camera.Follow(Player.Center, CurrentRoom?.PixelBounds ?? Map.PixelBounds, deltaSeconds);
+    }
+
+    /// <summary>
+    /// Begleiter warnen, wenn es eng wird. Nur beim ÜBERSCHREITEN der Schwelle, sonst würde die
+    /// Warnung bei jedem Frame unter 30 % erneut anlaufen und die Sperre blockieren.
+    /// </summary>
+    private void WatchPlayerHealth()
+    {
+        bool low = Player.Health.Current > 0f && Player.Health.Current / Player.Health.Max <= 0.3f;
+        if (low && !_playerWasLow) Say(CompanionChatter.LowHealth);
+        _playerWasLow = low;
     }
 
     private void UpdateCurrentRoom()
@@ -569,7 +591,11 @@ public sealed class DungeonWorld : IDisposable
         // Tempo-Modifier der Schwierigkeit: WalkerBrains lesen die effektive Geschwindigkeit direkt.
         enemy.ApplySpeedMultiplier(difficulty.EnemySpeed);
         enemy.Owner = owner;
-        if (definition.IsBoss || definition.IsMiniBoss) ActiveBoss = enemy;
+        if (definition.IsBoss || definition.IsMiniBoss)
+        {
+            ActiveBoss = enemy;
+            Say(CompanionChatter.BossStart);
+        }
         Spawn(enemy);
         return enemy;
     }
@@ -675,6 +701,7 @@ public sealed class DungeonWorld : IDisposable
         if (item.Slot == ItemSlot.Collectible)
         {
             Announce($"Gefunden: {item.Name}");
+            Say(CompanionChatter.CollectibleFound);
             AnnounceMissions(Context.Progression.Missions.Report(MissionType.Collect, item.Id));
             return;
         }
@@ -742,11 +769,13 @@ public sealed class DungeonWorld : IDisposable
         {
             case RoomType.Boss:
                 _bossDefeated = true;
+                Say(CompanionChatter.BossDefeated);
                 break;
             case RoomType.Prison:
                 FreeCaptives(room);
                 break;
             default:
+                Say(CompanionChatter.RoomCleared);
                 Announce("Die Tore öffnen sich.");
                 break;
         }
@@ -866,6 +895,7 @@ public sealed class DungeonWorld : IDisposable
         foreach (var ability in Player.Abilities) ability.Behavior.Draw(spriteBatch, this, Player, ability);
         foreach (Projectile projectile in _projectiles) projectile.Draw(spriteBatch);
         Effects.Draw(spriteBatch, Context.Assets.Pixel, Context.Font);
+        Chatter.Draw(spriteBatch, Context.Assets.Pixel, Context.Font);
         DrawInteractionPrompt(spriteBatch);
         spriteBatch.End();
     }

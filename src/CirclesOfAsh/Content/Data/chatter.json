@@ -1,0 +1,103 @@
+[
+  // Zwischenrufe der Begleitseelen. Die "id" ist der Auslöser – die Liste der bekannten Auslöser
+  // steht als Konstanten in Companions/CompanionChatter.cs. Ein Auslöser ohne Eintrag hier bleibt
+  // einfach stumm, neue Zeilen brauchen keinen Code.
+  //
+  // "repeat": Sekunden, bis derselbe Auslöser wieder sprechen darf. 0 = nur einmal pro Lauf.
+  // "companion" / "behavior": Filter. Leer = jede Seele darf die Zeile sagen. {name} = ihr Name.
+  {
+    "id": "run_start",
+    "repeat": 0,
+    "lines": [
+      { "text": "Ich bleibe bei dir, Herr. Auch wenn es dunkel wird." },
+      { "behavior": "attacker", "text": "Zeig mir, wen ich brennen lassen soll." },
+      { "behavior": "healer", "text": "Wenn du blutest, bin ich schon da. Versprochen." },
+      { "behavior": "mana", "text": "Nimm von meinem Licht, so viel du brauchst." },
+      { "companion": "dragonling", "text": "*schnauft Rauch* Der Kleine will jagen." }
+    ]
+  },
+  {
+    "id": "room_cleared",
+    "repeat": 45,
+    "lines": [
+      { "text": "Still jetzt. Zu still." },
+      { "text": "Sie glauben wieder an dich. Ich spüre es." },
+      { "behavior": "attacker", "text": "Das war zu leicht. Das nächste wird es nicht." },
+      { "behavior": "healer", "text": "Atme. Du hast einen Moment." },
+      { "companion": "chain_soul", "text": "Meine Ketten klirren leiser hier unten." },
+      { "companion": "dragonling", "text": "*rollt sich zufrieden zusammen*" }
+    ]
+  },
+  {
+    "id": "low_health",
+    "repeat": 25,
+    "lines": [
+      { "text": "Herr! Du hältst das nicht mehr lange aus!" },
+      { "text": "Zieh dich zurück. Bitte." },
+      { "behavior": "healer", "text": "Halt durch, ich gebe dir alles, was ich habe!" },
+      { "behavior": "attacker", "text": "Geh hinter mich. Ich halte sie auf." },
+      { "companion": "bell_soul", "text": "Ich läute für dich. Stirb mir nicht weg." }
+    ]
+  },
+  {
+    "id": "boss_start",
+    "repeat": 0,
+    "lines": [
+      { "text": "Das da ... das hat auf dich gewartet." },
+      { "text": "Es kennt deinen Namen, Herr. Sei vorsichtig." },
+      { "behavior": "attacker", "text": "Endlich ein Gegner, der es wert ist." },
+      { "behavior": "healer", "text": "Ich weiche dir nicht von der Seite. Kein Schritt." }
+    ]
+  },
+  {
+    "id": "boss_defeated",
+    "repeat": 0,
+    "lines": [
+      { "text": "Du hast es niedergerungen. Ich habe zugesehen, jede Sekunde." },
+      { "text": "Der Kreis atmet auf. Hörst du es?" },
+      { "companion": "pilgrim_soul", "text": "Dafür bin ich gepilgert. Dafür genau." }
+    ]
+  },
+  {
+    "id": "armor_shattered",
+    "repeat": 30,
+    "lines": [
+      { "text": "Deine Rüstung! Sie ist hin!" },
+      { "text": "Die Splitter fliegen – such dir neue, schnell!" },
+      { "behavior": "healer", "text": "Ohne Panzer bist du zu weich. Pass auf dich auf." }
+    ]
+  },
+  {
+    "id": "collectible_found",
+    "repeat": 60,
+    "lines": [
+      { "text": "Das lag hier nicht zufällig. Jemand hat es versteckt." },
+      { "text": "Gut gesehen, Herr." }
+    ]
+  },
+  {
+    "id": "first_crouch",
+    "repeat": 0,
+    "lines": [
+      { "text": "Geduckt kommst du durch Spalten, die dir sonst den Weg nehmen." }
+    ]
+  },
+  {
+    "id": "first_block",
+    "repeat": 0,
+    "lines": [
+      { "text": "Gut geblockt. Im richtigen Moment hält das fast alles auf." }
+    ]
+  },
+  {
+    "id": "hub_idle",
+    "repeat": 90,
+    "lines": [
+      { "text": "Es ist warm hier. Ich mag den Tempel." },
+      { "text": "Streichelst du mich? ... Nur wenn du magst." },
+      { "text": "Die Gläubigen singen draußen. Leise, aber sie singen." },
+      { "behavior": "mana", "text": "Mein Licht wird heller, je länger du bleibst." },
+      { "companion": "dragonling", "text": "*knabbert an einer Kerze*" }
+    ]
+  }
+]

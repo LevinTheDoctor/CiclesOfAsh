@@ -1,3 +1,4 @@
+using CirclesOfAsh.Companions;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
@@ -30,6 +31,9 @@ public sealed class HubScene : SceneBase
     private Player _player = null!;
     private readonly LightingSystem _lighting;
     private readonly EffectSystem _effects;
+    private readonly CompanionChatter _chatter;
+    /// <summary>Sekunden ohne Eingabe. Nach einer Weile plaudern die Seelen von selbst.</summary>
+    private float _idleSeconds;
     private float _time;
 
     // Deko-Modus: Raster-Cursor, Auswahl aus hubfähigen Props
@@ -58,6 +62,8 @@ public sealed class HubScene : SceneBase
 
     /// <summary>Mietbare Deko-Kosten: Jedes platzierte Stück kostet Gläubige (Wiedervergütung beim Entfernen: 50%).</summary>
     private const int DecoCost = 5;
+    /// <summary>Sekunden Ruhe, bevor eine Seele im Tempel von sich aus etwas sagt.</summary>
+    private const float IdleChatterDelay = 8f;
 
     public HubScene(GameContext context) : base(context)
     {
@@ -71,6 +77,7 @@ public sealed class HubScene : SceneBase
             Brightness = 0.2f + 0.5f * context.Settings.AmbientLift,
         };
         _effects = new EffectSystem(new Random());
+        _chatter = new CompanionChatter(Context, new Random());
     }
 
     public override void OnEnter()
@@ -160,9 +167,24 @@ public sealed class HubScene : SceneBase
         {
             if (!Context.Definitions.Companions.Contains(companionId)) continue;
             CompanionDefinition definition = Context.Definitions.Companions.Get(companionId);
-            _companions.Add(new Companion(definition, Context.Assets.GetSpriteSheet(definition.SpriteSheet),
+            string sheetId = CompanionSkins.SheetOf(Context, definition);
+            _companions.Add(new Companion(definition, Context.Assets.GetSpriteSheet(sheetId), sheetId,
                 Context.Behaviors.CreateCompanion(definition.Behavior), slot++, _player.Center));
         }
+    }
+
+    /// <summary>
+    /// Im Tempel reden die Seelen von selbst – aber erst, wenn der Spieler eine Weile nichts tut.
+    /// Sonst quasseln sie einem beim Durchlaufen hinterher.
+    /// </summary>
+    private void UpdateIdleChatter(InputState input, float deltaSeconds)
+    {
+        bool busy = MathF.Abs(input.Horizontal) > 0.1f
+                    || input.IsDown(GameAction.Jump) || input.IsDown(GameAction.Interact)
+                    || input.IsDown(GameAction.Up) || input.IsDown(GameAction.Down);
+        _idleSeconds = busy ? 0f : _idleSeconds + deltaSeconds;
+        if (_idleSeconds < IdleChatterDelay) return;
+        if (_chatter.Trigger(CompanionChatter.HubIdle, _companions)) _idleSeconds = 0f;
     }
 
     private void RebuildDecoCatalog()
@@ -227,9 +249,18 @@ public sealed class HubScene : SceneBase
 
         _player.UpdateHub(_map, input, deltaSeconds);
         foreach (Npc npc in _npcs) npc.UpdateHub(deltaSeconds);
-        foreach (Companion companion in _companions) companion.UpdateHub(_player, deltaSeconds);
+        foreach (Companion companion in _companions)
+        {
+            companion.UpdateHub(_player, deltaSeconds);
+            // Nach dem Gestaltwechsel im Dialog steht die neue Fassung sofort im Bild. Der
+            // Vergleich ist ein Wörterbuch-Zugriff, das kostet bei einer Handvoll Seelen nichts.
+            string sheetId = CompanionSkins.SheetOf(Context, companion.Definition);
+            if (sheetId != companion.SheetId) companion.SetSheet(Context.Assets.GetSpriteSheet(sheetId), sheetId);
+        }
         foreach (Prop prop in _deco) prop.Update(null!, deltaSeconds);
         _effects.Update(deltaSeconds);
+        _chatter.Update(deltaSeconds);
+        UpdateIdleChatter(input, deltaSeconds);
         _camera.Follow(_player.Center, _map.PixelBounds, deltaSeconds);
 
         UpdateHotspots();
@@ -478,6 +509,7 @@ public sealed class HubScene : SceneBase
         foreach (Companion companion in _companions) companion.Draw(spriteBatch);
         _player.Draw(spriteBatch);
         _effects.Draw(spriteBatch, pixel, Context.Font);
+        _chatter.Draw(spriteBatch, pixel, Context.Font);
         spriteBatch.End();
 
         _lighting.Composite(spriteBatch);

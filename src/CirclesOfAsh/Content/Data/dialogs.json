@@ -84,12 +84,12 @@
         "id": "start",
         "if": "loyal",
         "text": "Die Seele umkreist dich glücklich und summt leise. Sie wirkt rundum zufrieden.",
-        "choices": [ { "label": "Streicheln", "next": "", "effect": "pet_pet" }, { "label": "Füttern (5 Seelen)", "next": "", "effect": "feed_pet" } ]
+        "choices": [ { "label": "Streicheln", "next": "", "effect": "pet_pet" }, { "label": "Füttern (5 Seelen)", "next": "", "effect": "feed_pet" }, { "label": "Gestalt wechseln", "next": "", "effect": "companion_skin" } ]
       },
       {
         "id": "start",
         "text": "Die Seele flackert unruhig. Sie sehnt sich nach Zuwendung – oder nach einem Snack.",
-        "choices": [ { "label": "Streicheln", "next": "", "effect": "pet_pet" }, { "label": "Füttern (5 Seelen)", "next": "", "effect": "feed_pet" } ]
+        "choices": [ { "label": "Streicheln", "next": "", "effect": "pet_pet" }, { "label": "Füttern (5 Seelen)", "next": "", "effect": "feed_pet" }, { "label": "Gestalt wechseln", "next": "", "effect": "companion_skin" } ]
       }
     ]
   }

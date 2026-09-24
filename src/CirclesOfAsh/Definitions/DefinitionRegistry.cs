@@ -53,6 +53,7 @@ public sealed class DefinitionRegistry
     public DefinitionSet<RoomThemeDefinition> Themes { get; } = new();
     public DefinitionSet<MissionDefinition> Missions { get; } = new();
     public DefinitionSet<DialogDefinition> Dialogs { get; } = new();
+    public DefinitionSet<ChatterDefinition> Chatter { get; } = new();
     public DefinitionSet<NpcDefinition> Npcs { get; } = new();
     public DefinitionSet<DifficultyDefinition> Difficulties { get; } = new();
     public DefinitionSet<ControllerProfileDefinition> ControllerProfiles { get; } = new();
@@ -74,6 +75,7 @@ public sealed class DefinitionRegistry
         LoadInto(locator, "Data/themes.json", registry.Themes);
         LoadInto(locator, "Data/missions.json", registry.Missions);
         LoadInto(locator, "Data/dialogs.json", registry.Dialogs);
+        LoadInto(locator, "Data/chatter.json", registry.Chatter);
         LoadInto(locator, "Data/npcs.json", registry.Npcs);
         LoadInto(locator, "Data/difficulties.json", registry.Difficulties);
         LoadInto(locator, "Data/controllers.json", registry.ControllerProfiles);
@@ -143,6 +145,17 @@ public sealed class DefinitionRegistry
 
         foreach (CompanionDefinition companion in Companions.All)
             Require(behaviors.HasCompanion(companion.Behavior), $"Begleiter '{companion.Id}': Behavior '{companion.Behavior}' unbekannt.");
+
+        // Ein Tippfehler im Filter würde die Zeile sonst lautlos nie erreichen.
+        foreach (ChatterDefinition chatter in Chatter.All)
+            foreach (ChatterLineDefinition line in chatter.Lines)
+            {
+                Require(line.Companion.Length == 0 || Companions.Contains(line.Companion),
+                    $"Zwischenruf '{chatter.Id}': Begleiter '{line.Companion}' existiert nicht.");
+                Require(line.Behavior.Length == 0 || behaviors.HasCompanion(line.Behavior),
+                    $"Zwischenruf '{chatter.Id}': Begleiter-Verhalten '{line.Behavior}' unbekannt.");
+                Require(line.Text.Length > 0, $"Zwischenruf '{chatter.Id}': leere Zeile.");
+            }
 
         foreach (UpgradeDefinition upgrade in Upgrades.All)
             Require(StatSheet.TryParse(upgrade.Stat, out _), $"Upgrade '{upgrade.Id}': unbekannter Stat '{upgrade.Stat}'.");

@@ -38,7 +38,12 @@ public sealed class DungeonScene : SceneBase
         Log.Info($"Dungeon erzeugt: Kreis {plan.CircleIndex + 1}, Verlies {plan.DungeonIndex + 1}, Seed {plan.Seed}, Boss {plan.IsBossDungeon}");
     }
 
-    public override void OnEnter() => Context.Music.Play(_musicId);
+    public override void OnEnter()
+    {
+        Context.Music.Play(_musicId);
+        // Begleiter melden sich beim Abstieg zu Wort (einmal pro Lauf, siehe chatter.json).
+        _world.Say(Companions.CompanionChatter.RunStart);
+    }
 
     private void OnDialogRequested(Entities.Npc npc)
     {

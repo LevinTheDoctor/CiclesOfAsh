@@ -92,6 +92,11 @@ public sealed class SqliteSaveRepository : ISaveRepository
             count   INTEGER NOT NULL
         );
         """,
+        // Version 4: Farbfassung ("Skin") je Begleitseele. Default 0 = Grundfassung,
+        // ältere Spielstände sehen damit unverändert aus.
+        """
+        ALTER TABLE pets ADD COLUMN skin INTEGER NOT NULL DEFAULT 0;
+        """,
     };
     // """ ... """ = Raw String Literal (C# 11): mehrzeiliger Text ohne Escape-Zeichen, ideal für SQL
 
@@ -444,10 +449,13 @@ public sealed class SqliteSaveRepository : ISaveRepository
     {
         var pets = new List<PetState>();
         using SqliteConnection connection = Open();
-        using SqliteDataReader reader = CreateCommand(connection, "SELECT companion_id, name, loyalty, fed FROM pets;").ExecuteReader();
+        using SqliteDataReader reader = CreateCommand(connection, "SELECT companion_id, name, loyalty, fed, skin FROM pets;").ExecuteReader();
         {
             while (reader.Read())
-                pets.Add(new PetState(reader.GetString(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3)));
+                pets.Add(new PetState(reader.GetString(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3))
+                {
+                    Skin = reader.GetInt32(4),
+                });
         }
         return pets;
     }
@@ -457,7 +465,7 @@ public sealed class SqliteSaveRepository : ISaveRepository
         using SqliteConnection connection = Open();
         using SqliteTransaction transaction = connection.BeginTransaction();
         CreateCommand(connection, "DELETE FROM pets;", transaction).ExecuteNonQuery();
-        const string insert = "INSERT INTO pets (companion_id, name, loyalty, fed, petted_at) VALUES ($id, $name, $loyalty, $fed, $at);";
+        const string insert = "INSERT INTO pets (companion_id, name, loyalty, fed, petted_at, skin) VALUES ($id, $name, $loyalty, $fed, $at, $skin);";
         string now = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture);
         foreach (PetState pet in pets)
         {
@@ -467,6 +475,7 @@ public sealed class SqliteSaveRepository : ISaveRepository
             command.Parameters.AddWithValue("$loyalty", pet.Loyalty);
             command.Parameters.AddWithValue("$fed", pet.Fed);
             command.Parameters.AddWithValue("$at", now);
+            command.Parameters.AddWithValue("$skin", pet.Skin);
             command.ExecuteNonQuery();
         }
         transaction.Commit();
