@@ -29,7 +29,10 @@ public static class PlayerFactory
 
         var player = new Player(playerClass,
             CharacterVisuals.Create(context, playerClass, run.Appearance, EquipmentService.ArmorSprite(context.Definitions, run)),
-            stats, spawn);
+            stats, Vector2.Zero);
+        // "spawn" ist die Mitte der Fuesse. Die Ecke erst JETZT ableiten, wenn die Kollisionsbox
+        // feststeht - sie haengt an der Sprite-Groesse und ist keine feste Zahl mehr.
+        player.Position = spawn - new Vector2(player.Size.X / 2f, player.Size.Y);
 
         // Fähigkeiten aus dem Lauf + permanent freigeschaltete (Boss-Belohnungen), ohne Duplikate
         var abilityLevels = new Dictionary<string, int>(run.AbilityLevels, StringComparer.OrdinalIgnoreCase);

@@ -21,8 +21,17 @@ public sealed class Player : Actor
     private const float JumpBufferTime = 0.12f;   // zu früh gedrückter Sprung wird bei Landung ausgeführt
     private const float JumpCutMultiplier = 0.45f; // Taste loslassen = niedrigerer Sprung
     private const float HurtInvulnerability = 0.8f;
-    private const int StandHeight = 22;
-    private const int CrouchHeight = 12;
+    /// <summary>
+    /// Anteile der BILDgröße, aus denen die Kollisionsbox entsteht. Fest verdrahtete Pixelwerte
+    /// (früher 10 x 22) müssten bei jeder Änderung der Sprite-Größe nachgezogen werden – über
+    /// Anteile trägt ein größeres Sprite die Physik von selbst mit.
+    /// </summary>
+    private const float BodyWidthFactor = 0.62f;
+    private const float BodyHeightFactor = 0.92f;
+    private const float CrouchFactor = 0.55f;
+
+    private readonly int _standHeight;
+    private readonly int _crouchHeight;
     /// <summary>Geduckt kommt man nur noch halb so schnell voran – das ist der Preis fuer die Deckung.</summary>
     private const float CrouchSpeedFactor = 0.45f;
 
@@ -81,7 +90,11 @@ public sealed class Player : Actor
     {
         Class = playerClass;
         Stats = stats;
-        Size = new Point(10, 22);
+        // Kollisionsbox aus der Bildgröße ableiten (16x24 -> 10x22, 24x32 -> 15x29).
+        Point frame = visual.FrameSize;
+        _standHeight = Math.Max(4, (int)MathF.Round(frame.Y * BodyHeightFactor));
+        _crouchHeight = Math.Max(3, (int)MathF.Round(_standHeight * CrouchFactor));
+        Size = new Point(Math.Max(4, (int)MathF.Round(frame.X * BodyWidthFactor)), _standHeight);
         Position = spawnPosition;
         Mana = stats[StatType.MaxMana];
         _visual = visual;
@@ -263,17 +276,17 @@ public sealed class Player : Actor
         bool wantsCrouch = input.IsDown(GameAction.Down) && OnGround && !_wasInWater && !IsDashing;
         if (wantsCrouch)
         {
-            SetHeight(CrouchHeight);
+            SetHeight(_crouchHeight);
             IsCrouching = true;
             return;
         }
         if (!IsCrouching) return;
 
         // Aufstehen nur, wenn die volle Hoehe frei ist.
-        var standBox = new Rectangle((int)MathF.Floor(Position.X), (int)MathF.Floor(Position.Y + Size.Y - StandHeight),
-                                     Size.X, StandHeight);
+        var standBox = new Rectangle((int)MathF.Floor(Position.X), (int)MathF.Floor(Position.Y + Size.Y - _standHeight),
+                                     Size.X, _standHeight);
         if (TilePhysics.IsBlocked(world.Map, standBox)) return;
-        SetHeight(StandHeight);
+        SetHeight(_standHeight);
         IsCrouching = false;
     }
 
@@ -546,7 +559,7 @@ public sealed class Player : Actor
         if (HitFlashSeconds > 0f) tint = ColorUtil.Multiply(tint, new Color(255, 140, 140));   // Treffer: rötlich
         // Solange es keine eigenen Hock-Sprites gibt, wird die Figur gestaucht gezeichnet.
         // Der Zeichenursprung liegt auf den Fuessen, sie sinkt also korrekt zusammen.
-        Vector2? squash = IsCrouching ? new Vector2(1f, CrouchHeight / (float)StandHeight) : null;
+        Vector2? squash = IsCrouching ? new Vector2(1f, _crouchHeight / (float)_standHeight) : null;
         _visual.Draw(spriteBatch, BottomCenter, flipHorizontally: !FacingRight, tint, squash);
     }
 }

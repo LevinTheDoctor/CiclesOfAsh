@@ -93,7 +93,9 @@ public sealed class DungeonGenerator
             Map = _map,
             Rooms = allRooms,
             GridSize = new Point(gridWidth, GridHeight),
-            PlayerSpawn = new Vector2((start.TileBounds.X + 3) * TileSize, FloorPixelY(start) - 22),
+            // Mitte der Fuesse, nicht die linke obere Ecke: Die Figurhoehe haengt an der
+            // Sprite-Groesse, der Generator kennt sie nicht.
+            PlayerSpawn = new Vector2((start.TileBounds.X + 3) * TileSize + TileSize / 2f, FloorPixelY(start)),
             GoalRoom = goal,
             GoalBottomCenter = FloorCenter(goal),
             Props = _props.ToList(),

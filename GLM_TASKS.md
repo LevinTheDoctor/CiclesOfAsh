@@ -392,6 +392,64 @@ und Bauchmuskeln, und die Outfits lassen den Rumpf frei.
 
 ---
 
+# Vierter Stapel — 16-Bit-Stil und größere Figuren
+
+Der Nutzer will den Stil anheben: **Figuren größer (24 × 32 statt 16 × 24)** und die Grafik
+insgesamt im **16-Bit-Stil**. Anlass war eine Messung: Nach dem Anziehen unterscheiden sich die
+Körpertypen nur um **7–11 von 384 Pixeln**. Taille und Bauchmuskeln sind da, aber bei 16 × 24 und
+mit Gürtel und Riemen darüber bleibt zu wenig übrig. Mehr Fläche löst das an der Wurzel.
+
+„16-Bit" heißt dabei **nicht** mehr Pixel allein, sondern die Bildsprache der SNES-/Mega-Drive-Zeit:
+mehr Farbabstufungen je Material, weichere Übergänge, lesbare Silhouetten mit Binnenzeichnung. Die
+heutigen Sprites arbeiten meist mit drei Tönen (hell/mittel/dunkel) — künftig dürfen es vier bis
+sechs sein, mit Lichtquelle von oben links.
+
+## Grundregeln für diesen Umbau
+
+* **Kacheln bleiben 16 px.** `TileMap.TileSize` rührst du nicht an — sonst müsste die gesamte
+  Levelgeometrie neu gebaut werden. Eine Figur ist danach zwei Kacheln hoch; das ist die übliche
+  Proportion dieser Ära.
+* **Anker bleibt unten mittig.** Die Figur wächst also nach oben, die Füße bleiben auf der Fußlinie.
+* **Türen sind 4 Kacheln (64 px) hoch** — eine 32 px hohe Figur passt bequem durch. Nachgemessen,
+  daran musst du nichts anpassen.
+* **Die Kollisionsbox zieht automatisch mit.** Ich habe sie an die Bildgröße gekoppelt
+  (62 % der Breite, 92 % der Höhe): 16 × 24 ergibt weiterhin 10 × 22, 24 × 32 ergibt 15 × 29.
+  Du musst dafür **nichts** melden, es passt sich beim Laden an.
+* **Farbe nur dort, wo der Code nicht einfärbt.** Graustufen gehören zu Haaren, Make-up, Flügeln
+  und Akzent (die werden getönt). Körper, Outfits und Rüstung werden ungetönt gezeichnet und
+  brauchen eigene Farben — das war der Fehler beim letzten Mal.
+
+## G12 — Figuren auf 24 × 32
+
+Alle Ebenen in `characters.py` umstellen: `new_image(16, 24)` → `new_image(24, 32)` und
+`build_sheet(16, 24, rows)` → `build_sheet(24, 32, rows)`. Betroffen sind Körper (6), Haare (5),
+Outfits (4), Akzente (4), Make-up (4), Flügel (3) und Rüstungen (4).
+
+Im Manifest müssen dieselben Einträge von `"frameWidth": 16, "frameHeight": 24` auf
+`24` / `32` wechseln. **Nur die Figuren-Ebenen** — Gegner, Props und Effekte behalten ihre Größen.
+
+Der gewonnene Platz gehört der Lesbarkeit: Auf 24 × 32 sind Taille, Brustkorb und Bauchmuskeln
+tatsächlich darstellbar, ebenso Gesichtszüge und die Schnürung einer Rüstung.
+
+## G13 — 16-Bit-Anhebung der Figuren
+
+Mit der neuen Größe die sechs Körper, vier Outfits und vier Rüstungen neu durchzeichnen:
+
+* **vier bis sechs Tonwerte** je Material statt drei, Licht von oben links
+* **Materialkontrast**: Leder matt, Kette hart glänzend, Bronze warm, Stein stumpf
+* **Silhouette zuerst** — man muss die Figur am Umriss erkennen, bevor Details wirken
+
+## G14 — Gegner, Props und Kacheln nachziehen
+
+Erst **nachdem** G12 und G13 stehen und der Nutzer sie abgenommen hat. Gegner behalten ihre
+Maße (sie sind auf die Kampfreichweiten abgestimmt), bekommen aber dieselbe Anhebung: mehr
+Tonwerte, klarere Silhouetten. Danach Props, Tilesets und Hintergründe.
+
+**Melde dich nach G12/G13**, bevor du G14 anfängst — sonst steckt viel Arbeit in einem Stil, den
+der Nutzer vielleicht noch nachjustieren will.
+
+---
+
 ## Rückmeldungen an Claude
 
 Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Sitzung.

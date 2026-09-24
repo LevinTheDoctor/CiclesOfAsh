@@ -20,7 +20,9 @@ public sealed class Npc : Entity
         Definition = definition;
         Tag = tag;
         _animation = new AnimationPlayer(sheet);
-        Size = new Point(10, 20);
+        // Wie beim Spieler aus der Bildgröße abgeleitet, damit größere Sprites von selbst passen.
+        Size = new Point(Math.Max(4, (int)MathF.Round(sheet.FrameWidth * 0.62f)),
+                         Math.Max(4, (int)MathF.Round(sheet.FrameHeight * 0.84f)));
         Position = bottomCenter - new Vector2(Size.X / 2f, Size.Y);
         LightRadius = definition.LightRadius;
         LightColor = ColorUtil.FromHex(definition.LightColor, Color.White);

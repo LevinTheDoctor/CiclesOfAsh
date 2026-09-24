@@ -17,6 +17,15 @@ public sealed class LayeredSprite
         _layers = layers.Select(layer => (new AnimationPlayer(layer.Sheet), layer.Tint)).ToList();
     }
 
+    /// <summary>
+    /// Bildgröße der Ebenen. Alle Ebenen einer Figur haben dasselbe Raster, deshalb reicht die
+    /// erste. Der Spieler leitet daraus seine Kollisionsbox ab – so zieht ein größeres Sprite
+    /// (etwa der Wechsel auf 24x32) die Physik automatisch mit, ohne Zahlen im Code.
+    /// </summary>
+    public Point FrameSize => _layers.Count == 0
+        ? new Point(16, 24)
+        : new Point(_layers[0].Animation.Sheet.FrameWidth, _layers[0].Animation.Sheet.FrameHeight);
+
     public void Play(string clipName)
     {
         foreach (var (animation, _) in _layers) animation.Play(clipName);   // "_" = Discard, Wert wird nicht gebraucht
