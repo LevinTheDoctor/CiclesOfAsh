@@ -7,6 +7,13 @@ Zustände: `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt
 
 Reihenfolge mit dem Nutzer abgestimmt: **Paket A zuerst** (Kampf & Bewegung), danach B, C, D.
 
+**Arbeitsteilung mit GLM 5.3:** Aufgeteilt nach *Dateien*, nicht nach Features — siehe
+[GLM_TASKS.md](GLM_TASKS.md). GLM liefert Sprites und Inhaltsdaten (`tools/assetgen/*.py`,
+`Content/Textures/`, `manifest.json`, `appearance.json`, `enemies.json`, `companions.json`,
+`items.json`), Claude schreibt den gesamten C#-Code. Das geht parallel, weil der Code Sprites nur
+über IDs anspricht und ein fehlendes Sprite beim Start nur eine Warnung erzeugt statt eines
+Absturzes.
+
 ---
 
 ## Paket A — Kampf & Bewegung
