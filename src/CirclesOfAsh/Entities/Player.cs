@@ -398,6 +398,18 @@ public sealed class Player : Actor
 
         if (Health.TakeDamage(reduced, HurtInvulnerability) <= 0f) return;
 
+        // Ruestung nimmt den Schaden mit und zerspringt, wenn sie durch ist.
+        if (Progression.EquipmentService.DamageArmor(world.Run, reduced))
+        {
+            world.Effects.Burst(Center, Palette.Ash, 18, 130f);
+            world.Context.Audio.Play("crumble", 0.8f, -0.2f);
+            world.Announce("Deine Ruestung zerspringt!");
+            world.ShakeCamera(5f);
+            RefreshDerivedStats();
+            Stats.SetSource(Progression.EquipmentService.StatSource,
+                Progression.EquipmentService.CollectModifiers(world.Context.Definitions, world.Run));
+        }
+
         _stealthTimer = 0f;
         Flash();
         ApplyKnockback(source, knockback);

@@ -206,6 +206,26 @@ Aschenharnisch (heilig). Modifikatoren auf `Armor`, das schwerste zusätzlich le
 
 Dazu je ein Icon im Stil der vorhandenen Item-Sprites in `world.py`.
 
+### Nachtrag zu G5 — `durability` fehlt noch
+
+Meine Schuld, das stand beim ersten Auftrag noch nicht drin: Der Code kennt inzwischen ein Feld
+**`"durability"`** (ganze Zahl) auf Rüstungs-Items. Es ist die Menge Schaden, die das Stück
+abfängt, bevor es zerspringt; **0 oder fehlend heißt unzerstörbar**, und genau das sind die vier
+Einträge gerade.
+
+Bitte ergänze es, Vorschlag passend zur Seltenheit:
+
+```json
+"leather_jerkin": "durability": 60
+"chainmail":      "durability": 110
+"scale_mail":     "durability": 180
+"ash_harness":    "durability": 300
+```
+
+Der Rest ist schon fertig: Slot `Armor` existiert im Code, An- und Ablegen läuft über das Inventar,
+die Haltbarkeit steht dort als `aktuell/maximal` hinter dem Namen, und beim Zerspringen gibt es
+Splitter, Ton, Erschütterung und eine Meldung.
+
 ## G6 — Engel-Outfit
 
 **Ziel:** Die Klasse „Gefallener Engel" existiert im Code bereits (`classes.json`, Fähigkeit

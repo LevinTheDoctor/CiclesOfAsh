@@ -38,6 +38,8 @@ public sealed class RunState
     public List<string> Items { get; set; } = new();
     /// <summary>Pro Slot höchstens ein ausgerüstetes Item.</summary>
     public Dictionary<ItemSlot, string> Equipped { get; set; } = new();
+    /// <summary>Verbleibende Haltbarkeit der getragenen Rüstung. 0 = keine oder zersprungen.</summary>
+    public int ArmorDurability { get; set; }
 
     /// <summary>
     /// Tiefe Kopie. Der Dungeon arbeitet auf einer Kopie; nur bei Erfolg wird sie übernommen.
@@ -58,6 +60,7 @@ public sealed class RunState
         Appearance = Appearance,   // Record ist unveränderlich -> Referenz teilen ist sicher
         Items = new List<string>(Items),
         Equipped = new Dictionary<ItemSlot, string>(Equipped),
+        ArmorDurability = ArmorDurability,
     };
 }
 

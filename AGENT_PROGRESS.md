@@ -65,7 +65,7 @@ im Umkreis zu. Ausdauerleiste im HUD unter Leben und Mana.
 **Noch offen:** Der Umschalter „Bosskampf manuell/automatisch" im Optionsmenü. Aktuell läuft beides
 nebeneinander — die Automatik feuert weiter, der manuelle Nahkampf kommt oben drauf.
 
-### [ ] A3 Rüstung: anlegen, ablegen, zerspringen
+### [x] A3 Rüstung: anlegen, ablegen, zerspringen
 
 **Problem:** Es gibt nur passive Statboni in den Slots Lampe, Amulett, Ring
 (`Definitions.ItemSlot`). Keine Rüstung, keine Haltbarkeit.
@@ -76,6 +76,15 @@ Treffer Schaden, zerspringt bei 0 mit Splitter-Effekt und Ton und ist für den R
 `RunState.Equipped` ist heute `Dictionary<ItemSlot, string>` und braucht dafür einen Zusatzwert.
 
 **Prüfen:** Rüstung anlegen, Treffer kassieren, Haltbarkeit sinkt sichtbar, bei 0 zerspringt sie.
+
+**Erledigt.** Slot `Armor`, Feld `Durability` auf `ItemDefinition`, `RunState.ArmorDurability`.
+`EquipmentService.DamageArmor` zieht bei jedem Treffer ab und meldet das Zerspringen; die Rüstung
+ist dann abgelegt **und** aus dem Inventar verschwunden. Ab- und wieder Anlegen setzt die
+Haltbarkeit zurück — sonst könnte man Schaden durch Aus- und Einpacken heilen. Gespeichert in
+`run_profile`, also ohne Migration. Im Inventar steht `aktuell/maximal` hinter dem Namen.
+
+**Offen:** Die `durability`-Werte in `items.json` (GLMs Datei) — Nachtrag zu G5 eingetragen. Bis
+dahin ist die Rüstung unzerstörbar.
 
 ### [x] A4 Flügel als Funktion und Engel-Klasse
 

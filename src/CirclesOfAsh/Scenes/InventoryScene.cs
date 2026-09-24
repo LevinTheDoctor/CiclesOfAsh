@@ -42,7 +42,11 @@ public sealed class InventoryScene : SceneBase
         {
             ItemDefinition captured = item;
             string marker = EquipmentService.IsEquipped(_run, item) ? " (angelegt)" : "";
-            _menu.Add($"[{SlotName(item.Slot)}] {item.Name}{marker}", () => Toggle(captured), hint: Describe(item));
+            // Bei getragener Rüstung zeigt die Zeile, wie viel sie noch aushält.
+            string wear = item.Slot == ItemSlot.Armor && EquipmentService.IsEquipped(_run, item) && item.Durability > 0
+                ? $"  {_run.ArmorDurability}/{item.Durability}"
+                : "";
+            _menu.Add($"[{SlotName(item.Slot)}] {item.Name}{marker}{wear}", () => Toggle(captured), hint: Describe(item));
         }
         _menu.Select(selectedIndex);
     }
@@ -92,6 +96,7 @@ public sealed class InventoryScene : SceneBase
         ItemSlot.Lamp => "Laterne",
         ItemSlot.Amulet => "Amulett",
         ItemSlot.Ring => "Ring",
+        ItemSlot.Armor => "Rüstung",
         _ => "Fund",
     };
 

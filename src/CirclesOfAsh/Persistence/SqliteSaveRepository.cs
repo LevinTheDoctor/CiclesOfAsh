@@ -280,6 +280,7 @@ public sealed class SqliteSaveRepository : ISaveRepository
             (int)ReadLong(profile, "makeup"),
             (int)ReadLong(profile, "makeup_color"),
             (int)ReadLong(profile, "wings"));
+        run.ArmorDurability = (int)ReadLong(profile, "armor_durability");
         return run;
     }
 
@@ -333,6 +334,7 @@ public sealed class SqliteSaveRepository : ISaveRepository
             ("makeup", look.Makeup.ToString(CultureInfo.InvariantCulture)),
             ("makeup_color", look.MakeupColor.ToString(CultureInfo.InvariantCulture)),
             ("wings", look.Wings.ToString(CultureInfo.InvariantCulture)),
+            ("armor_durability", run.ArmorDurability.ToString(CultureInfo.InvariantCulture)),
         };
         foreach (var (key, value) in profileValues)
         {

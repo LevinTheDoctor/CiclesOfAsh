@@ -17,6 +17,7 @@ public static class EquipmentService
         run.Items.Add(item.Id);
         if (item.Slot == ItemSlot.Collectible || run.Equipped.ContainsKey(item.Slot)) return false;
         run.Equipped[item.Slot] = item.Id;
+        if (item.Slot == ItemSlot.Armor) run.ArmorDurability = item.Durability;
         return true;
     }
 
@@ -25,7 +26,29 @@ public static class EquipmentService
     {
         if (item.Slot == ItemSlot.Collectible) return;
         if (run.Equipped.TryGetValue(item.Slot, out string? current) && current == item.Id) run.Equipped.Remove(item.Slot);
-        else run.Equipped[item.Slot] = item.Id;
+        else
+        {
+            run.Equipped[item.Slot] = item.Id;
+            // Frisch angelegte Rüstung ist wieder ganz. Abgelegte behält ihren Zustand nicht –
+            // das ist Absicht: Sonst könnte man Schaden durch Ab- und Anlegen zurücksetzen.
+            if (item.Slot == ItemSlot.Armor) run.ArmorDurability = item.Durability;
+        }
+    }
+
+    /// <summary>
+    /// Nimmt Haltbarkeit von der getragenen Rüstung. Gibt true zurück, wenn sie dabei zerspringt –
+    /// dann ist sie abgelegt UND aus dem Inventar verschwunden (sie ist ja hin).
+    /// </summary>
+    public static bool DamageArmor(RunState run, float amount)
+    {
+        if (!run.Equipped.TryGetValue(ItemSlot.Armor, out string? armorId) || run.ArmorDurability <= 0) return false;
+        run.ArmorDurability -= Math.Max(1, (int)MathF.Round(amount));
+        if (run.ArmorDurability > 0) return false;
+
+        run.ArmorDurability = 0;
+        run.Equipped.Remove(ItemSlot.Armor);
+        run.Items.Remove(armorId);
+        return true;
     }
 
     public static bool IsEquipped(RunState run, ItemDefinition item) =>

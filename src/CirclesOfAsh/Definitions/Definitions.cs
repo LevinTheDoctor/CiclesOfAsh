@@ -235,7 +235,8 @@ public sealed class ThemeWeight
     public int Weight { get; init; } = 1;
 }
 
-public enum ItemSlot { Lamp, Amulet, Ring, Collectible }
+/// <remarks>Reihenfolge nie ändern – Spielstände speichern den Slot als Zahl. Neues ans Ende.</remarks>
+public enum ItemSlot { Lamp, Amulet, Ring, Collectible, Armor }
 
 public enum ItemRarity { Common, Rare, Sacred }
 
@@ -258,6 +259,10 @@ public sealed class ItemDefinition : IDefinition
     public string LightColor { get; init; } = "#FFD6AA";
     /// <summary>Taucht erst ab diesem Kreis (0-basiert) als Beute auf.</summary>
     public int MinCircle { get; init; }
+    /// <summary>
+    /// Nur für Rüstung: Wie viel Schaden sie abfängt, bevor sie zerspringt. 0 = unzerstörbar.
+    /// </summary>
+    public int Durability { get; init; }
 }
 
 public enum PropAnchor { Floor, Ceiling, Wall }
