@@ -150,10 +150,43 @@ Weitere Farbebene über dem Gesicht, technisch wie Haare und Akzent. Der Ebenen-
 **Erledigt.** Vier Stile (Lidstrich, Lidschatten, Lippen, Kriegsbemalung) plus eigene Farbliste,
 gezeichnet über dem Körper und **unter** den Haaren.
 
-### [ ] B3 Mehr Begleiter-Skins und sprechende Begleiter
+### [x] B3 Mehr Begleiter-Skins und sprechende Begleiter — `dfd7b3f`
 
-Sechs Begleiter existieren, der Dialog `pet_talk` ebenfalls. Geplant: mehr Skins und echte
-Gespräche, die von selbst beginnen — auch im Tutorial (siehe D).
+**Skins.** GLM hatte 18 Sprites geliefert, erreichbar waren davon **sechs** — die Varianten lagen
+ungenutzt im Manifest. `Companions/CompanionSkins.cs` löst sie über die Namensregel
+`companion.<id>.pale` / `.deep` auf: eine neue Fassung braucht nur einen Manifest-Eintrag, keinen
+Code. Alle sieben Begleiter haben jetzt drei Fassungen (`pilgrim_soul` teilt sich die Sprites mit
+`moon_soul`), macht **21 wählbare Erscheinungen**.
+
+Gewechselt wird im Tempel über die Dialogwahl **„Gestalt wechseln"**; die Seele nimmt die neue
+Gestalt sofort an. Die Wahl hält über Läufe hinweg — Migration **V4** (Spalte `skin` in `pets`,
+Default 0, ältere Spielstände sehen unverändert aus, am echten Spielstand durchgelaufen).
+
+**Sprechende Begleiter.** Ein Zwischenruf hält das Spiel bewusst **nicht** an — ein Dialogfenster
+mitten im Kampf wäre unerträglich. Stattdessen eine Sprechblase über der Seele, die von selbst
+verschwindet (7 s Sperre zwischen zwei Rufen, 4,5 s Standzeit).
+
+Zehn Auslöser, jeder mit genau einer Aufrufstelle im Code:
+
+| Auslöser | wo |
+|---|---|
+| `run_start` | `DungeonScene.OnEnter` |
+| `room_cleared` / `boss_defeated` | `DungeonWorld.OnArenaCleared` |
+| `low_health` | `DungeonWorld.WatchPlayerHealth` (nur beim Überschreiten der 30 %) |
+| `boss_start` | `DungeonWorld.SpawnEnemy` |
+| `armor_shattered` | `Player.OnArmorHit` |
+| `collectible_found` | `DungeonWorld.CollectItem` |
+| `first_crouch` / `first_block` | `Player.UpdateCrouch` / `UpdateMeleeCombat` |
+| `hub_idle` | `HubScene.UpdateIdleChatter` (nach 8 s Ruhe) |
+
+Die Zeilen stehen in `Content/Data/chatter.json` (35 Stück) und lassen sich nach Begleiter oder
+Verhalten filtern — jede Seele hat eine eigene Stimme, ohne dass die Datei in Varianten zerfällt.
+Ein Tippfehler im Filter fällt beim Start auf (`DefinitionRegistry.Validate`), statt die Zeile
+lautlos nie zu erreichen. Die Auslöser `first_crouch` / `first_block` sind schon auf das Tutorial
+(Paket D) hin angelegt.
+
+**Nicht beurteilt:** Ob die Seelen zu viel oder zu wenig reden, zeigt erst ein Durchgang. Die
+Sperren stehen als Konstanten in `CompanionChatter.cs`, die Zeilen in der JSON.
 
 ### [x] B4 Drachen
 
