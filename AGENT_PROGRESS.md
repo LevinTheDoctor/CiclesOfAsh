@@ -229,20 +229,36 @@ die Ecke leitet `PlayerFactory` ab.
 **Nachgemessen als Randbedingung:** Türen sind 4 Kacheln (64 px) hoch — eine 32-px-Figur passt
 bequem durch, die Levelgeometrie bleibt unangetastet. Kacheln bleiben bei 16 px.
 
-### [ ] E2 Figuren auf 24 × 32 (GLM, G12)
+### [x] E2 Figuren auf 24 × 32 (GLM, G12)
 
 Alle 30 Figuren-Ebenen plus die Manifest-Einträge. Nur die Figuren — Gegner, Props und Effekte
 behalten ihre Maße.
 
-### [ ] E3 16-Bit-Anhebung der Figuren (GLM, G13)
+**Abgenommen.** 31 Ebenen auf 24 × 32, Manifest stimmt, Gegner und Props unangetastet. Spiel
+startet ohne Warnung, die Kollisionsbox zieht wie vorgesehen automatisch auf 15 × 29 mit.
+
+### [x] E3 16-Bit-Anhebung der Figuren (GLM, G13)
 
 Vier bis sechs Tonwerte je Material statt drei, Licht von oben links, Materialkontrast zwischen
 Leder, Kette, Bronze und Stein.
 
-### [ ] E4 Gegner, Props und Kacheln nachziehen (GLM, G14)
+**Abgenommen.** Tonwerte deutlich gestiegen (Haare 3 → 7, Körper 69 Abstufungen), Farbregel
+eingehalten, Rüstungen nach Material klar unterscheidbar.
 
-**Erst nach Abnahme von E2/E3 durch den Nutzer** — sonst steckt viel Arbeit in einem Stil, der
-vielleicht noch nachjustiert wird.
+### [~] E4 Gegner, Props und Kacheln nachziehen (GLM, G14)
+
+**Freigegeben** nach der Abnahme von E2/E3.
+
+### [ ] E5 Silhouetten der Körpertypen (GLM, G15)
+
+**Der Punkt, wegen dem vergrößert wurde — und er ist offen.** Gemessen sind 12 von 14
+Rumpfzeilen zwischen `f_athletic` und `f_heavy` **pixelgleich**; nach dem Anziehen unterscheiden
+sie sich um 23 von 768 Pixeln (3 %) — derselbe Anteil wie vorher bei 16 × 24. Die gewonnene Fläche
+steckt in Binnenzeichnung und Tonwerten, nicht im Umriss.
+
+Die Statur muss aus dem **Umriss** kommen: athletic V-Form mit eingezogener Taille, heavy
+durchgehend breit mit vorgewölbtem Bauch. Abnahmekriterium: mindestens acht der vierzehn
+Rumpfzeilen unterschiedlich, nach dem Anziehen über 60 von 768 Pixeln. Läuft parallel zu G14.
 
 ### Merkregel aus einem Fehler
 

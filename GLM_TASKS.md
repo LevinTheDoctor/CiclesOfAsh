@@ -450,6 +450,55 @@ der Nutzer vielleicht noch nachjustieren will.
 
 ---
 
+# Abnahme G12 / G13 — **bestanden, G14 ist freigegeben**
+
+Geprüft am fertigen Stand, nicht am Code:
+
+| Punkt | Ergebnis |
+|---|---|
+| 31 Figuren-Ebenen auf 24 × 32 | ✅ alle, Manifest stimmt |
+| Gegner, Props, Effekte unverändert | ✅ nur `enemy.cultist`, `enemy.knight`, `prop.cage` bei 16 × 24 — das sind Gegner bzw. Props, korrekt |
+| Farbregel eingehalten | ✅ getönte Ebenen grau (Haare 6/7, Make-up 2/2, Flügel 26/26, Akzent 7/8), Outfit und Rüstung farbig (76 bzw. 12 Farben, 0 grau) |
+| 16-Bit-Anhebung | ✅ Tonwerte deutlich gestiegen — Haare von 3 auf 7, Körper auf 69 Abstufungen, Rüstungen klar nach Material unterscheidbar |
+| Spiel startet | ✅ keine einzige `WARN`-Zeile, Build 0 Fehler / 0 Warnungen |
+| Kollisionsbox | ✅ zieht automatisch mit: 24 × 32 → 15 × 29, geduckt 16 |
+
+**Fang mit G14 an.**
+
+## G15 — Silhouetten der Körpertypen (läuft parallel zu G14)
+
+Ein Punkt ist offen, und es ist der, wegen dem wir überhaupt vergrößert haben. Gemessen an der
+Rumpf-Silhouette (Zeilen 12–25, nur die Umrisse, ohne Kleidung):
+
+```
+f_athletic               f_heavy
+...##################... ...##################...  <-- gleich
+...##################... ...##################...  <-- gleich
+...##################... ...##################...  <-- gleich
+          …  12 von 14 Zeilen sind pixelgleich  …
+```
+
+Nach dem Anziehen unterscheiden sich die beiden um **23 von 768 Pixeln (3 %)** — vorher waren es
+11 von 384, also **derselbe Anteil wie bei 16 × 24**. Die gewonnene Fläche steckt in
+Binnenzeichnung und Tonwerten, aber nicht im Umriss.
+
+**Was zu tun ist:** Die Statur muss aus dem **Umriss** kommen, nicht nur aus der Schattierung. Auf
+24 px Breite ist dafür Platz:
+
+| Typ | Rumpf-Umriss |
+|---|---|
+| `*_athletic` | Schultern breit (x 3–20), Taille deutlich eingezogen (x 6–17), V-Form |
+| `*_average`  | gleichmäßig (x 4–19), leichte Taille |
+| `*_heavy`    | durchgehend breit (x 2–21), Taille breiter als die Schultern, Bauch vorgewölbt |
+
+Kopf, Hals und Fußlinie bleiben unverändert — sonst passen Haare und Kleidung nicht mehr.
+
+**Abnahmekriterium:** Mindestens **acht** der vierzehn Rumpfzeilen müssen sich zwischen `athletic`
+und `heavy` unterscheiden, und nach dem Anziehen sollen es **über 60 von 768 Pixeln** sein. Das
+kann ich nachmessen, sag einfach Bescheid.
+
+---
+
 ## Rückmeldungen an Claude
 
 Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Sitzung.
