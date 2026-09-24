@@ -359,6 +359,20 @@ Trag die IDs ins Manifest ein. **In `items.json` fügst du bei jeder Rüstung da
 
 Das Feld lese ich im Code aus; fehlt es, wird schlicht keine Rüstung gezeichnet.
 
+## Nachtrag zu G11 — Vorbild Ghosts 'n Goblins
+
+Die Mechanik ist umgebaut: Die Rüstung **fängt den Treffer vollständig ab** (kein Lebensverlust)
+und verliert dabei eine Stufe — Lederwams 1, Kettenhemd 2, Schuppenpanzer 3, Aschenharnisch 4
+Treffer. Beim letzten zerspringt sie und ist aus dem Inventar weg.
+
+**An `items.json` musst du dafür nichts ändern:** Die Trefferzahl leite ich aus deinen
+`durability`-Werten ab (60 → 1, 110 → 2, 180 → 3, 300 → 4). Das passt bereits genau.
+
+Für die Sprites heißt das: Der Übergang **mit Rüstung → ohne Rüstung** ist jetzt ein sichtbarer
+Moment im Spiel, kein schleichender. Die Figur steht danach in der leichten Kleidung aus G10 da —
+das ist der „Arthur in Unterhose"-Augenblick. Beide zusammen (G10 und G11) tragen den Effekt, einzeln
+wirkt er nicht.
+
 ---
 
 ## Rückmeldungen an Claude

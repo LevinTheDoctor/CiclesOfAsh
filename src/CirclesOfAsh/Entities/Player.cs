@@ -373,6 +373,43 @@ public sealed class Player : Actor
     }
 
     /// <summary>
+    /// Die Ruestung hat den Treffer geschluckt. Beim letzten Mal zerspringt sie und fliegt in
+    /// Einzelteilen davon - danach steht die Figur in ihrer leichten Kleidung da.
+    /// </summary>
+    private void OnArmorHit(DungeonWorld world, Vector2 source, float knockback,
+                            Progression.EquipmentService.ArmorResult result)
+    {
+        _stealthTimer = 0f;
+        Flash();
+        ApplyKnockback(source, knockback);
+        // Gleiches Zeitfenster wie bei echtem Schaden, sonst nimmt EIN Gegnerkontakt der Reihe
+        // nach alle Ruestungsstufen mit.
+        Health.GrantInvulnerability(HurtInvulnerability);
+
+        if (result == Progression.EquipmentService.ArmorResult.Absorbed)
+        {
+            world.Effects.Burst(Center, Palette.Ash, 8, 90f, 0.45f);
+            world.Context.Audio.Play("hit", 0.7f, -0.45f);   // dumpfer als ein Treffer auf Fleisch
+            world.ShakeCamera(2.5f);
+            return;
+        }
+
+        // Zerspringen: Teile in mehreren Schueben, damit sie gestaffelt wegfliegen und fallen.
+        world.Effects.Burst(Center, Palette.Ash, 16, 150f, 0.9f);
+        world.Effects.Burst(Center, Palette.Bone, 10, 110f, 0.8f);
+        world.Effects.Burst(Center, Palette.Gold, 6, 190f, 1.0f);
+        world.Effects.Ring(Center, 24f, Palette.Bone);
+        world.Context.Audio.Play("crumble", 0.9f, -0.3f);
+        world.Announce("Deine Ruestung zerspringt!");
+        world.ShakeCamera(6f);
+
+        RefreshDerivedStats();
+        Stats.SetSource(Progression.EquipmentService.StatSource,
+            Progression.EquipmentService.CollectModifiers(world.Context.Definitions, world.Run));
+        RefreshAppearance(world.Context, world.Run);   // Panzer verschwindet auch sichtbar
+    }
+
+    /// <summary>
     /// Baut das Ebenen-Sprite neu – nötig, wenn sich die getragene Rüstung ändert. Bewusst kein
     /// readonly-Feld mehr: Die Rüstung ist die einzige Ebene, die sich mitten im Lauf ändert.
     /// </summary>
@@ -404,20 +441,20 @@ public sealed class Player : Actor
             Stamina = MathF.Max(0f, Stamina - 20f);
         }
 
-        if (Health.TakeDamage(reduced, HurtInvulnerability) <= 0f) return;
-
-        // Ruestung nimmt den Schaden mit und zerspringt, wenn sie durch ist.
-        if (Progression.EquipmentService.DamageArmor(world.Run, reduced))
+        // Die Ruestung faengt den Treffer VOLLSTAENDIG ab, bevor Leben verloren geht (Vorbild
+        // Ghosts 'n Goblins). Vorher lief TakeDamage zuerst und die Ruestung litt nur zusaetzlich
+        // mit - sie war also eine zweite Lebensleiste statt eines Schildes.
+        if (!Health.IsInvulnerable)
         {
-            world.Effects.Burst(Center, Palette.Ash, 18, 130f);
-            world.Context.Audio.Play("crumble", 0.8f, -0.2f);
-            world.Announce("Deine Ruestung zerspringt!");
-            world.ShakeCamera(5f);
-            RefreshDerivedStats();
-            Stats.SetSource(Progression.EquipmentService.StatSource,
-                Progression.EquipmentService.CollectModifiers(world.Context.Definitions, world.Run));
-            RefreshAppearance(world.Context, world.Run);   // Panzer verschwindet auch sichtbar
+            var armorResult = Progression.EquipmentService.AbsorbHit(world.Context.Definitions, world.Run);
+            if (armorResult != Progression.EquipmentService.ArmorResult.None)
+            {
+                OnArmorHit(world, source, knockback, armorResult);
+                return;
+            }
         }
+
+        if (Health.TakeDamage(reduced, HurtInvulnerability) <= 0f) return;
 
         _stealthTimer = 0f;
         Flash();

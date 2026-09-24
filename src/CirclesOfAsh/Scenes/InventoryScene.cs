@@ -42,9 +42,10 @@ public sealed class InventoryScene : SceneBase
         {
             ItemDefinition captured = item;
             string marker = EquipmentService.IsEquipped(_run, item) ? " (angelegt)" : "";
-            // Bei getragener Rüstung zeigt die Zeile, wie viel sie noch aushält.
-            string wear = item.Slot == ItemSlot.Armor && EquipmentService.IsEquipped(_run, item) && item.Durability > 0
-                ? $"  {_run.ArmorDurability}/{item.Durability}"
+            // Bei getragener Rüstung zeigt die Zeile, wie viele Treffer sie noch abfängt.
+            int armorHits = item.Slot == ItemSlot.Armor ? EquipmentService.ArmorHitsOf(item) : 0;
+            string wear = armorHits > 0 && EquipmentService.IsEquipped(_run, item)
+                ? $"  {Math.Clamp(_run.ArmorDurability, 0, armorHits)}/{armorHits} Treffer"
                 : "";
             _menu.Add($"[{SlotName(item.Slot)}] {item.Name}{marker}{wear}", () => Toggle(captured), hint: Describe(item));
         }

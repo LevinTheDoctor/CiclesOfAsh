@@ -17,7 +17,7 @@ public static class EquipmentService
         run.Items.Add(item.Id);
         if (item.Slot == ItemSlot.Collectible || run.Equipped.ContainsKey(item.Slot)) return false;
         run.Equipped[item.Slot] = item.Id;
-        if (item.Slot == ItemSlot.Armor) run.ArmorDurability = item.Durability;
+        if (item.Slot == ItemSlot.Armor) run.ArmorDurability = ArmorHitsOf(item);
         return true;
     }
 
@@ -31,24 +31,42 @@ public static class EquipmentService
             run.Equipped[item.Slot] = item.Id;
             // Frisch angelegte Rüstung ist wieder ganz. Abgelegte behält ihren Zustand nicht –
             // das ist Absicht: Sonst könnte man Schaden durch Ab- und Anlegen zurücksetzen.
-            if (item.Slot == ItemSlot.Armor) run.ArmorDurability = item.Durability;
+            if (item.Slot == ItemSlot.Armor) run.ArmorDurability = ArmorHitsOf(item);
         }
     }
 
     /// <summary>
-    /// Nimmt Haltbarkeit von der getragenen Rüstung. Gibt true zurück, wenn sie dabei zerspringt –
-    /// dann ist sie abgelegt UND aus dem Inventar verschwunden (sie ist ja hin).
+    /// Wie viele Treffer diese Rüstung abfängt. Ohne ausdrückliche Angabe aus der Robustheit
+    /// abgeleitet, damit vorhandene Daten ohne Änderung sinnvolle Werte ergeben
+    /// (60 → 1, 110 → 2, 180 → 3, 300 → 4).
     /// </summary>
-    public static bool DamageArmor(RunState run, float amount)
-    {
-        if (!run.Equipped.TryGetValue(ItemSlot.Armor, out string? armorId) || run.ArmorDurability <= 0) return false;
-        run.ArmorDurability -= Math.Max(1, (int)MathF.Round(amount));
-        if (run.ArmorDurability > 0) return false;
+    public static int ArmorHitsOf(ItemDefinition item) =>
+        item.ArmorHits > 0 ? item.ArmorHits : Math.Clamp((int)MathF.Round(item.Durability / 60f), 1, 4);
 
-        run.ArmorDurability = 0;
+    /// <summary>Ergebnis eines Treffers auf die Rüstung.</summary>
+    public enum ArmorResult { None, Absorbed, Shattered }
+
+    /// <summary>
+    /// Die Rüstung fängt einen Treffer VOLLSTÄNDIG ab (Vorbild Ghosts 'n Goblins) und verliert
+    /// dabei eine Stufe. Beim letzten Treffer zerspringt sie: abgelegt und aus dem Inventar weg.
+    /// </summary>
+    public static ArmorResult AbsorbHit(DefinitionRegistry definitions, RunState run)
+    {
+        if (!run.Equipped.TryGetValue(ItemSlot.Armor, out string? armorId) || !definitions.Items.Contains(armorId))
+            return ArmorResult.None;
+
+        // Alte Spielstände führten hier einen Schadenspool (z. B. 60) – auf die Trefferzahl klemmen.
+        int maxHits = ArmorHitsOf(definitions.Items.Get(armorId));
+        int remaining = Math.Clamp(run.ArmorDurability, 0, maxHits);
+        if (remaining <= 0) return ArmorResult.None;
+
+        remaining--;
+        run.ArmorDurability = remaining;
+        if (remaining > 0) return ArmorResult.Absorbed;
+
         run.Equipped.Remove(ItemSlot.Armor);
         run.Items.Remove(armorId);
-        return true;
+        return ArmorResult.Shattered;
     }
 
     /// <summary>Sprite-Ebene der getragenen Rüstung, oder null (keine getragen / kein Bild hinterlegt).</summary>

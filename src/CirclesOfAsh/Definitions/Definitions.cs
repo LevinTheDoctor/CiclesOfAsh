@@ -265,9 +265,15 @@ public sealed class ItemDefinition : IDefinition
     /// <summary>Taucht erst ab diesem Kreis (0-basiert) als Beute auf.</summary>
     public int MinCircle { get; init; }
     /// <summary>
-    /// Nur für Rüstung: Wie viel Schaden sie abfängt, bevor sie zerspringt. 0 = unzerstörbar.
+    /// Nur für Rüstung: Grobes Maß für die Robustheit. Wird in Treffer umgerechnet, falls
+    /// <see cref="ArmorHits"/> nicht gesetzt ist. 0 = keine Rüstung.
     /// </summary>
     public int Durability { get; init; }
+    /// <summary>
+    /// Nur für Rüstung: Wie viele Treffer sie ABFÄNGT, bevor sie zerspringt. 0 = aus
+    /// <see cref="Durability"/> ableiten.
+    /// </summary>
+    public int ArmorHits { get; init; }
     /// <summary>
     /// Nur für Rüstung: Sprite-Ebene, die über der Kleidung gezeichnet wird. Leer = unsichtbar.
     /// </summary>
