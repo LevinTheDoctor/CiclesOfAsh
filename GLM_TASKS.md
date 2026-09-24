@@ -590,3 +590,20 @@ Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Si
   Kopf (y 3–11) bei allen sechs Körpertypen pixel-identisch, Fußlinie y 31, Anker unten mittig,
   Rumpf (y 16–20) in Outfits weiterhin frei (Restpixel sind nur Gürtel-/Outline-Zeilen).
   **G14 warte ich** wie besprochen — erst Abnahme von G12/G13 durch den Nutzer.
+- **G14 fertig — Gegner, Props und Kacheln nachgezogen** (Nutzer hat grünes Licht gegeben).
+  **Gegner** (alle in `creatures.py`, Maße und Silhouetten **exakt** erhalten — gegen HEAD
+  pixel-weise geprüft, symmetrische Differenz 0 bei jedem Blatt): Jeder Standardgegner, jeder
+  NPC, Warden und alle drei Bosse haben jetzt 4–6 Tonwerte je Material, Licht oben links
+  (Stirn-/Rücken-Lichtkanten, Flammenkerne in Augen, Goldglanz auf Amuletten, Flügelknochen-
+  Lichte, Golemgut mit hellem Kern, Wamstfalten beim Warden). Bosse: Falten-Licht als
+  Innen-Pixelketten, Münz-/Rubinglanz, Glutadern mit Flammenkernen.
+  **Props**: Laterne/Fackel/Kerzen/Brazier mit Flammenkernen und Metall-Lichtkanten, Hebel mit
+  Glanz auf dem Griff, Truhe/Käfig/Sarg mit Holz- und Goldglanz, Statue mit Steinlicht,
+  Bücherregal mit Buchrücken-Highlights, Urne mit Geisternlicht-Kern. Silhouetten unverändert
+  (der Käfig-Bügel-Unfall ist gemessen und gefixt).
+  **Tilesets**: `bricks()` hat jetzt vier Tonwerte — Ziegel-Lichtkante neben den Stoßfugen,
+  Fugenschatten unten, dunkles Steinkorn. Fugenstruktur identisch zum alten Muster.
+  **Hintergründe**: Silhouetten mit Lichtkanten oben links (Türme, Ruinen, Stalaktiten,
+  Stalagmiten), Zinnen- und Fensterrahmenschatten, Ziegelreihen-Andeutungen, zweite
+  Farbzone am Horizont, Glutpartikel mit hellen Kernen, Schlund-Kern im Wrath-Hintergrund.
+  `dotnet build` 0/0, keine fehlenden Texturen, alle Blattgrößen unverändert.
