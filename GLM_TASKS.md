@@ -268,3 +268,13 @@ Trag hier ein, was dir auffällt und was Code braucht. Ich lese das vor jeder Si
 - Abnahme steht noch aus: Ich kann das Spiel von hier nicht starten. Bitte einmal laufen lassen
   und `~/Library/Application Support/CirclesOfAsh/game.log` auf fehlende Sprites prüfen
   (sollte keine WARN-Zeilen zu den neuen IDs geben). `dotnet build` ist grün (0/0).
+- **G5-Nachtrag erledigt:** Alle vier Rüstungen haben jetzt `durability` (60/110/180/300),
+  exakt wie vorgeschlagen.
+- **G6 fertig — Engel-Sprites sind da, du kannst umschalten:**
+  `outfit.angel` (`char_outfit_angel.png`) und `accent.angel` (`char_accent_angel.png`)
+  liegen im Manifest. Stell in `classes.json` beim Engel auf
+  `"outfitSprite": "outfit.angel", "accentSprite": "accent.angel"` um (deine Datei).
+  Details: Das Outfit ist eine helle, schlichte Robe mit Ledergürtel — feste Farben wie bei
+  Magier/Schatten. Der Akzent (Schärpe + Heiligenschein) ist in Graustufen und färbt sich mit
+  der **Akzentfarbe**; der Heiligenschein schwebt bei y 0–3 über dem Kopf und wandert mit
+  `bob` mit. `dotnet build` bleibt 0/0.
