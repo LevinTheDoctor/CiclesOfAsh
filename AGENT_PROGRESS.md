@@ -370,6 +370,72 @@ und alle vier sahen aus wie derselbe helle Klotz. **Graustufen nur dort, wo der 
 
 ---
 
+## Nach dem Spieltest — drei Korrekturen
+
+Rückmeldung: „das mit den beschweren ist nice aber funktioniert nicht ganz", „auch die Rüstung ist
+noch nicht da", plus der Wunsch, den Editor umzubauen.
+
+### [x] F1 Gewichts- und Spiegelrätsel gegen Schächte absichern — `cc2f8a9`
+
+Aus dem Screenshot ausgemessen (Maßstab 4×, die gelben Punkte der Platte sind 4 px breit): zwei
+Druckplatten im Abstand von genau **acht Kacheln** — mein Raster —, und dazwischen, wo die
+Schiebeblöcke stehen müssten, ein **vier Kacheln breites Loch** im Boden. Das ist der Schacht, den
+`CarveExit` für einen Ausgang nach unten in die Bodenreihe schneidet.
+
+Zwei Fehler, beide von mir:
+
+* Die mittlere Platte landete über dem Loch und schwebte — `PlacePropAt` prüfte den Boden nie.
+* `IsTargetBlocked` fragte nur, ob die Zielkachel *fest* ist. Ein Loch ist nicht fest, also war der
+  Schub erlaubt — und die Fall-Schleife ließ den Block durch den Schacht **in den Raum darunter**
+  sinken. Weg, Rätsel für immer unlösbar. Genau deshalb waren keine Blöcke mehr zu sehen.
+
+Korrigiert an drei Stellen: Der Rätselraum wird erst gewählt, **nachdem** Umwege, Schatzabzweige
+und Kerker stehen (die hängen weitere Ausgänge an — daran ist mein erster Anlauf gescheitert);
+ausgeschlossen sind nur Ausgänge nach **unten**. `PlacePropAt` meldet Fehlschlag ohne festen Boden.
+Ein Schub ins Leere wird abgelehnt, und die Fall-Schleife endet am Rand des eigenen Raums.
+
+**Meine 300-Seed-Prüfung war zu schwach** — in den geprüften Läufen hatte zufällig kein Rätselraum
+einen senkrechten Ausgang. Jetzt 500 Seeds mit drei zusätzlichen Bedingungen (kein Schacht nach
+unten, feste Kachel unter jedem Teil, durchgehender Boden auf **jedem** Schiebeweg von jedem Block
+zu jeder Platte). Vorher 256 Fehler, jetzt null. 394 von 500 Verliesen bekommen das Rätsel.
+
+### [x] F2 Rüstung von der ersten Sekunde an — `54ca4a2`
+
+Ich habe den Spielstand gelesen: der Lauf hatte **kein einziges Item**. Die Rüstung war also weder
+kaputt noch unsichtbar — sie entstand nur als Zufallsbeute aus Truhen, und bei 13 Items im Topf
+vergeht damit leicht ein halber Lauf ohne.
+
+Jede Klasse startet jetzt mit einem Lederwams (`startingArmor` in `classes.json`). Dabei zwei echte
+Fehler gefunden:
+
+* `CollectItem` rief `Apply`, aber nie `RefreshAppearance`. `Apply` rührt nur die Werte an, nicht
+  die Sprite-Ebenen — eine im Verlies aufgesammelte Rüstung wäre bis zum nächsten Verlies
+  unsichtbar geblieben. `InventoryScene` macht es seit jeher richtig.
+* `ArmorHitsOf` rechnete 60 Robustheit auf genau **einen** Treffer um; das Lederwams zersprang also
+  beim ersten Schlag. Man sah die Splitter, aber nie den Moment, in dem der Panzer einen Schlag
+  schluckt. Jetzt fängt jede Rüstung mindestens einen Treffer ganz ab (60→2, 110→3, 180→4, 300→5).
+
+`Validate` prüft jetzt auch Item-Sprites und die Startrüstung — ein falsch benanntes Rüstungssprite
+wäre bisher lautlos verschwunden.
+
+**Nicht beurteilt:** Ob zwei Treffer für den Start zu großzügig sind, zeigt erst ein Durchgang.
+
+### [x] F3 Charakter-Editor: Geschlecht → Statur → Klasse — `6cbd47c`
+
+Geschlecht war gar kein eigenes Feld — es steckte nur im ID-Präfix der sechs Körpertypen.
+`Progression/BodyTypeCatalog.cs` zerlegt die eine Liste in zwei Achsen und rechnet sie wieder
+zusammen. Datenformat, Persistenz (`body_type`) und `CharacterVisuals` bleiben unverändert: keine
+Migration, und `appearance.json` (GLMs Datei) unangetastet.
+
+Statur läuft auf der Skala **Kräftig → Normal → Trainiert**; ein Geschlechtswechsel behält sie.
+Fehlen die Präfixe (Mod), fällt die Geschlechtszeile weg und „Statur" listet wie bisher alles.
+
+Nachgerechnet: Alle sechs Kombinationen treffen genau einen Körpertyp, keinen doppelt, Hin- und
+Zurückrechnen ist stabil. Bei zwölf statt elf Zeilen sinkt der Abstand von 13,1 auf 12,0 px — die
+Schrift ist 10 px hoch, die letzte Zeile endet zwei Pixel über dem Infoblock.
+
+---
+
 ## Erledigt in dieser Sitzung
 
 * [x] Optionen aus **jedem** Pausenmenü erreichbar (`73531d8`) — im Verlies fehlte der Eintrag.
