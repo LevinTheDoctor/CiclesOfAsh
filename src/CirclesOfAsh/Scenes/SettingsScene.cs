@@ -322,15 +322,16 @@ public sealed class SettingsScene : SceneBase
 
     /// <summary>Beschriftung + Wert der Zeile (Reiter, Index).</summary>
     /// <summary>
-    /// Zeigt die tatsächlich benutzte Größe. Bei "Auto" steht die errechnete Skalierung dabei,
+    /// Zeigt die tatsächlich benutzte Größe. Bei "Auto" steht die errechnete Fenstergröße dabei,
     /// und ein fester Wert, der nicht auf den Bildschirm passt, wird als geklemmt ausgewiesen –
     /// sonst behauptet das Menü 3x, während das Fenster in Wahrheit kleiner ist.
     /// </summary>
     private string ScaleValueText()
     {
+        Point window = ScreenSetup.WindowSize(Context, Settings);
+        string size = $"{window.X}x{window.Y}";
+        if (Settings.ScreenScale <= 0) return $"Auto ({size})";
         int effective = ScreenSetup.EffectiveScale(Context, Settings);
-        string size = $"{CirclesGame.VirtualWidth * effective}x{CirclesGame.VirtualHeight * effective}";
-        if (Settings.ScreenScale <= 0) return $"Auto ({effective}x · {size})";
         return effective == Settings.ScreenScale
             ? $"{effective}x ({size})"
             : $"{Settings.ScreenScale}x → {effective}x ({size}, Bildschirm zu klein)";
@@ -418,7 +419,7 @@ public sealed class SettingsScene : SceneBase
     {
         string? hint = _tab switch
         {
-            Tab.Screen => "Fenstergröße in Faktoren der virtuellen Auflösung. Wirkt sofort.",
+            Tab.Screen => "Fenstergröße: Auto füllt den Bildschirm, Faktoren sind pixelgenau. Das Fenster lässt sich frei ziehen.",
             Tab.Audio => "Alle Regler wirken sofort. Effekte spielen beim Ändern einen Probe-Sound.",
             Tab.Control => "Zeigt den erkannten Controller und sein Beschriftungsprofil (controllers.json).",
             Tab.Gameplay => _difficulties.FirstOrDefault(d => d.Id == Settings.DifficultyId)?.Description,
@@ -455,23 +456,32 @@ public static class ScreenSetup
     public static void Register(GraphicsDeviceManager manager) => _manager = manager;
 
     /// <summary>
-    /// Größte ganzzahlige Skalierung der 480x270-Leinwand, die auf den Bildschirm passt.
-    /// Mindestens 1 – lieber ein zu großes Fenster als gar kein Bild.
+    /// Nutzbarer Bereich des Bildschirms in Fensterpunkten (Menüleiste, Titelleiste und Dock
+    /// abgezogen). null, wenn es keinen Bildschirm gibt (CI).
     /// </summary>
-    public static int AutoScale(int fallback)
+    private static Point? UsableDisplayArea()
     {
         try
         {
             DisplayMode display = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode;
-            int usableWidth = (int)(display.Width * UsableWidthFraction);
-            int usableHeight = (int)(display.Height * UsableHeightFraction);
-            return Math.Max(1, Math.Min(usableWidth / CirclesGame.VirtualWidth, usableHeight / CirclesGame.VirtualHeight));
+            return new Point((int)(display.Width * UsableWidthFraction), (int)(display.Height * UsableHeightFraction));
         }
         catch (Exception exception)   // ohne Bildschirm (CI) gibt es keinen Adapter
         {
-            Log.Warn($"Bildschirmgröße nicht ermittelbar ({exception.GetType().Name}) – nutze {fallback}x.");
-            return fallback;
+            Log.Warn($"Bildschirmgröße nicht ermittelbar ({exception.GetType().Name}).");
+            return null;
         }
+    }
+
+    /// <summary>
+    /// Größte ganzzahlige Skalierung der 480x270-Leinwand, die auf den Bildschirm passt.
+    /// Mindestens 1 – lieber ein zu großes Fenster als gar kein Bild.
+    /// </summary>
+    private static int AutoScale(int fallback)
+    {
+        // "is Point area" = Pattern Matching: prüft auf nicht-null und entpackt in einem Schritt
+        if (UsableDisplayArea() is not Point area) return fallback;
+        return Math.Max(1, Math.Min(area.X / CirclesGame.VirtualWidth, area.Y / CirclesGame.VirtualHeight));
     }
 
     /// <summary>
@@ -486,16 +496,38 @@ public static class ScreenSetup
         return settings.ScreenScale <= 0 ? automatic : Math.Min(settings.ScreenScale, automatic);
     }
 
+    /// <summary>
+    /// Fenstergröße beim Anwenden der Einstellungen. "Auto" füllt den nutzbaren Bildschirm im
+    /// Seitenverhältnis 16:9 – auch mit krummem Faktor, denn <see cref="CirclesGame"/> skaliert
+    /// scharf auf jede Größe. Ohne das bliebe z. B. auf einem 1440x900-Mac nur ein 960x540-Fenster.
+    /// Ein fester Faktor liefert weiterhin das exakte Vielfache (pixelgenau).
+    /// </summary>
+    public static Point WindowSize(GameContext context, GameSettings settings)
+    {
+        if (settings.ScreenScale <= 0 && UsableDisplayArea() is Point area)
+        {
+            float fitScale = MathF.Min(area.X / (float)CirclesGame.VirtualWidth, area.Y / (float)CirclesGame.VirtualHeight);
+            fitScale = MathF.Max(1f, fitScale);
+            return new Point((int)(CirclesGame.VirtualWidth * fitScale), (int)(CirclesGame.VirtualHeight * fitScale));
+        }
+        int scale = EffectiveScale(context, settings);
+        return new Point(CirclesGame.VirtualWidth * scale, CirclesGame.VirtualHeight * scale);
+    }
+
     public static void Apply(GameContext context, GameSettings settings)
     {
         if (_manager is null) return;
-        int scale = EffectiveScale(context, settings);
-        int width = CirclesGame.VirtualWidth * scale;
-        int height = CirclesGame.VirtualHeight * scale;
+        Point size = WindowSize(context, settings);
+        int width = size.X;
+        int height = size.Y;
 
         _manager.PreferredBackBufferWidth = width;
         _manager.PreferredBackBufferHeight = height;
         _manager.SynchronizeWithVerticalRetrace = settings.VSync;
+        // false = randloses Vollbild in der Desktop-Auflösung statt echtem Moduswechsel. Auf macOS
+        // (und bei mehreren Monitoren) wechselt so nicht der ganze Bildschirm die Auflösung, und
+        // Cmd+Tab / Mission Control funktionieren wie bei jeder anderen App.
+        _manager.HardwareModeSwitch = false;
         // Nur tatsächlich umschalten, wenn der gewünschte Zustand abweicht (Toggle = Umschalter!)
         if (_manager.IsFullScreen != settings.Fullscreen) _manager.ToggleFullScreen();
         _manager.ApplyChanges();
@@ -503,7 +535,7 @@ public static class ScreenSetup
         // Zurücklesen: Das Betriebssystem darf die Anforderung ablehnen. Ohne diese Zeile blieb
         // völlig unsichtbar, dass das Fenster kleiner ist als angefordert.
         Rectangle actual = _manager.GraphicsDevice.PresentationParameters.Bounds;
-        string wanted = settings.ScreenScale <= 0 ? $"Auto -> {scale}x" : $"{settings.ScreenScale}x -> {scale}x";
+        string wanted = settings.ScreenScale <= 0 ? "Auto" : $"{settings.ScreenScale}x -> {EffectiveScale(context, settings)}x";
         if (settings.Fullscreen || (actual.Width == width && actual.Height == height))
             Log.Info($"Bildschirm: {wanted}, Fenster {actual.Width}x{actual.Height}.");
         else

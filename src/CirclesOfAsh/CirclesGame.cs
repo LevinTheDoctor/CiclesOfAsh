@@ -7,7 +7,8 @@ namespace CirclesOfAsh;
 /// Einstiegspunkt von MonoGame. Bewusst "dünn": Die Klasse kennt nur den Game-Loop
 /// (Update/Draw) und delegiert alles an den <see cref="SceneManager"/>.
 /// Pixel-Art-Trick: Es wird in eine kleine virtuelle Auflösung (480x270) gerendert und das
-/// Ergebnis ganzzahlig hochskaliert -> scharfe, gleich große Pixel auf jedem Monitor.
+/// Ergebnis aufs Fenster hochskaliert. Passt ein ganzzahliger Faktor genau, wird direkt
+/// pixelgenau gezeichnet; bei jeder anderen Fenstergröße scharf-bilinear (siehe <see cref="Draw"/>).
 /// </summary>
 public sealed class CirclesGame : Game
 {
@@ -21,6 +22,9 @@ public sealed class CirclesGame : Game
     private readonly GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch = null!;   // "null!" = Versprechen an den Compiler: wird in LoadContent gesetzt
     private RenderTarget2D _canvas = null!;
+    // Zwischenstufe für krumme Fenstergrößen: die Leinwand ganzzahlig vergrößert. "?" = darf fehlen,
+    // solange das Fenster ein exaktes Vielfaches ist oder noch nie krumm skaliert wurde.
+    private RenderTarget2D? _upscaledCanvas;
     private GameContext _context = null!;
 
     public CirclesGame()
@@ -40,6 +44,8 @@ public sealed class CirclesGame : Game
             PreferredBackBufferWidth = VirtualWidth * 3,
             PreferredBackBufferHeight = VirtualHeight * 3,
             SynchronizeWithVerticalRetrace = true,
+            // Vollbild ohne Auflösungswechsel (siehe ScreenSetup.Apply) – schon ab dem ersten Frame
+            HardwareModeSwitch = false,
         };
         Window.Title = "Circles of Ash";
         Window.AllowUserResizing = true;
@@ -101,11 +107,23 @@ public sealed class CirclesGame : Game
         GraphicsDevice.Clear(Palette.Void);
         _context.Scenes.Draw(_spriteBatch);
 
-        // 2) Leinwand pixelgenau (PointClamp = keine Weichzeichnung) aufs Fenster skalieren
+        // 2) Leinwand aufs Fenster bringen
+        Rectangle target = ComputeLetterboxRectangle();
+        Texture2D source = _canvas;
+        SamplerState finalSampler = SamplerState.PointClamp;   // PointClamp = keine Weichzeichnung
+        if (target.Width % VirtualWidth != 0 || target.Height % VirtualHeight != 0)
+        {
+            // Krummer Faktor (z. B. 2,6x nach Fensterziehen): Reines PointClamp ergäbe ungleich
+            // breite Pixel, reines Linear ein matschiges Bild. "Scharf-bilinear" kombiniert beides:
+            // erst ganzzahlig AUFgerundet vergrößern (Pixel bleiben Blöcke), dann nur das letzte
+            // kleine Stück linear VERkleinern – weich sind so nur die Kanten zwischen zwei Blöcken.
+            source = UpscaleCanvas(target);
+            finalSampler = SamplerState.LinearClamp;
+        }
         GraphicsDevice.SetRenderTarget(null);
         GraphicsDevice.Clear(Color.Black);
-        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
-        _spriteBatch.Draw(_canvas, ComputeLetterboxRectangle(), Color.White);
+        _spriteBatch.Begin(samplerState: finalSampler);
+        _spriteBatch.Draw(source, target, Color.White);
         _spriteBatch.End();
 
         base.Draw(gameTime);
@@ -119,14 +137,48 @@ public sealed class CirclesGame : Game
     /// </summary>
     public static Rectangle CanvasArea { get; private set; } = new(0, 0, VirtualWidth, VirtualHeight);
 
+    /// <summary>
+    /// Größtes 16:9-Rechteck, das ins Fenster passt, zentriert (schwarze Balken nur noch dort, wo
+    /// das Seitenverhältnis abweicht). Früher nur ganzzahlige Faktoren – dann blieb nach dem
+    /// Vergrößern des Fensters oft ein breiter schwarzer Rand statt eines größeren Bildes.
+    /// </summary>
     private Rectangle ComputeLetterboxRectangle()
     {
         Rectangle window = GraphicsDevice.PresentationParameters.Bounds;
-        int scale = Math.Max(1, Math.Min(window.Width / VirtualWidth, window.Height / VirtualHeight));
-        int width = VirtualWidth * scale;
-        int height = VirtualHeight * scale;
+        float scale = MathF.Min(window.Width / (float)VirtualWidth, window.Height / (float)VirtualHeight);
+        // Liegt der Faktor praktisch auf einer ganzen Zahl (z. B. 2,997 durch ein Pixel Rundung),
+        // wird abgerundet: dann greift der pixelgenaue Weg in Draw statt der Zwischenstufe.
+        float integerScale = MathF.Floor(scale);
+        // Ternärer Operator "?:": Bedingung ? Wert_wenn_wahr : Wert_wenn_falsch
+        float usedScale = integerScale >= 1f && scale - integerScale < 0.02f ? integerScale : scale;
+        int width = Math.Max(1, (int)MathF.Round(VirtualWidth * usedScale));
+        int height = Math.Max(1, (int)MathF.Round(VirtualHeight * usedScale));
         CanvasArea = new Rectangle((window.Width - width) / 2, (window.Height - height) / 2, width, height);
         return CanvasArea;
+    }
+
+    /// <summary>
+    /// Zeichnet die Leinwand pixelgenau in eine Zwischenstufe, die mindestens so groß ist wie das
+    /// Ziel (Faktor aufgerundet). Das Render-Target wird nur neu angelegt, wenn sich dieser Faktor
+    /// ändert – beim Fensterziehen also selten, nicht in jedem Frame.
+    /// </summary>
+    private Texture2D UpscaleCanvas(Rectangle target)
+    {
+        int factor = Math.Max(1, (int)MathF.Ceiling(MathF.Max(
+            target.Width / (float)VirtualWidth, target.Height / (float)VirtualHeight)));
+        int width = VirtualWidth * factor;
+        int height = VirtualHeight * factor;
+        // "is null ||": kurzschließendes Oder – die Größe wird nur abgefragt, wenn es das Target gibt
+        if (_upscaledCanvas is null || _upscaledCanvas.Width != width || _upscaledCanvas.Height != height)
+        {
+            _upscaledCanvas?.Dispose();   // "?." = nur aufrufen, wenn nicht null
+            _upscaledCanvas = new RenderTarget2D(GraphicsDevice, width, height);
+        }
+        GraphicsDevice.SetRenderTarget(_upscaledCanvas);
+        _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        _spriteBatch.Draw(_canvas, new Rectangle(0, 0, width, height), Color.White);
+        _spriteBatch.End();
+        return _upscaledCanvas;
     }
 
     protected override void UnloadContent()
@@ -135,6 +187,7 @@ public sealed class CirclesGame : Game
         Window.TextInput -= OnTextInput;
         _context.Dispose();
         _canvas.Dispose();
+        _upscaledCanvas?.Dispose();
         _spriteBatch.Dispose();
         base.UnloadContent();
     }
