@@ -39,6 +39,8 @@ public sealed class DungeonWorld : IDisposable
     private bool _goalTriggered;
     private bool _bossDefeated;
     private bool _playerWasLow;
+    /// <summary>Stück, das vor dem Mini-Boss lief. null = kein Wechsel aktiv.</summary>
+    private string? _musicBeforeBoss;
     private bool _playerDeathReported;
     private float _shakeStrength;
     private Vector2 _shakeOffset;
@@ -628,6 +630,7 @@ public sealed class DungeonWorld : IDisposable
         {
             ActiveBoss = enemy;
             Say(CompanionChatter.BossStart);
+            StartArenaMusic(definition.Id);
         }
         Spawn(enemy);
         return enemy;
@@ -649,6 +652,31 @@ public sealed class DungeonWorld : IDisposable
         if (enemy.Health.IsDead) KillEnemy(enemy);
     }
 
+    /// <summary>
+    /// Eigenes Stück der Arena, wenn der Gegner eines hat. Der Thronsaal braucht das nicht – dort
+    /// läuft es schon ab dem Betreten (DungeonScene). Gedacht ist es für den Mini-Boss, der mitten
+    /// im Verlies auftaucht: Ohne diesen Wechsel wären die drei Wächter-Stücke tote Dateien.
+    /// </summary>
+    private void StartArenaMusic(string enemyId)
+    {
+        if (!Context.Definitions.Arenas.TryGet(enemyId, out ArenaDefinition? arena)) return;
+        if (arena.Music.Length == 0 || !Context.Music.Has(arena.Music)) return;
+        if (Context.Music.CurrentId == arena.Music) return;
+
+        // Leer hiesse "Stille" – dann lieber das Stueck des Kreises merken, sonst bliebe es nach
+        // dem Kampf still statt zurueckzuwechseln.
+        _musicBeforeBoss = Context.Music.CurrentId.Length > 0 ? Context.Music.CurrentId : Plan.Circle.Music;
+        Context.Music.Play(arena.Music);
+    }
+
+    /// <summary>Zurück zum Stück des Kreises, sobald der Kampf vorbei ist.</summary>
+    private void StopArenaMusic()
+    {
+        if (_musicBeforeBoss is null) return;
+        Context.Music.Play(_musicBeforeBoss);
+        _musicBeforeBoss = null;
+    }
+
     private void KillEnemy(Enemy enemy)
     {
         enemy.Remove();
@@ -665,6 +693,7 @@ public sealed class DungeonWorld : IDisposable
 
         if (enemy != ActiveBoss) return;
         ActiveBoss = null;
+        StopArenaMusic();
         Effects.Ring(enemy.Center, 60f, Palette.Faith, 48);
         ShakeCamera(8f);
         Context.Audio.Play("roar", 0.8f, -0.4f);

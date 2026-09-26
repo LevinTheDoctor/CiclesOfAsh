@@ -10,6 +10,7 @@
 
   {
     "id": "boss_shepherd",
+    "music": "music.boss_shepherd",
     "name": "Der Hain des Hirten",
     "ambientLight": "#7C7796",
     "platforms": [
@@ -28,6 +29,7 @@
 
   {
     "id": "boss_mammon",
+    "music": "music.boss_mammon",
     "name": "Mammons Hort",
     "ambientLight": "#6B5B3A",
     "platforms": [
@@ -51,6 +53,7 @@
 
   {
     "id": "boss_titan",
+    "music": "music.boss_titan",
     "name": "Die Mauern von Dis",
     "ambientLight": "#6B3438",
     "platforms": [
@@ -74,6 +77,7 @@
 
   {
     "id": "warden_limbo",
+    "music": "music.warden_limbo",
     "name": "Kerkerhof",
     "platforms": [
       { "column": 4, "row": 12, "length": 4 },
@@ -88,6 +92,7 @@
 
   {
     "id": "warden_greed",
+    "music": "music.warden_greed",
     "name": "Schuldturm",
     "platforms": [
       { "column": 11, "row": 11, "length": 8 }
@@ -101,6 +106,7 @@
 
   {
     "id": "warden_wrath",
+    "music": "music.warden_wrath",
     "name": "Folterkammer",
     "platforms": [
       { "column": 3, "row": 10, "length": 4 },
