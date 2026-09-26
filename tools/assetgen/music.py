@@ -298,3 +298,138 @@ def generate(audio):
         melody_gain=0.75, drone_gain=1.4, brightness=0.0,
         percussion=lambda accent=0.55: _clang(amplitude=0.45, accent=accent),
         hits=[0.0, 0.5]))
+
+    # ---------------------------------------------------------------- Die sechs neuen Kreise
+    # Gleiches Format wie limbo/greed/wrath (8 Takte, dieselbe Normierung), damit das Überblenden
+    # zwischen den Ebenen nicht in der Lautstärke springt. Die Taktlänge wird nach unten kürzer:
+    # Limbus 4,0 s, Verrat 2,4 s — der Abstieg wird hörbar unruhiger.
+    #
+    # Bewusst GANZ AM ENDE: Die Percussion-Fabriken zeichnen aus dem gemeinsamen Zufallsstrom.
+    # Weiter oben eingefügt hätten diese sechs Stücke alle danach erzeugten Stücke verschoben —
+    # music_boss_mammon und die drei Wärter-Stücke klangen prompt anders.
+
+    # Wollust — der Sturm, der nie nachlässt: kreisende Melodie ohne Grundton-Ruhe,
+    # SUS-Vorhalte, die sich nicht auflösen. Zwei Stimmen, die einander nie erreichen.
+    write_wav(audio, "music_lust", _compose(
+        chords=[(0, MINOR), (-2, SUS), (3, MINOR), (-4, SUS)],
+        root=note(-2, -1), bars=8, bar_seconds=3.6,
+        melody=[7, 5, None, 3, 5, None, 7, None],
+        melody_gain=0.7, drone_gain=0.9, brightness=0.8))
+
+    # Völlerei — schwer und satt, schleppend: tiefe Akkorde, dumpfe Tropfen auf jede Halbe.
+    write_wav(audio, "music_gluttony", _compose(
+        chords=[(0, MINOR), (0, MINOR), (-3, MAJOR), (-1, MINOR)],
+        root=note(-8, -1), bars=8, bar_seconds=3.4,
+        melody=[0, None, None, -2, None, None, 3, None],
+        melody_gain=0.55, drone_gain=1.15, brightness=0.35,
+        percussion=lambda accent=0.55: _thud(amplitude=0.45, accent=accent),
+        hits=[0.0, 0.5]))
+
+    # Ketzerei — offene Gräber unter Feuer: Dur über Moll gesetzt, das klingt falsch und
+    # soll es auch. Glut knistert als _tick auf den Achteln dazwischen.
+    write_wav(audio, "music_heresy", _compose(
+        chords=[(0, MINOR), (4, MAJOR), (0, MINOR), (1, MAJOR)],
+        root=note(-9, -1), bars=8, bar_seconds=3.0,
+        melody=[0, None, 4, None, 1, None, 0, None],
+        melody_gain=0.68, drone_gain=1.2, brightness=0.3,
+        percussion=lambda accent=0.55: _tick(amplitude=0.3, accent=accent),
+        hits=[0.25, 0.75]))
+
+    # Gewalt — stampfend, ohne Umweg: nur zwei Akkorde, _kick auf jede Viertel.
+    write_wav(audio, "music_violence", _compose(
+        chords=[(0, MINOR), (0, MINOR), (-1, MINOR), (-1, MINOR)],
+        root=note(-13, -1), bars=8, bar_seconds=2.8,
+        melody=[0, None, 0, None, -1, None, 0, None],
+        melody_gain=0.6, drone_gain=1.35, brightness=0.0,
+        percussion=lambda accent=0.55: _kick(amplitude=0.7, accent=accent),
+        hits=[0.0, 0.25, 0.5, 0.75]))
+
+    # Betrug — freundlich anhebend, dann kippend: beginnt in Dur und rutscht jeden Takt
+    # einen Halbton tiefer weg. Genau das ist die Lüge.
+    write_wav(audio, "music_fraud", _compose(
+        chords=[(0, MAJOR), (-1, MAJOR), (-2, MINOR), (-3, MINOR)],
+        root=note(-6, -1), bars=8, bar_seconds=2.6,
+        melody=[0, 4, 3, None, -1, 2, 1, None],
+        melody_gain=0.72, drone_gain=1.1, brightness=0.55))
+
+    # Verrat — Eis: fast nur Bordun, ein einzelner Ton alle zwei Takte, metallisch kalt.
+    write_wav(audio, "music_treachery", _compose(
+        chords=[(0, MINOR), (0, MINOR), (0, MINOR), (-2, MINOR)],
+        root=note(-16, -1), bars=8, bar_seconds=2.4,
+        melody=[0, None, None, None, None, None, -2, None],
+        melody_gain=0.5, drone_gain=1.5, brightness=0.0,
+        percussion=lambda accent=0.55: _clang(amplitude=0.3, accent=accent),
+        hits=[0.0]))
+
+    # ---------------------------------------------------------------- Boss-Stücke der sechs neuen Kreise
+    # Die Bosse tempest/cerberus/heresiarch/minotaur/geryon/lucifer liegen bisher auf
+    # music.boss. Hier je ein eigenes Stück, Format wie music_boss (8 Takte × 2,2 s,
+    # dieselbe _compose-Normierung), damit das Überblenden nicht in der Lautstärke springt.
+    #
+    # Bewusst GANZ AM ENDE, hinter den sechs Kreis-Stücken: Die Percussion-Fabriken
+    # (_thud, _tick, _kick, _clang) zeichnen aus dem gemeinsamen Zufallsstrom. Alles, was
+    # weiter oben eingefügt wird, verschiebt jede danach erzeugte Percussion.
+
+    # Der Sturm der Wollust — wirbelnd, greift um sich, ruht nie:
+    # kreisende Melodie (aufwärts gerückt bei jedem dritten Schritt), SUS-Vorhalte, die
+    # sich nie auflösen. _tick auf die Achtel zwischen den Vierteln wie peitschende Böen.
+    write_wav(audio, "music_boss_tempest", _compose(
+        chords=[(0, MINOR), (2, SUS), (-2, MINOR), (3, SUS)],
+        root=note(-2, -1), bars=8, bar_seconds=2.2,
+        melody=[7, 5, 3, 5, 8, 5, 3, 5],
+        melody_gain=0.85, drone_gain=1.1, brightness=1.0,
+        percussion=lambda accent=0.55: _tick(amplitude=0.35, accent=accent),
+        hits=[0.25, 0.5, 0.75]))
+
+    # Der Schlammpfuhl der Völlerei — drei Köpfe, keiner hört auf die anderen:
+    # Melodie in zwei kurzen, gegeneinander verschobenen Gruppen (0/2/4 gegen 3/5/7),
+    # dazwischen schmatzt _thud auf jede Viertel. Langsam, schwer, satt.
+    write_wav(audio, "music_boss_cerberus", _compose(
+        chords=[(0, MINOR), (0, MINOR), (-3, MAJOR), (-1, MINOR)],
+        root=note(-8, -1), bars=8, bar_seconds=2.2,
+        melody=[0, None, 3, None, -2, None, 3, 5],
+        melody_gain=0.7, drone_gain=1.25, brightness=0.3,
+        percussion=lambda accent=0.55: _thud(amplitude=0.55, accent=accent),
+        hits=[0.0, 0.25, 0.5, 0.75]))
+
+    # Das Feld der offenen Gräber — Dur über Moll, das klingt falsch und soll es:
+    # die Harmonie behauptet Frieden, die tiefere Schicht widerspricht. _tick auf die
+    # Achtel wie knisternde Glut aus den aufgebrochenen Särgen.
+    write_wav(audio, "music_boss_heresiarch", _compose(
+        chords=[(0, MINOR), (4, MAJOR), (0, MINOR), (1, MAJOR)],
+        root=note(-9, -1), bars=8, bar_seconds=2.2,
+        melody=[0, 4, None, 1, 0, 4, None, 1],
+        melody_gain=0.72, drone_gain=1.2, brightness=0.4,
+        percussion=lambda accent=0.55: _tick(amplitude=0.32, accent=accent),
+        hits=[0.25, 0.75]))
+
+    # Die Blutfurt der Gewalt — der Ansturm: zwei Akkorde, _kick auf jede Viertel,
+    # die Melodie stammelt nur den Grundton, brightness 0, kein Ausruhen.
+    write_wav(audio, "music_boss_minotaur", _compose(
+        chords=[(0, MINOR), (0, MINOR), (-1, MINOR), (-1, MINOR)],
+        root=note(-13, -1), bars=8, bar_seconds=2.2,
+        melody=[0, None, 0, -1, 0, None, 0, None],
+        melody_gain=0.6, drone_gain=1.4, brightness=0.0,
+        percussion=lambda accent=0.55: _kick(amplitude=0.75, accent=accent),
+        hits=[0.0, 0.25, 0.5, 0.75]))
+
+    # Der Abgrund der Malebolge — Betrug: freundlich in Dur einsetzend, dann rutscht die
+    # Harmonie Takt für Takt einen Halbton tiefer weg, bis nichts vom Anfang bleibt.
+    # Die Melodie tut weiter so, als wäre nichts geschehen. _thud markiert die Stufen.
+    write_wav(audio, "music_boss_geryon", _compose(
+        chords=[(0, MAJOR), (-1, MAJOR), (-2, MINOR), (-3, MINOR)],
+        root=note(-6, -1), bars=8, bar_seconds=2.2,
+        melody=[4, 7, 4, None, 2, 5, 2, None],
+        melody_gain=0.75, drone_gain=1.15, brightness=0.6,
+        percussion=lambda accent=0.55: _thud(amplitude=0.4, accent=accent),
+        hits=[0.0]))
+
+    # Der gefrorene Kokytos — Verrat: fast nur Bordun, ein einzelner Ton pro Takt,
+    # metallisch kalt (_clang auf die Halbe), brightness 0, nichts bewegt sich weiter.
+    write_wav(audio, "music_boss_lucifer", _compose(
+        chords=[(0, MINOR), (0, MINOR), (0, MINOR), (-2, MINOR)],
+        root=note(-16, -1), bars=8, bar_seconds=2.2,
+        melody=[0, None, None, None, -2, None, None, None],
+        melody_gain=0.55, drone_gain=1.5, brightness=0.0,
+        percussion=lambda accent=0.55: _clang(amplitude=0.35, accent=accent),
+        hits=[0.0, 0.5]))
