@@ -273,8 +273,8 @@ rückt sie bis zu drei Kacheln zur Seite statt zu verschwinden.
 **Geprüft** über 60 Seeds je Arena: Geometrie in 60 von 60 Räumen exakt, keine Türkachel zugebaut,
 kein Prop schwebt, Deko zu 99–100 % am vorgesehenen Platz.
 
-**Offen:** Ein eigenes Musikstück je Boss — reine Asset-Arbeit, als **G17** an GLM gegeben. Bis
-dahin spielt überall `music.boss`.
+**Musik nachgeliefert** (`ee03e7e`, angeschlossen in `ade22ba`): Jede Arena hat ihr eigenes Stück.
+Beim Mini-Boss wechselt es mitten im Verlies und danach zurück.
 
 ---
 
@@ -396,13 +396,33 @@ Taille und Armen durch. Nackt sind die vier Typen klar unterscheidbar (43 statt 
 gleichzeitig deutlich anderem Umriss). **Ob das angezogen reicht, ist eine Sichtsache — schau
 dir die vier Körpertypen im Editor an.**
 
-### [ ] E6 Kleinsprites auf 16-Bit nachziehen (GLM, G16)
+### [x] E6 Kleinsprites auf 16-Bit nachziehen (GLM, G16) — `2197585`
 
-Beim Nachmessen von E4 aufgefallen: Begleiter, Pickups, Projektile und `effect_slash` sind bei
-drei Tonwerten geblieben und stehen jetzt flach neben den angehobenen Gegnern.
+Beim Nachmessen von G14 aufgefallen: Begleiter, Pickups, Projektile und `effect_slash` waren bei
+drei Tonwerten geblieben und standen flach neben den angehobenen Gegnern.
 
-| Gruppe | Anzahl | Tonwerte median |
-|---|---|---|
+**Abgenommen.** Nachgemessen an den fertigen PNGs:
+
+| Gruppe | Anzahl | vorher | nachher |
+|---|---|---|---|
+| `companion_*` | 18 | 3 | 5–12 (Median 8) |
+| `pickup_*` | 4 | 2 | 4–6 |
+| `projectile_*` | 6 | 3 | 4–6 |
+| `effect_slash` | 1 | 2 | 4 |
+
+### [x] E7 Ein eigenes Stück je Boss (GLM, G17) — `ee03e7e`, angeschlossen in `ade22ba`
+
+Sechs Stücke, alle wirklich verschieden (Prüfsummen), gleiche Länge und Lautheit wie
+`music_boss.wav` (RMS 2570–3171 gegen 2953) — also kein Lautstärkesprung beim Überblenden.
+
+Meine Seite der Übergabe: die `music`-Zeilen in `arenas.json`. Sie standen noch leer, keines der
+sechs Stücke wäre je gespielt worden.
+
+Dabei aufgefallen: Die drei **Wächter**-Stücke wären trotzdem tote Dateien geblieben. Arena-Musik
+galt nur im Thronsaal, wo die Arena das ganze Verlies ist — der Mini-Boss taucht aber mitten im
+Verlies auf. Jetzt wechselt das Stück, sobald er erscheint, und danach zurück auf das des Kreises.
+
+---|---|---|
 | `companion_*` | 18 | 3 |
 | `pickup_*` | 4 | 2 |
 | `projectile_*` | 6 | 3 |

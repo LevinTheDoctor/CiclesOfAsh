@@ -51,8 +51,8 @@ Welt (z. B. "Das Inferno")
   **dauerhaft** erhalten bleibt – auch nach dem Tod (z. B. Dash, Doppelsprung, Jüngstes Gericht).
 - **Gläubige** erhältst du durch befreite Verliese, Kreise und Welten. Sie machen dich als Gott stärker
   (+Schaden, +Leben) und wecken neue **Begleitseelen**. Beim Tod bleibt nur ein Teil treu (Standard 25 %).
-- **Klassen**: Kreuzritter (Nahkampf), Magier (Fernkampf/Mana), Schatten (Tarnung + Bonusschaden).
-  Beim Tod ist die Klasse vergessen – du wählst neu.
+- **Klassen**: Kreuzritter (Nahkampf), Magier (Fernkampf/Mana), Schatten (Tarnung + Bonusschaden),
+  Engel (Flügel als Funktion). Beim Tod ist die Klasse vergessen – du wählst neu.
 - **Begleitseelen**: Angreifer, Heiler oder Manaspender, die dir folgen.
 - **Metroidvania-Sperren**: Schatzräume liegen hinter rissigen Wänden. Erst mit dem *Abgrundschritt*
   (Belohnung des ersten Bosses) kommst du hinein – in allen künftigen Läufen.
@@ -71,6 +71,24 @@ Welt (z. B. "Das Inferno")
 | **Rätsel & Siegeltor** | Das Siegel steht hinter einem Gittertor. Öffnen durch: verteilte **Hebel**, **Runenfolge** (Hinweis-Inschrift in einem anderen Raum) oder **Feuerbecken** auf Zeit | `Puzzles/Puzzles.cs`, `worlds.json` (`puzzles`) |
 | **Kerker & Mini-Boss** | Ein Verlies pro Kreis hat einen optionalen Kerker. Besiege den Kerkermeister → Gefangene frei → **neue Begleitseele** | `WaveDirector`, `worlds.json` (`prison`), `companions.json` (`unlockAtBelievers: -1`) |
 | **Logo & Ladebildschirm** | Animierter Höllentrichter, Asche, Tipps, echter Fortschritt (Assets werden vorgeladen) | `Scenes/LoadingScene.cs`, `UI/InfernoFunnel.cs`, `tips.json` |
+
+### Neu in Version 3
+
+| Feature | Was passiert im Spiel | Wo im Code / in den Daten |
+|---|---|---|
+| **Figur statt Klasse zuerst** | Der Editor fragt Name → Geschlecht → Statur (Kräftig/Normal/Trainiert) → Klasse → Aussehen. Geschlecht und Statur sind zwei Zeilen, liegen in den Daten aber weiter in **einer** Liste – ein Katalog rechnet hin und her, deshalb ohne Migration | `Scenes/CharacterCreatorScene.cs`, `Progression/BodyTypeCatalog.cs`, `appearance.json` |
+| **Rüstung wie in Ghosts 'n Goblins** | Du startest gepanzert. Die Rüstung fängt Treffer **ganz** ab und zerspringt beim letzten mit Splittern – danach läufst du ungeschützt, bis du eine neue findest. Vier Stücke, klar unterscheidbar | `Progression/EquipmentService.cs`, `Entities/Player.cs`, `classes.json` (`startingArmor`) |
+| **Selbst kämpfen** | Kombo aus drei Schlägen, Block mit Parade-Fenster, Drehsprung auf `W`. Im Optionsmenü wählbar, ob im Bosskampf die Automatik mithilft oder schweigt | `Entities/Player.cs`, `Scenes/SettingsScene.cs` |
+| **Ducken** | Durch niedrige Spalten, die sonst den Weg nehmen | `Player.UpdateCrouch` |
+| **Sprechende Begleitseelen** | Sie melden sich von selbst: beim Abstieg, bei wenig Leben, wenn die Rüstung zerspringt, im Tempel. Als Sprechblase, die das Spiel **nicht** anhält | `Companions/CompanionChatter.cs`, `chatter.json` |
+| **Begleiter-Fassungen** | Jede der sieben Seelen in drei Farbfassungen – im Tempel über „Gestalt wechseln", haltbar über Läufe | `Companions/CompanionSkins.cs`, Migration V4 (`pets.skin`) |
+| **Optionales Tutorial** | Zehn Schritte, jeder wartet auf **eine** Handlung. Kein Zwang, `F5` bricht ab. Nutzt dieselben Ereignisse wie die Zwischenrufe – eine Meldestelle für beide | `Tutorial/TutorialDirector.cs`, `tutorial.json` |
+| **Zwei neue Rätseltypen** | **Gewichte**: drei Druckplatten gleichzeitig beschweren, aber nur zwei Schiebeblöcke – auf der dritten stehst du selbst. **Spiegel**: einen Lichtstrahl umlenken, flach gestellte Spiegel lassen ihn durch | `Puzzles/Puzzles.cs`, `props.json`, `worlds.json` (`puzzles`) |
+| **Eigene Arena je Boss** | Jeder der sechs Boss- und Mini-Boss-Kämpfe hat eigene Geometrie, Deko, Lichtstimmung und ein eigenes Musikstück. Beim Mini-Boss wechselt es mitten im Verlies | `arenas.json`, `DungeonGenerator.BuildArena` |
+| **Drachen** | Als Gegner (Drachenjunges ab Limbus, Aschdrache ab Gier) und als Begleiter | `enemies.json`, `companions.json`, `worlds.json` |
+| **Flügel, Make-up, Körpertypen** | Eigene Sprite-Ebenen im Editor; Flügel tragen zugleich die Gleitfunktion | `Progression/CharacterVisuals.cs`, `appearance.json` |
+| **16-Bit-Grafik, 24 × 32** | Figuren größer und in mehr Farbtönen; die Kollisionsbox leitet sich aus der Sprite-Größe ab, statt fest im Code zu stehen | `tools/assetgen/*.py`, `Assets/LayeredSprite.cs` |
+| **Weniger Gedränge** | Kleinere Wellen und ein Deko-Regler – alles in `balance.json` nachjustierbar | `balance.json`, `WaveDirector` |
 
 ---
 
@@ -447,6 +465,25 @@ beim Sheet `items.icons` eine Animation mit der Item-ID und der Spalte (`column`
 antwortet per `prop.Behavior.OnSignal(...)` und öffnet am Ende mit `world.OpenGate()`.
 Braucht es eigene Props, müssen sie im Generator (`PlacePuzzle`) platziert werden.
 
+Braucht das Rätsel einen **eigenen Raum** mit fester Geometrie, gehört sein Schlüssel zusätzlich in
+`DungeonGenerator.NeedsPuzzleRoom`. Zum Setzen dann `PlacePropAt` statt `PlaceProp` verwenden:
+`PlaceProp` weicht auf eine zufällige Spalte aus, wenn die gewünschte belegt ist, und zerlegt damit
+einen Entwurf. `PlacePropAt` meldet stattdessen Fehlschlag, und der Aufrufer weicht sauber auf
+`levers` aus. Ein Raum mit Ausgang **nach unten** wird gar nicht erst gewählt – der schneidet ein
+vier Kacheln breites Loch in die Bodenreihe.
+
+### Neue Arena für einen Boss
+Eintrag in `arenas.json` mit der **Gegner-Id** als `id`. Alle Koordinaten sind Raum-Kacheln
+(0–29 waagerecht, 16 = Bodenreihe), nicht Weltkacheln. `platforms` sind durchspringbare Absätze,
+`pillars` massive Blöcke, `props` Deko an festen Spalten. `ambientLight` und `music` wirken nur im
+Thronsaal, wo die Arena das ganze Verlies ist. Ohne Eintrag bleibt es beim Standardraum.
+
+### Neuer Tutorial-Schritt
+Eintrag in `tutorial.json`. Der `trigger` muss ein Ereignis sein, das der Code auch meldet – die
+Liste steht als Konstanten in `Companions/CompanionChatter.cs`, und `DefinitionRegistry.Validate`
+prüft sie beim Start. Ein unbekannter Auslöser würde den Spieler sonst für immer an derselben
+Aufforderung festhalten.
+
 ### Neue Bitte der Gläubigen
 Nur `missions.json`: `type` (`Collect`, `Slay`, `Rescue`, `CompleteCircle`), `target` (Item-, Gegner-,
 Kreis-ID oder `*`), `count`, `rewardBelievers`, optional `requiredBelievers`.
@@ -591,11 +628,15 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
 - [x] Schwierigkeitsstufen aus `Content/Data/difficulties.json`
 - [x] Dialoge, Gläubigen-NPCs, Rescue-Missionen, Haustiere, Hub-Deko
 - [x] Release-Pipeline für alle Systeme, macOS-`.app`, App-Icons
+- [x] Weitere Rätseltypen: Druckplatten mit Schiebeblöcken, Spiegel für Lichtstrahlen
+- [x] Optionales Tutorial, geführt von der Begleitseele
+- [x] Eigene Arena und eigenes Musikstück je Boss und Mini-Boss
+- [x] Manueller Nahkampf (Kombo, Block mit Parade, Drehsprung), Ducken, zerspringende Rüstung
+- [x] Geschlecht, Körpertypen, Make-up, Flügel und Engel-Klasse im Charakter-Editor
 - [ ] Tastenbelegung frei belegbar aus `Content/Data/input.json` (Profile gibt es, das Umbelegen fehlt)
 - [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus, Erreichbarkeit) und `ProgressionService`
 - [ ] Mehr Welten (Purgatorio, Paradiso) und Kreise
 - [ ] Handgezeichnete Raumvorlagen (Room Templates) als JSON statt reiner Prozedur
-- [ ] Weitere Rätseltypen (Druckplatten, Spiegel für Lichtstrahlen)
 - [ ] Echte Musik statt der prozeduralen Platzhalter; signiertes und notarisiertes macOS-Bündel
 
 ---
