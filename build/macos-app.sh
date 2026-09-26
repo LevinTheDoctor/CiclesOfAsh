@@ -42,6 +42,13 @@ cp -R "$OUT/payload/." "$APP/Contents/MacOS/"
 rm -rf "$OUT/payload"
 [ -f "$ROOT/build/icons/CirclesOfAsh.icns" ] && cp "$ROOT/build/icons/CirclesOfAsh.icns" "$APP/Contents/Resources/"
 
+# Info.plist: macht aus dem Ordner eine "normale" Mac-App.
+#   NSHighResolutionCapable            -> Retina-fähig; ohne das rendert macOS das ganze Fenster
+#                                         unscharf im Kompatibilitätsmodus.
+#   NSSupportsAutomaticGraphicsSwitching -> MacBooks mit zwei GPUs müssen nicht dauerhaft auf die
+#                                         stromhungrige dedizierte Grafik umschalten.
+#   Fenstergröße, freies Skalieren und Vollbild (grüner Knopf / Einstellungen) regelt das Spiel
+#   selbst (CirclesGame + ScreenSetup) – dafür braucht das Bündel keine Sonderschlüssel.
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -57,6 +64,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleIconFile</key>              <string>CirclesOfAsh</string>
     <key>LSMinimumSystemVersion</key>        <string>12.0</string>
     <key>NSHighResolutionCapable</key>       <true/>
+    <key>NSSupportsAutomaticGraphicsSwitching</key> <true/>
     <key>LSApplicationCategoryType</key>     <string>public.app-category.games</string>
     <key>NSHumanReadableCopyright</key>      <string>MIT-Lizenz. Platzhalter-Assets: CC0.</string>
 </dict>

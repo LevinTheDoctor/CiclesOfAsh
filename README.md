@@ -199,7 +199,8 @@ damit Erkennung und Darstellung nicht auseinanderlaufen.
 
 Das Optionsmenü (`Esc` → Optionen, `Scenes/SettingsScene.cs`) wirkt sofort und wird in SQLite gesichert:
 
-* **Bildschirm** – Größe (1×–6× der virtuellen 480×270), Vollbild, VSync
+* **Bildschirm** – Größe (Auto = füllt den Bildschirm, oder pixelgenau 1×–6× der virtuellen 480×270), Vollbild, VSync.
+  Das Fenster lässt sich außerdem frei ziehen oder maximieren – das Bild wächst mit
 * **Audio** – Master, Musik und Effekte getrennt regelbar
 * **Gameplay** – Helligkeit (gegen zu dunkle Verliese), Vibration, Schadenszahlen, Schwierigkeit
 
@@ -334,8 +335,12 @@ Zwei unterschiedliche Arten von Daten, zwei passende Werkzeuge:
 | Warum | lesbar, versionierbar, überschreibbar durch Mods | atomare Transaktionen (kein halbes Savegame bei Absturz), Schema-Migrationen, Abfragen |
 
 ### 4. Virtuelle Auflösung 480×270
-Alles wird in eine kleine Leinwand gerendert und **ganzzahlig** hochskaliert (letterboxed).
-Ergebnis: pixelgenaue Pixel-Art auf jeder Bildschirmgröße (16:9, 1080p = Faktor 4).
+Alles wird in eine kleine Leinwand gerendert und aufs Fenster hochskaliert (letterboxed, 16:9).
+Passt ein ganzzahliger Faktor genau (1080p = Faktor 4), wird pixelgenau gezeichnet. Bei jeder anderen
+Fenstergröße – frei gezogen, maximiert, macOS-Vollbild – skaliert das Spiel **scharf-bilinear**: erst
+ganzzahlig aufgerundet vergrößern, dann das letzte Stück linear verkleinern. So füllt das Bild das
+Fenster, ohne dass einzelne Pixel ungleich breit oder verwaschen werden. Vollbild ist randlos in der
+Desktop-Auflösung (`HardwareModeSwitch = false`), es wechselt also nie die Bildschirmauflösung.
 
 ### 5. Licht ohne Shader
 Eine 480×270-Lichtkarte (Render-Target) wird pro Frame mit dem Umgebungslicht des Kreises gefüllt, Lichter
@@ -597,6 +602,7 @@ sonst schreibt das Skript das icns-Format selbst – die CI unter Linux kommt da
 
 `build/macos-app.sh` baut `CirclesOfAsh.app` mit `Contents/{Info.plist, MacOS/, Resources/}`.
 Der gesamte Publish-Inhalt liegt unter `MacOS/`, damit die relativen Content-Pfade unverändert gelten.
+Das Fenster verhält sich wie bei jeder Mac-App: frei ziehbar, grüner Knopf für Vollbild, Retina-fähig.
 
 Das Bündel ist **nicht signiert**. Beim ersten Start meldet sich Gatekeeper; ein Rechtsklick auf
 „Öffnen" oder `xattr -dr com.apple.quarantine CirclesOfAsh.app` genügt.
