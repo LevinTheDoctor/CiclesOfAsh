@@ -1,55 +1,79 @@
 [
-  // slot: Lamp | Amulet | Ring | Collectible   ·   rarity: Common | Rare | Sacred
+  // slot: Lamp | Amulet | Ring | Collectible | Armor   ·   rarity: Common | Rare | Sacred
   // modifiers: stat = Name aus StatType (Combat/Stats.cs), isPercent = Prozentbonus (0.1 = +10 %)
   // Laternen erhöhen LightRadius – je tiefer der Kreis, desto wichtiger!
   { "id": "grave_lantern", "name": "Grablaterne", "slot": "Lamp", "rarity": "Common",
     "description": "Rostig, aber sie brennt noch. Vertreibt die erste Finsternis.",
     "lightColor": "#FFD08A", "modifiers": [ { "stat": "LightRadius", "amount": 34 } ] },
-  { "id": "saint_lamp", "name": "Lampe der Heiligen", "slot": "Lamp", "rarity": "Rare",
+  { "id": "saint_lamp", "name": "Lampe der Heiligen", "slot": "Lamp", "rarity": "Rare", "minCircle": 2,
     "description": "Ihr weißes Licht erinnert die Verdammten an den Himmel.",
     "lightColor": "#F4F0FF", "modifiers": [ { "stat": "LightRadius", "amount": 52 }, { "stat": "Might", "amount": 0.05, "isPercent": true } ] },
-  { "id": "hellfire_lantern", "name": "Höllenfeuer-Laterne", "slot": "Lamp", "rarity": "Sacred", "minCircle": 1,
+  { "id": "hellfire_lantern", "name": "Höllenfeuer-Laterne", "slot": "Lamp", "rarity": "Sacred", "minCircle": 5,
     "description": "In ihr brennt ein Splitter des Abgrunds. Rotes Licht, rote Wut.",
     "lightColor": "#FF7050", "modifiers": [ { "stat": "LightRadius", "amount": 44 }, { "stat": "Might", "amount": 0.15, "isPercent": true } ] },
 
   { "id": "rosary", "name": "Rosenkranz", "slot": "Amulet", "rarity": "Common",
     "description": "Jede Perle ein Gebet, das nie erhört wurde.",
     "modifiers": [ { "stat": "MaxHealth", "amount": 25 } ] },
-  { "id": "bleeding_heart", "name": "Blutendes Herz", "slot": "Amulet", "rarity": "Sacred", "minCircle": 1,
+  { "id": "bleeding_heart", "name": "Blutendes Herz", "slot": "Amulet", "rarity": "Sacred", "minCircle": 3,
     "description": "Es schlägt noch – für dich.",
     "modifiers": [ { "stat": "MaxHealth", "amount": 40 }, { "stat": "ManaRegen", "amount": 1 } ] },
-  { "id": "eye_of_vigil", "name": "Auge der Wacht", "slot": "Amulet", "rarity": "Rare",
+  { "id": "eye_of_vigil", "name": "Auge der Wacht", "slot": "Amulet", "rarity": "Rare", "minCircle": 6,
     "description": "Es sieht Seelen, bevor du sie siehst.",
     "modifiers": [ { "stat": "PickupRadius", "amount": 24 }, { "stat": "CooldownReduction", "amount": 0.05 } ] },
 
-  { "id": "ring_of_ash", "name": "Aschering", "slot": "Ring", "rarity": "Common",
+  { "id": "ring_of_ash", "name": "Aschering", "slot": "Ring", "rarity": "Common", "minCircle": 1,
     "description": "Warm, obwohl kein Feuer mehr brennt.",
     "modifiers": [ { "stat": "Might", "amount": 0.08, "isPercent": true } ] },
-  { "id": "ring_of_silence", "name": "Ring des Schweigens", "slot": "Ring", "rarity": "Rare",
+  { "id": "ring_of_silence", "name": "Ring des Schweigens", "slot": "Ring", "rarity": "Rare", "minCircle": 4,
     "description": "Wer ihn trägt, wird überhört – und übersehen.",
     "modifiers": [ { "stat": "StealthDamage", "amount": 0.5 }, { "stat": "MoveSpeed", "amount": 0.05, "isPercent": true } ] },
-  { "id": "ring_of_mammon", "name": "Mammons Siegelring", "slot": "Ring", "rarity": "Sacred", "minCircle": 1,
+  { "id": "ring_of_mammon", "name": "Mammons Siegelring", "slot": "Ring", "rarity": "Sacred", "minCircle": 7,
     "description": "Schwer vor Gold. Macht stark, macht langsam.",
     "modifiers": [ { "stat": "Might", "amount": 0.18, "isPercent": true }, { "stat": "MoveSpeed", "amount": -0.05, "isPercent": true } ] },
 
-  // Rüstungen (Slot Armor): flache Schadensreduktion pro Treffer (StatType.Armor)
-  // durability = Schaden, den das Stück abfängt, bevor es zerspringt; 0/fehlt = unzerstörbar
-  // sprite = Ebenen-Sprite, das den Rumpf über der Kleidung überdeckt (fehlt = nichts gezeichnet)
-  { "id": "leather_jerkin", "name": "Lederwams", "slot": "Armor", "rarity": "Common", "durability": 60,
-    "sprite": "armor.leather_jerkin",
+  // Kleidung und Rüstung (Slot Armor): flache Schadensreduktion pro Treffer (StatType.Armor).
+  // armorHits = Treffer, die das Stück VOLLSTÄNDIG abfängt, bevor es zerfällt. Unzerstörbar gibt es
+  //   nicht: Ohne Angabe wird aus durability abgeleitet, mindestens aber 3 (EquipmentService).
+  // sprite = Kleidungs-Ebene über dem Körper. Erwartet werden DREI Verfallsstufen:
+  //   "<sprite>" (heil), "<sprite>.worn" (angeschlagen), "<sprite>.broken" (zerfetzt).
+  // lootable: false = gehört einer Klasse und taucht nie in Truhen auf.
+
+  // Startkleidung: je Klasse ein eigenes Stück. Drei Treffer, damit man alle drei Stufen sieht,
+  // und kaum Schutz – sie ist nur der Anfang, nicht die Belohnung.
+  { "id": "crusader_garb", "name": "Kreuzritterkutte", "slot": "Armor", "rarity": "Common",
+    "armorHits": 3, "durability": 45, "lootable": false, "sprite": "armor.crusader_garb",
+    "description": "Wams, Riemen und Beinzeug des Ordens. Mehr Bekenntnis als Panzer.",
+    "modifiers": [ { "stat": "Armor", "amount": 1 } ] },
+  { "id": "soot_robe", "name": "Rußrobe", "slot": "Armor", "rarity": "Common",
+    "armorHits": 3, "durability": 45, "lootable": false, "sprite": "armor.soot_robe",
+    "description": "Schwer vom Rauch der Kerzen. Hält warm, hält nichts ab.",
+    "modifiers": [ { "stat": "Armor", "amount": 1 } ] },
+  { "id": "confessor_rags", "name": "Beichtlumpen", "slot": "Armor", "rarity": "Common",
+    "armorHits": 3, "durability": 45, "lootable": false, "sprite": "armor.confessor_rags",
+    "description": "Dunkler Stoff, der keine Geräusche macht. Und keine Klingen aufhält.",
+    "modifiers": [ { "stat": "Armor", "amount": 1 } ] },
+  { "id": "feather_shift", "name": "Federhemd", "slot": "Armor", "rarity": "Common",
+    "armorHits": 3, "durability": 45, "lootable": false, "sprite": "armor.feather_shift",
+    "description": "Leinen und Daunen, wie im Himmel getragen. Hier unten reißt es sofort.",
+    "modifiers": [ { "stat": "Armor", "amount": 1 } ] },
+
+  // Gefundene Rüstung: mehr Treffer, mehr Schutz. Ersetzt die Startkleidung vollständig.
+  { "id": "leather_jerkin", "name": "Lederwams", "slot": "Armor", "rarity": "Common",
+    "armorHits": 3, "durability": 60, "sprite": "armor.leather_jerkin",
     "description": "Abgetragenes Leder. Hält nicht viel aus, wiegt aber nichts.",
     "modifiers": [ { "stat": "Armor", "amount": 2 } ] },
-  { "id": "chainmail", "name": "Kettenhemd", "slot": "Armor", "rarity": "Common", "durability": 110,
-    "sprite": "armor.chainmail",
+  { "id": "chainmail", "name": "Kettenhemd", "slot": "Armor", "rarity": "Common",
+    "armorHits": 4, "durability": 110, "minCircle": 2, "sprite": "armor.chainmail",
     "description": "Tausend kleine Ringe zwischen dir und den Zähnen der Hölle.",
     "modifiers": [ { "stat": "Armor", "amount": 4 } ] },
-  { "id": "scale_mail", "name": "Schuppenpanzer", "slot": "Armor", "rarity": "Rare", "durability": 180,
-    "sprite": "armor.scale_mail",
+  { "id": "scale_mail", "name": "Schuppenpanzer", "slot": "Armor", "rarity": "Rare",
+    "armorHits": 5, "durability": 180, "minCircle": 4, "sprite": "armor.scale_mail",
     "description": "Schuppe über Schuppe, wie die Haut eines jungen Drachen.",
     "modifiers": [ { "stat": "Armor", "amount": 6 } ] },
-  { "id": "ash_harness", "name": "Aschenharnisch", "slot": "Armor", "rarity": "Sacred", "minCircle": 1, "durability": 300,
-    "sprite": "armor.ash_harness",
-    "description": "Geschmiedet aus verklumpter Asche Gefallener. Fast unzerbrechlich – und schwer.",
+  { "id": "ash_harness", "name": "Aschenharnisch", "slot": "Armor", "rarity": "Sacred",
+    "armorHits": 6, "durability": 300, "minCircle": 6, "sprite": "armor.ash_harness",
+    "description": "Geschmiedet aus verklumpter Asche Gefallener. Hält lange – und wiegt danach.",
     "modifiers": [ { "stat": "Armor", "amount": 9 }, { "stat": "MoveSpeed", "amount": -0.06, "isPercent": true } ] },
 
   // Sammelobjekte: liegen schwebend in den Verliesen und zählen für Bitten der Gläubigen

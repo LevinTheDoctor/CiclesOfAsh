@@ -118,5 +118,137 @@
       { "prop": "chains", "column": 14 },
       { "prop": "bone_pile", "column": 5 }
     ]
+  },
+
+  // ---------------- Arenen der sechs nachgelieferten Bosse.
+  // Jeder hat inzwischen ein eigenes Stück (siehe manifest.json). Fehlte die "music"-Zeile,
+  // bliebe es beim Standardstück music.boss – stumm wird nie etwas.
+  {
+    "id": "boss_tempest",
+    "music": "music.boss_tempest",
+    "name": "Das Auge des Sturms",
+    "ambientLight": "#8A5A72",
+    "platforms": [
+      { "column": 2, "row": 13, "length": 4 },
+      { "column": 24, "row": 13, "length": 4 },
+      { "column": 8, "row": 10, "length": 4 },
+      { "column": 18, "row": 10, "length": 4 },
+      { "column": 13, "row": 6, "length": 4 }
+    ],
+    "props": [
+      { "prop": "candles", "column": 4 },
+      { "prop": "candles", "column": 25 },
+      { "prop": "cobweb", "column": 11 },
+      { "prop": "cobweb", "column": 19 }
+    ]
+  },
+
+  {
+    "id": "boss_cerberus",
+    "music": "music.boss_cerberus",
+    "name": "Der Schlammpfuhl",
+    "ambientLight": "#5E6B44",
+    "pillars": [
+      { "column": 6, "row": 13, "height": 3 },
+      { "column": 23, "row": 13, "height": 3 }
+    ],
+    "platforms": [
+      { "column": 11, "row": 11, "length": 8 }
+    ],
+    "props": [
+      { "prop": "bones", "column": 9 },
+      { "prop": "bones", "column": 21 },
+      { "prop": "urn", "column": 14 },
+      { "prop": "lamp", "column": 3 },
+      { "prop": "lamp", "column": 26 }
+    ]
+  },
+
+  {
+    "id": "boss_heresiarch",
+    "music": "music.boss_heresiarch",
+    "name": "Das Feld der offenen Gräber",
+    "ambientLight": "#8A4A22",
+    "platforms": [
+      { "column": 4, "row": 12, "length": 5 },
+      { "column": 21, "row": 12, "length": 5 },
+      { "column": 12, "row": 8, "length": 6 }
+    ],
+    "pillars": [
+      { "column": 15, "row": 14, "height": 2 }
+    ],
+    "props": [
+      { "prop": "coffin", "column": 6 },
+      { "prop": "coffin", "column": 23 },
+      { "prop": "brazier", "column": 10 },
+      { "prop": "brazier", "column": 19 },
+      { "prop": "candles", "column": 14 }
+    ]
+  },
+
+  {
+    "id": "boss_minotaur",
+    "music": "music.boss_minotaur",
+    "name": "Die Blutfurt",
+    "ambientLight": "#6E4432",
+    "pillars": [
+      { "column": 3, "row": 14, "height": 2 },
+      { "column": 26, "row": 14, "height": 2 }
+    ],
+    "platforms": [
+      { "column": 9, "row": 11, "length": 4 },
+      { "column": 17, "row": 11, "length": 4 }
+    ],
+    "props": [
+      { "prop": "bones", "column": 7 },
+      { "prop": "bones", "column": 22 },
+      { "prop": "statue", "column": 15 },
+      { "prop": "brazier", "column": 5 },
+      { "prop": "brazier", "column": 24 }
+    ]
+  },
+
+  {
+    "id": "boss_geryon",
+    "music": "music.boss_geryon",
+    "name": "Der Abgrund der Malebolge",
+    "ambientLight": "#5A3A72",
+    "platforms": [
+      { "column": 1, "row": 12, "length": 4 },
+      { "column": 25, "row": 12, "length": 4 },
+      { "column": 7, "row": 9, "length": 4 },
+      { "column": 19, "row": 9, "length": 4 },
+      { "column": 13, "row": 5, "length": 4 }
+    ],
+    "props": [
+      { "prop": "lamp", "column": 3 },
+      { "prop": "lamp", "column": 26 },
+      { "prop": "cobweb", "column": 9 },
+      { "prop": "bookshelf", "column": 16 }
+    ]
+  },
+
+  {
+    "id": "boss_lucifer",
+    "music": "music.boss_lucifer",
+    "name": "Der gefrorene Kokytos",
+    "ambientLight": "#46688C",
+    "pillars": [
+      { "column": 5, "row": 12, "height": 4 },
+      { "column": 24, "row": 12, "height": 4 },
+      { "column": 14, "row": 15, "height": 1 }
+    ],
+    "platforms": [
+      { "column": 9, "row": 10, "length": 4 },
+      { "column": 17, "row": 10, "length": 4 },
+      { "column": 13, "row": 6, "length": 4 }
+    ],
+    "props": [
+      { "prop": "statue", "column": 8 },
+      { "prop": "statue", "column": 21 },
+      { "prop": "candles", "column": 3 },
+      { "prop": "candles", "column": 26 },
+      { "prop": "bones", "column": 17 }
+    ]
   }
 ]

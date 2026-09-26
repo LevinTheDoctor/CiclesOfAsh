@@ -1,5 +1,8 @@
 {
-  "dungeonsPerCircle": 5,
+  // Drei Verliese je Kreis: zwei Wellen-Verliese und der Thronsaal. Bei neun Kreisen
+  // sind das 27 Verliese - ein Abstieg bleibt damit an einem Abend schaffbar.
+  // ACHTUNG: prison.dungeonIndex in worlds.json muss kleiner sein als dieser Wert - 1.
+  "dungeonsPerCircle": 3,
   "difficultyStepPerDungeon": 0.35,
   "baseRoomCount": 5,
   "roomsPerDungeonIndex": 1,

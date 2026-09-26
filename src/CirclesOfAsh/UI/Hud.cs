@@ -84,9 +84,10 @@ public sealed class Hud
 
     /// <summary>Aktive Bitten rechts unter den Gläubigen – mit Fortschritt.</summary>
     /// <summary>
-    /// Ein Kästchen je verbleibendem Rüstungstreffer, rechts neben der Lebensleiste. Ohne das
-    /// bleibt "die Rüstung wird verbraucht" eine Behauptung, die man erst bemerkt, wenn sie schon
-    /// zersprungen ist. Leere Kästchen zeigen, wie viel sie einmal ausgehalten hat.
+    /// Ein Kästchen je verbleibendem Treffer der getragenen Kleidung, rechts neben der Lebensleiste.
+    /// Ohne das bleibt "die Kleidung wird verbraucht" eine Behauptung, die man erst bemerkt, wenn
+    /// sie schon zerfallen ist. Leere Kästchen zeigen, wie viel sie einmal ausgehalten hat.
+    /// Höchstwert ist derzeit 6 (Aschenharnisch) – die Reihe endet damit bei x 135.
     /// </summary>
     private void DrawArmor(SpriteBatch spriteBatch, Texture2D pixel, DungeonWorld world)
     {

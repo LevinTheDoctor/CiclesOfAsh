@@ -20,15 +20,22 @@ public sealed class ClassDefinition : IDefinition
     public string Id { get; init; } = "";
     public string Name { get; init; } = "";
     public string Description { get; init; } = "";
-    /// <summary>Kleidungs-Ebene der Klasse (feste Farben) für den Charakter-Editor.</summary>
-    public string OutfitSprite { get; init; } = "";
-    /// <summary>Einfärbbare Akzent-Ebene (Wappenrock, Stola, Schal).</summary>
+    /// <summary>
+    /// Ausrüstungs-Ebene der Klasse (feste Farben): Waffe und die Faust, die sie hält. Sie liegt
+    /// ÜBER der Kleidung und ist unzerstörbar – die Waffe bleibt also auch dann in der Hand, wenn
+    /// das letzte Kleidungsstück zerfallen ist.
+    /// </summary>
+    public string GearSprite { get; init; } = "";
+    /// <summary>
+    /// Einfärbbares Klassenzeichen (Wappenfarbe aus dem Editor). Bewusst nichts Textiles –
+    /// Stoff gehört in die zerstörbare Kleidung, hier stehen Schulterzier, Maske, Heiligenschein.
+    /// </summary>
     public string AccentSprite { get; init; } = "";
     public Dictionary<string, float> BaseStats { get; init; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>
-    /// Rüstung, die man von Anfang an trägt (Item-Id aus items.json). Leer = ohne starten.
-    /// Vorbild ist Ghosts 'n Goblins: Man beginnt gepanzert, verliert den Panzer im Kampf und
-    /// läuft danach ungeschützt weiter, bis man eine neue findet.
+    /// Kleidung, die man von Anfang an trägt (Item-Id aus items.json). Leer = in Unterwäsche starten.
+    /// Vorbild ist Ghosts 'n Goblins: Jede Klasse hat ihr EIGENES Stück, es zerfällt im Kampf in
+    /// drei Stufen und ist danach weg – übrig bleibt die Unterwäsche, bis man Ersatz findet.
     /// </summary>
     public string StartingArmor { get; init; } = "";
     public List<string> StartingAbilities { get; init; } = new();
@@ -272,18 +279,26 @@ public sealed class ItemDefinition : IDefinition
     public int MinCircle { get; init; }
     /// <summary>
     /// Nur für Rüstung: Grobes Maß für die Robustheit. Wird in Treffer umgerechnet, falls
-    /// <see cref="ArmorHits"/> nicht gesetzt ist. 0 = keine Rüstung.
+    /// <see cref="ArmorHits"/> nicht gesetzt ist.
     /// </summary>
     public int Durability { get; init; }
     /// <summary>
-    /// Nur für Rüstung: Wie viele Treffer sie ABFÄNGT, bevor sie zerspringt. 0 = aus
-    /// <see cref="Durability"/> ableiten.
+    /// Nur für Rüstung: Wie viele Treffer sie ABFÄNGT, bevor sie zerfällt. 0 = aus
+    /// <see cref="Durability"/> ableiten. Unzerstörbare Rüstung gibt es nicht – siehe
+    /// <see cref="Progression.EquipmentService.ArmorHitsOf"/>.
     /// </summary>
     public int ArmorHits { get; init; }
     /// <summary>
-    /// Nur für Rüstung: Sprite-Ebene, die über der Kleidung gezeichnet wird. Leer = unsichtbar.
+    /// Nur für Rüstung: Kleidungs-Ebene über dem Körper. Leer = unsichtbar. Erwartet werden drei
+    /// Verfallsstufen: die Id selbst sowie die Id mit den Anhängseln aus
+    /// <see cref="Progression.EquipmentService.StageSuffixes"/>.
     /// </summary>
     public string Sprite { get; init; } = "";
+    /// <summary>
+    /// Darf als Beute auftauchen. Startkleidung steht auf false: Sie gehört zur Klasse, nicht in
+    /// die Truhen – sonst fände der Magier die Kutte des Kreuzritters.
+    /// </summary>
+    public bool Lootable { get; init; } = true;
 }
 
 public enum PropAnchor { Floor, Ceiling, Wall }
@@ -555,4 +570,9 @@ public sealed class AppearanceDefinition
     /// <summary>Flügel werden HINTER der Figur gezeichnet. Leer = die Zeile entfällt im Editor.</summary>
     public List<AppearanceOptionDefinition> WingStyles { get; init; } = new();
     public List<string> AccentColors { get; init; } = new();
+    /// <summary>
+    /// Unterwäsche-Muster. Die einzige unzerstörbare Kleidungsebene und reiner Gag: Das Muster
+    /// wird pro Lauf gewürfelt, nicht im Editor gewählt. Leer = die Ebene entfällt ganz.
+    /// </summary>
+    public List<AppearanceOptionDefinition> UnderwearStyles { get; init; } = new();
 }

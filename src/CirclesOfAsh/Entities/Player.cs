@@ -394,52 +394,64 @@ public sealed class Player : Actor
     }
 
     /// <summary>
-    /// Die Ruestung hat den Treffer geschluckt. Beim letzten Mal zerspringt sie und fliegt in
-    /// Einzelteilen davon - danach steht die Figur in ihrer leichten Kleidung da.
+    /// Die Kleidung hat den Treffer geschluckt. Drei Abstufungen, damit man den Verfall sieht und
+    /// nicht nur das Ende: ein Treffer ohne Stufenwechsel bleibt ein dumpfer Rums, jede neue
+    /// Verfallsstufe reisst hoerbar etwas auf, und beim letzten Treffer fliegt das Stueck in
+    /// Einzelteilen davon - danach steht die Figur in Unterwaesche da.
     /// </summary>
     private void OnArmorHit(DungeonWorld world, Vector2 source, float knockback,
-                            Progression.EquipmentService.ArmorResult result)
+                            Progression.EquipmentService.ArmorHit hit)
     {
         _stealthTimer = 0f;
         Flash();
         ApplyKnockback(source, knockback);
         // Gleiches Zeitfenster wie bei echtem Schaden, sonst nimmt EIN Gegnerkontakt der Reihe
-        // nach alle Ruestungsstufen mit.
+        // nach alle Verfallsstufen mit.
         Health.GrantInvulnerability(HurtInvulnerability);
 
-        if (result == Progression.EquipmentService.ArmorResult.Absorbed)
+        if (hit.Result == Progression.EquipmentService.ArmorResult.Absorbed)
         {
-            world.Effects.Burst(Center, Palette.Ash, 8, 90f, 0.45f);
-            world.Context.Audio.Play("hit", 0.7f, -0.45f);   // dumpfer als ein Treffer auf Fleisch
-            world.ShakeCamera(2.5f);
+            // Der Stufenwechsel ist der Moment, in dem ein neues Bild erscheint - der darf mehr
+            // Krach machen als ein Treffer, der nur einen Punkt vom Vorrat abzieht.
+            bool louder = hit.StageChanged;
+            world.Effects.Burst(Center, Palette.Ash, louder ? 14 : 8, louder ? 120f : 90f, louder ? 0.7f : 0.45f);
+            world.Context.Audio.Play("hit", louder ? 0.85f : 0.7f, -0.45f);   // dumpfer als ein Treffer auf Fleisch
+            world.ShakeCamera(louder ? 4f : 2.5f);
+            if (louder)
+            {
+                world.Effects.Burst(Center, Palette.Bone, 5, 100f, 0.6f);
+                world.Announce($"{hit.ItemName}: {Progression.EquipmentService.StageNames[hit.Stage]}!");
+            }
             // Ohne das erschiene die ramponierte Fassung nie: Apply ruehrt nur die Werte an.
             RefreshAppearance(world.Context, world.Run);
             return;
         }
 
-        // Zerspringen: Teile in mehreren Schueben, damit sie gestaffelt wegfliegen und fallen.
+        // Zerfallen: Teile in mehreren Schueben, damit sie gestaffelt wegfliegen und fallen.
         world.Effects.Burst(Center, Palette.Ash, 16, 150f, 0.9f);
         world.Effects.Burst(Center, Palette.Bone, 10, 110f, 0.8f);
         world.Effects.Burst(Center, Palette.Gold, 6, 190f, 1.0f);
         world.Effects.Ring(Center, 24f, Palette.Bone);
         world.Context.Audio.Play("crumble", 0.9f, -0.3f);
-        world.Announce("Deine Ruestung zerspringt!");
+        // Der Name des Stuecks statt "Ruestung": Eine Russrobe zerspringt nicht, sie zerfaellt.
+        world.Announce($"{hit.ItemName} zerfaellt - nur noch die Unterwaesche!");
         world.Say(Companions.CompanionChatter.ArmorShattered);
         world.ShakeCamera(6f);
 
         RefreshDerivedStats();
         Stats.SetSource(Progression.EquipmentService.StatSource,
             Progression.EquipmentService.CollectModifiers(world.Context.Definitions, world.Run));
-        RefreshAppearance(world.Context, world.Run);   // Panzer verschwindet auch sichtbar
+        RefreshAppearance(world.Context, world.Run);   // Kleidung verschwindet auch sichtbar
     }
 
     /// <summary>
-    /// Baut das Ebenen-Sprite neu – nötig, wenn sich die getragene Rüstung ändert. Bewusst kein
-    /// readonly-Feld mehr: Die Rüstung ist die einzige Ebene, die sich mitten im Lauf ändert.
+    /// Baut das Ebenen-Sprite neu – nötig, wenn sich die getragene Kleidung oder ihre Verfallsstufe
+    /// ändert. Bewusst kein readonly-Feld mehr: Die Kleidung ist die einzige Ebene, die sich mitten
+    /// im Lauf ändert.
     /// </summary>
     public void RefreshAppearance(GameContext context, Progression.RunState run) =>
         _visual = Progression.CharacterVisuals.Create(context, Class, run.Appearance,
-            Progression.EquipmentService.ArmorSprite(context.Definitions, run));
+            Progression.EquipmentService.ArmorSprite(context.Definitions, run, context.Assets), run.Underwear);
 
     // ------------------------------------------------------------------ Kampf & Ressourcen
     public void TakeHit(DungeonWorld world, float amount, Vector2 source, float knockback)
@@ -470,10 +482,10 @@ public sealed class Player : Actor
         // mit - sie war also eine zweite Lebensleiste statt eines Schildes.
         if (!Health.IsInvulnerable)
         {
-            var armorResult = Progression.EquipmentService.AbsorbHit(world.Context.Definitions, world.Run);
-            if (armorResult != Progression.EquipmentService.ArmorResult.None)
+            var armorHit = Progression.EquipmentService.AbsorbHit(world.Context.Definitions, world.Run);
+            if (armorHit.Result != Progression.EquipmentService.ArmorResult.None)
             {
-                OnArmorHit(world, source, knockback, armorResult);
+                OnArmorHit(world, source, knockback, armorHit);
                 return;
             }
         }

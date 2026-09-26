@@ -39,11 +39,29 @@
 ## Spielkonzept
 
 ```
-Welt (z. B. "Das Inferno")
- └─ Kreis 1 … n          ← Schichten nach Dantes Inferno (Limbus, Gier, Zorn …)
-     └─ Verlies 1 – 4    ← Wellen-Dungeons, werden pro Stufe schwerer
-     └─ Verlies 5        ← Thronsaal: reiner Bosskampf, keine Wellen
+Welt "Das Inferno"
+ └─ Kreis 1 … 9          ← die neun Kreise nach Dante, jeder mit eigener Farbwelt und eigenem Boss
+     └─ Verlies 1 – 2    ← Wellen-Dungeons, werden pro Stufe schwerer
+     └─ Verlies 3        ← Thronsaal: reiner Bosskampf, keine Wellen
 ```
+
+| # | Kreis | Boss | Farbwelt |
+|---|---|---|---|
+| 1 | Limbus | Der Namenlose Hirte | grau-blau |
+| 2 | Wollust | Der Sturm der Zwei | rosé |
+| 3 | Völlerei | Kerberos, der Dreifache Schlund | fauliges Olivgrün |
+| 4 | Gier | Mammon, der Gierschlund | gold |
+| 5 | Zorn | Der Zornige Titan | rostrot |
+| 6 | Ketzerei | Der Erzketzer im Feuersarg | glutorange |
+| 7 | Gewalt | Der Minotaur der Blutfurt | totes Grün |
+| 8 | Betrug | Geryon, das ehrliche Gesicht | violett |
+| 9 | Verrat | Luzifer im Eis | eisblau |
+
+**Nach jedem Verlies entscheidest du selbst:** sofort weiter hinab, oder zurück in den Tempel.
+Der Tempel ist die sichere Wahl – der Lauf ist gespeichert, beim nächsten Aufbruch steigst du an
+derselben Stelle wieder ein, und dazwischen kannst du ausrüsten, Bitten annehmen und Gläubige
+ausgeben. Weitergehen spart den Umweg, aber unten wartet der Tod: Er kostet Klasse, Items und drei
+Viertel der Gläubigen.
 
 - **Verliese** werden prozedural erzeugt. In Arena-Räumen versiegeln sich die Türen und Wellen spawnen.
   Sind alle Arenen geläutert, erwacht das **Siegel** – wer es erreicht, schließt das Verlies ab.
@@ -77,10 +95,12 @@ Welt (z. B. "Das Inferno")
 | Feature | Was passiert im Spiel | Wo im Code / in den Daten |
 |---|---|---|
 | **Figur statt Klasse zuerst** | Der Editor fragt Name → Geschlecht → Statur (Kräftig/Normal/Trainiert) → Klasse → Aussehen. Geschlecht und Statur sind zwei Zeilen, liegen in den Daten aber weiter in **einer** Liste – ein Katalog rechnet hin und her, deshalb ohne Migration | `Scenes/CharacterCreatorScene.cs`, `Progression/BodyTypeCatalog.cs`, `appearance.json` |
-| **Rüstung wie in Ghosts 'n Goblins** | Du startest gepanzert. Die Rüstung fängt Treffer **ganz** ab und zerspringt beim letzten mit Splittern – danach läufst du ungeschützt, bis du eine neue findest. Vier Stücke, klar unterscheidbar | `Progression/EquipmentService.cs`, `Entities/Player.cs`, `classes.json` (`startingArmor`) |
+| **Alles geht kaputt, wie in Ghosts 'n Goblins** | Jede Klasse startet in ihrer **eigenen** Kleidung, und Kleidung **ist** Rüstung: Sie fängt Treffer **ganz** ab und zerfällt dabei in **drei sichtbaren Stufen** – heil, angeschlagen, zerfetzt –, bis nur die Unterwäsche bleibt. Unzerstörbare Rüstung gibt es nicht | `Progression/EquipmentService.cs` (`Stages`, `ArmorStage`), `Entities/Player.cs`, `items.json` (`armorHits`), `classes.json` (`startingArmor`) |
+| **Unterwäsche mit Muster** | Die einzige unzerstörbare Ebene, und reiner Gag: Herzchen, Streifen, Punkte, Flämmchen, Knöchlein. Das Muster wird **pro Lauf** gewürfelt, nicht im Editor gewählt | `appearance.json` (`underwearStyles`), `RunState.Underwear`, `tools/assetgen/characters.py` (`underwear_frame`) |
+| **Waffen liegen in der Hand** | Alle sechs Körpertypen laufen mit dem Unterarm auf **eine** gemeinsame Faustzelle zu; Faust und Waffe hängen an demselben Anker und schwingen mit Lauf und Sprung mit. Die Waffe liegt in einer eigenen, unzerstörbaren Ebene – sie bleibt also auch dann in der Hand, wenn die Kleidung zerfallen ist | `tools/assetgen/characters.py` (`hand_anchor`, `gear_frame`), `classes.json` (`gearSprite`) |
 | **Selbst kämpfen** | Kombo aus drei Schlägen, Block mit Parade-Fenster, Drehsprung auf `W`. Im Optionsmenü wählbar, ob im Bosskampf die Automatik mithilft oder schweigt | `Entities/Player.cs`, `Scenes/SettingsScene.cs` |
 | **Ducken** | Durch niedrige Spalten, die sonst den Weg nehmen | `Player.UpdateCrouch` |
-| **Sprechende Begleitseelen** | Sie melden sich von selbst: beim Abstieg, bei wenig Leben, wenn die Rüstung zerspringt, im Tempel. Als Sprechblase, die das Spiel **nicht** anhält | `Companions/CompanionChatter.cs`, `chatter.json` |
+| **Sprechende Begleitseelen** | Sie melden sich von selbst: beim Abstieg, bei wenig Leben, wenn die Kleidung zerfällt, im Tempel. Als Sprechblase, die das Spiel **nicht** anhält | `Companions/CompanionChatter.cs`, `chatter.json` |
 | **Begleiter-Fassungen** | Jede der sieben Seelen in drei Farbfassungen – im Tempel über „Gestalt wechseln", haltbar über Läufe | `Companions/CompanionSkins.cs`, Migration V4 (`pets.skin`) |
 | **Optionales Tutorial** | Zehn Schritte, jeder wartet auf **eine** Handlung. Kein Zwang, `F5` bricht ab. Nutzt dieselben Ereignisse wie die Zwischenrufe – eine Meldestelle für beide | `Tutorial/TutorialDirector.cs`, `tutorial.json` |
 | **Zwei neue Rätseltypen** | **Gewichte**: drei Druckplatten gleichzeitig beschweren, aber nur zwei Schiebeblöcke – auf der dritten stehst du selbst. **Spiegel**: einen Lichtstrahl umlenken, flach gestellte Spiegel lassen ihn durch | `Puzzles/Puzzles.cs`, `props.json`, `worlds.json` (`puzzles`) |
@@ -438,10 +458,29 @@ wichtiger werden Laternen), `decay` (0–1: zerbrochene Wände, bröckelnde Plat
 `prison` legt Kerker, Mini-Boss und Belohnungs-Begleiter fest, `collectibles` die Sammelobjekte.
 `bossReward` ist die **Ewige Gabe** – eine beliebige Fähigkeits-ID.
 
+**Eigene Farbwelt dazu:** Ein Eintrag in `MATERIALS` (`tools/assetgen/world.py`) genügt – das ist die
+einzige Farbquelle eines Kreises, für Kacheln **und** Hintergrund. `scenery` wählt eine der drei
+Kulissen (`castle`, `cave`, `ember`), der Rest sind Farben. `generate()` schreibt daraus von selbst
+`tiles_<id>.png` und `bg_<id>.png`; ins `manifest.json` müssen beide noch als `tiles.<id>` und
+`background.<id>` eingetragen werden. Beim Start warnt das Spiel jetzt, wenn Tileset, Hintergrund
+oder Musik eines Kreises fehlen – vorher fiel der Kreis still auf die Bilder des Limbus zurück.
+
+**Wichtig:** `prison.dungeonIndex` muss **kleiner** sein als `dungeonsPerCircle - 1`, sonst läge der
+Kerker auf dem Thronsaal und würde nie gebaut. Das wird beim Start geprüft.
+
 ### Neue Klasse
-`classes.json` erweitern. Aussehen über `outfitSprite` (feste Farben) und `accentSprite` (Graustufen,
-wird mit der Wappenfarbe aus dem Editor eingefärbt). Beide Sheets brauchen dasselbe Raster wie `char.body`
-(16×24, Zeilen idle/run/jump/hurt). Stat-Namen siehe `Combat/Stats.cs` (`MaxHealth`, `MaxMana`, `ManaRegen`,
+`classes.json` erweitern. Eine Klasse bringt **drei** Dinge mit:
+
+- `gearSprite` – Waffe und die Faust, die sie hält (feste Farben, **unzerstörbar**). Alles, was mit
+  der Waffe zu tun hat, gehört an den gemeinsamen Anker `hand_anchor` in `characters.py`; nur so
+  sitzt es bei allen sechs Körpertypen in der Hand.
+- `accentSprite` – das Klassenzeichen in **Graustufen**, wird mit der Wappenfarbe aus dem Editor
+  eingefärbt. Bewusst nichts Textiles: Stoff gehört in die zerstörbare Kleidung, sonst wäre die
+  Wappenfarbe nach dem letzten Treffer unsichtbar.
+- `startingArmor` – die **eigene** Startkleidung als Item-Id aus `items.json` (siehe *Neues Item*).
+
+Beide Sheets brauchen dasselbe Raster wie `char.body` (24×32, Zeilen idle/run/jump/hurt).
+Stat-Namen siehe `Combat/Stats.cs` (`MaxHealth`, `MaxMana`, `ManaRegen`,
 `MoveSpeed`, `JumpPower`, `Might`, `Armor`, `CooldownReduction`, `AreaSize`, `PickupRadius`, `StealthDamage`).
 
 ### Neuer Stat
@@ -454,9 +493,25 @@ wird mit der Wappenfarbe aus dem Editor eingefärbt). Beide Sheets brauchen dass
 `unlockAtBelievers` legt fest, ab wie vielen Gläubigen er dauerhaft erwacht.
 
 ### Neues Item
-`items.json`: `slot` (`Lamp`, `Amulet`, `Ring`, `Collectible`), `rarity` (`Common`, `Rare`, `Sacred`),
-`modifiers` mit Stat-Namen, `minCircle` ab welchem Kreis es als Beute auftaucht. Icon: in `manifest.json`
-beim Sheet `items.icons` eine Animation mit der Item-ID und der Spalte (`column`) im Icon-Atlas anlegen.
+`items.json`: `slot` (`Lamp`, `Amulet`, `Ring`, `Collectible`, `Armor`), `rarity` (`Common`, `Rare`,
+`Sacred`), `modifiers` mit Stat-Namen, `minCircle` ab welchem Kreis es als Beute auftaucht,
+`lootable: false` wenn es nie in Truhen liegen soll (so sind die vier Startkleidungen ausgenommen).
+Icon: in `manifest.json` beim Sheet `items.icons` eine Animation mit der Item-ID und der Spalte
+(`column`) im Icon-Atlas anlegen.
+
+Für den Slot `Armor` kommt dazu:
+
+- `armorHits` – wie viele Treffer das Stück **vollständig** abfängt, bevor es zerfällt. Ohne Angabe
+  aus `durability` abgeleitet, **mindestens** aber `EquipmentService.Stages` (3). Unzerstörbare
+  Rüstung gibt es nicht.
+- `sprite` – die Kleidungs-Ebene. Erwartet werden **drei** Blätter: `<sprite>` (heil),
+  `<sprite>.worn` (angeschlagen) und `<sprite>.broken` (zerfetzt). Fehlt eine Stufe, fällt die
+  Anzeige auf die nächstniedrigere zurück (nur ein `INFO` im Log, kein Fehler).
+
+Die Ebene deckt Rumpf **und** Beine – ein Stück, das nur den Rumpf deckt, ließe unzerstörbare Hosen
+übrig. Gezeichnet wird sie in `characters.py` (`garment_frame`), und der Schaden wird **nach**
+`polish()` hineingeschlagen: Dessen Kontur-Schleife würde sonst jedes Loch bis 2 px Breite wieder
+zumalen.
 
 ### Neues Prop / neues Raumthema
 1. Prop in `props.json` (Sprite, Größe, optional Licht, `behavior`).
@@ -637,8 +692,11 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
 - [x] Weitere Rätseltypen: Druckplatten mit Schiebeblöcken, Spiegel für Lichtstrahlen
 - [x] Optionales Tutorial, geführt von der Begleitseele
 - [x] Eigene Arena und eigenes Musikstück je Boss und Mini-Boss
-- [x] Manueller Nahkampf (Kombo, Block mit Parade, Drehsprung), Ducken, zerspringende Rüstung
+- [x] Manueller Nahkampf (Kombo, Block mit Parade, Drehsprung), Ducken
+- [x] Kleidung als Rüstung: eigene je Klasse, drei Verfallsstufen, übrig bleibt die Unterwäsche
 - [x] Geschlecht, Körpertypen, Make-up, Flügel und Engel-Klasse im Charakter-Editor
+- [x] Alle neun Kreise nach Dante, je mit eigenem Tileset, Boss und Musikstück
+- [x] Nach jedem Verlies selbst entscheiden: tiefer hinab oder zurück in den Tempel
 - [ ] Tastenbelegung frei belegbar aus `Content/Data/input.json` (Profile gibt es, das Umbelegen fehlt)
 - [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus, Erreichbarkeit) und `ProgressionService`
 - [ ] Mehr Welten (Purgatorio, Paradiso) und Kreise

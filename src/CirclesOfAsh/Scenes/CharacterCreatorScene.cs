@@ -52,6 +52,11 @@ public sealed class CharacterCreatorScene : SceneBase
     private int _classIndex, _skin, _hair, _hairColor, _accent;
     private int _makeup, _makeupColor, _wings;
     /// <summary>
+    /// Vorschau-Muster der Unterwäsche. Nicht wählbar (es ist ein Gag), aber die Vorschau darf
+    /// nicht lügen: Genau dieses Muster wird an den Lauf durchgegeben.
+    /// </summary>
+    private int _underwear;
+    /// <summary>
     /// Zwei Achsen statt eines Körpertyp-Index. Der gespeicherte Index entsteht erst beim
     /// Auslesen (<see cref="Look"/>) – siehe <see cref="BodyTypeCatalog"/>.
     /// </summary>
@@ -65,6 +70,9 @@ public sealed class CharacterCreatorScene : SceneBase
         _options = context.Definitions.Appearance;
         _bodies = new BodyTypeCatalog(_options.BodyTypes);
         _name = RandomNames[_random.Next(RandomNames.Length)];
+        // Das Muster wird hier schon gewürfelt, nicht erst beim Start: Auf den Zeilen Geschlecht
+        // und Statur ist die Unterwäsche zu sehen, und was dort steht, muss auch im Lauf gelten.
+        _underwear = _random.Next(Math.Max(1, _options.UnderwearStyles.Count));
         _rows = Enum.GetValues<Row>().Where(HasOptions).ToArray();
         RebuildPreview();
     }
@@ -205,23 +213,25 @@ public sealed class CharacterCreatorScene : SceneBase
         _makeup = _random.Next(Math.Max(1, _options.MakeupStyles.Count));
         _makeupColor = _random.Next(Math.Max(1, _options.MakeupColors.Count));
         _wings = _random.Next(Math.Max(1, _options.WingStyles.Count));
+        _underwear = _random.Next(Math.Max(1, _options.UnderwearStyles.Count));
         Context.Audio.Play("unseal", 0.3f, 0.6f);
         RebuildPreview();
     }
 
     /// <summary>
-    /// Baut die Vorschau neu – mit der Startrüstung der gewählten Klasse, denn genau so betrittst
+    /// Baut die Vorschau neu – mit der Startkleidung der gewählten Klasse, denn genau so betrittst
     /// du das Verlies. Ausgenommen sind die Zeilen Geschlecht und Statur: Dort geht es um die
-    /// Figur, und die ist unter dem Panzer nicht zu beurteilen. Die Vorschau zeigt also immer das,
-    /// was du gerade bearbeitest – ohne zusätzliche Taste oder Zeile.
+    /// Figur, und die ist unter der Kleidung nicht zu beurteilen. Die Vorschau zeigt also immer
+    /// das, was du gerade bearbeitest – ohne zusätzliche Taste oder Zeile.
     /// </summary>
     private void RebuildPreview() =>
-        _preview = CharacterVisuals.Create(Context, SelectedClass, Look, ShowsBody ? null : StartingArmorSprite);
+        _preview = CharacterVisuals.Create(Context, SelectedClass, Look,
+            ShowsBody ? null : StartingArmorSprite, _underwear);
 
-    /// <summary>Auf diesen Zeilen zählt der nackte Körper, nicht die Rüstung darüber.</summary>
+    /// <summary>Auf diesen Zeilen zählt der nackte Körper, nicht die Kleidung darüber.</summary>
     private bool ShowsBody => CurrentRow is Row.Gender or Row.Body;
 
-    /// <summary>Sprite der Rüstung, mit der diese Klasse startet – oder null.</summary>
+    /// <summary>Sprite der Kleidung, mit der diese Klasse startet – oder null.</summary>
     private string? StartingArmorSprite =>
         Context.Definitions.Items.TryGet(SelectedClass.StartingArmor, out ItemDefinition? armor)
         && armor.Sprite.Length > 0
@@ -230,7 +240,7 @@ public sealed class CharacterCreatorScene : SceneBase
 
     private void StartRun(IEnumerable<string> companionIds)
     {
-        Context.Progression.StartNewRun(SelectedClass.Id, Look, companionIds);
+        Context.Progression.StartNewRun(SelectedClass.Id, Look, companionIds, _underwear);
         Context.Scenes.Replace(new HubScene(Context));
     }
 
@@ -273,7 +283,7 @@ public sealed class CharacterCreatorScene : SceneBase
             ? (CurrentRow == Row.Name
                 ? $"Tippen: Name · Runter/{confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück"
                 : ShowsBody
-                    ? $"Hoch/Runter Zeile · Links/Rechts ändern · Rüstung ausgeblendet · {cancelGlyph} zurück"
+                    ? $"Hoch/Runter Zeile · Links/Rechts ändern · Kleidung ausgeblendet · {cancelGlyph} zurück"
                     : $"Hoch/Runter Zeile · Links/Rechts ändern · {confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück")
             : $"{confirmGlyph} wählen · {cancelGlyph} zurück";
         font.DrawCentered(spriteBatch, help, centerX, CirclesGame.VirtualHeight - 14, Palette.Ash);
