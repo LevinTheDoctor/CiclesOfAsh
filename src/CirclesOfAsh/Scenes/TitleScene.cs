@@ -46,7 +46,10 @@ public sealed class TitleScene : SceneBase
         UiDraw.Begin(spriteBatch);
         UiDraw.Backdrop(spriteBatch, Context, 0.35f);
         float centerX = CirclesGame.VirtualWidth / 2f;
-        InfernoFunnel.Draw(spriteBatch, Context.Assets.Pixel, new Vector2(centerX, 150), 460f, 90f, 7, -1, _time * 0.4f, animate: true);
+        // Ringzahl aus der Welt lesen statt fest verdrahten: Der Titel zeigt sonst sieben Ringe,
+        // waehrend das Inferno neun Kreise tief ist.
+        int rings = Context.Definitions.Worlds.All.FirstOrDefault()?.Circles.Count ?? 9;
+        InfernoFunnel.Draw(spriteBatch, Context.Assets.Pixel, new Vector2(centerX, 150), 460f, 90f, rings, -1, _time * 0.4f, animate: true);
 
         Texture2D logo = Context.Assets.GetTexture("ui.logo");
         spriteBatch.Draw(logo, new Vector2(centerX - logo.Width / 2f, 4 + MathF.Sin(_time) * 2f), Color.White);

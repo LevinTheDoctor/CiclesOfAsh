@@ -1,10 +1,20 @@
-// Welten und ihre Kreise. Tiefer = dunkleres ambientLight, höherer decay (mehr Verfall, bröckelnde Plattformen).
+// Welten und ihre Kreise. Die Reihenfolge der Kreise IST die Abstiegsreihenfolge.
+//
+// Neun Kreise nach Dantes Inferno: Limbus, Wollust, Völlerei, Gier, Zorn, Ketzerei, Gewalt,
+// Betrug, Verrat. Je tiefer, desto dunkler das ambientLight, desto höher decay (mehr Verfall
+// und bröckelnde Plattformen) und desto härter difficulty.
+//
+// Jeder Kreis hat ein EIGENES Tileset und einen eigenen Hintergrund, damit man die Ebene an der
+// Farbe erkennt (erzeugt aus MATERIALS in tools/assetgen/world.py).
+//
+// prison ist freiwillig (es gibt drei Kerkermeister). dungeonIndex muss KLEINER als der Index
+// des Bossverlieses sein, sonst wird der Kerker nie gebaut - bei dungeonsPerCircle 3 also 0 oder 1.
 [
   {
     "id": "inferno",
     "name": "Das Inferno",
-    "lore": "Einst warst du angebetet. Nun ist dein Name vergessen und deine Gläubigen sind in die Kreise der Hölle gefallen.",
-    "believersOnLiberation": 150,
+    "lore": "Einst warst du angebetet. Nun ist dein Name vergessen und deine Gläubigen sind in die neun Kreise der Hölle gefallen.",
+    "believersOnLiberation": 400,
     "circles": [
       {
         "id": "limbo",
@@ -77,7 +87,7 @@
         ],
         "collectiblesPerDungeon": 2,
         "prison": {
-          "dungeonIndex": 2,
+          "dungeonIndex": 1,
           "miniBoss": "warden_limbo",
           "guards": "ghoul",
           "guardCount": 3,
@@ -87,10 +97,152 @@
         }
       },
       {
+        "id": "lust",
+        "name": "Kreis der Wollust",
+        "lore": "Der zweite Kreis. Ein Sturm, der niemals nachlässt, reißt die Liebenden auf ewig auseinander. Wer hier steht, hört zwei Stimmen rufen, die einander nie erreichen.",
+        "difficulty": 1.2,
+        "tileTint": "#FFFFFF",
+        "backgroundTint": "#FFFFFF",
+        "enemyPool": [
+          {
+            "enemy": "wraith",
+            "weight": 4
+          },
+          {
+            "enemy": "ghoul",
+            "weight": 3
+          },
+          {
+            "enemy": "spider",
+            "weight": 3
+          },
+          {
+            "enemy": "imp",
+            "weight": 2
+          },
+          {
+            "enemy": "skeleton",
+            "weight": 2
+          },
+          {
+            "enemy": "leech",
+            "weight": 1
+          }
+        ],
+        "boss": "boss_tempest",
+        "bossReward": "seraph_wings",
+        "believersPerDungeon": 15,
+        "tileset": "tiles.lust",
+        "background": "background.lust",
+        "music": "music.lust",
+        "ambientLight": "#8E7086",
+        "decay": 0.22,
+        "ambientParticles": "dust",
+        "themes": [
+          {
+            "theme": "cave",
+            "weight": 4
+          },
+          {
+            "theme": "crypt",
+            "weight": 3
+          },
+          {
+            "theme": "flooded",
+            "weight": 3
+          },
+          {
+            "theme": "cathedral",
+            "weight": 2
+          }
+        ],
+        "puzzles": [
+          "levers",
+          "mirrors",
+          "rune_order"
+        ],
+        "collectibles": [
+          "prayer_beads",
+          "lost_letter"
+        ],
+        "collectiblesPerDungeon": 2
+      },
+      {
+        "id": "gluttony",
+        "name": "Kreis der Völlerei",
+        "lore": "Der dritte Kreis. Kalter Regen fällt ohne Ende in einen Schlamm aus allem, was je verschlungen wurde. Drei Schlünde bellen im Dunkeln.",
+        "difficulty": 1.4,
+        "tileTint": "#FFFFFF",
+        "backgroundTint": "#FFFFFF",
+        "enemyPool": [
+          {
+            "enemy": "hound",
+            "weight": 4
+          },
+          {
+            "enemy": "ghoul",
+            "weight": 3
+          },
+          {
+            "enemy": "leech",
+            "weight": 3
+          },
+          {
+            "enemy": "swarm",
+            "weight": 3
+          },
+          {
+            "enemy": "spider",
+            "weight": 2
+          },
+          {
+            "enemy": "skeleton",
+            "weight": 1
+          }
+        ],
+        "boss": "boss_cerberus",
+        "bossReward": "consecration",
+        "believersPerDungeon": 18,
+        "tileset": "tiles.gluttony",
+        "background": "background.gluttony",
+        "music": "music.gluttony",
+        "ambientLight": "#7E8466",
+        "decay": 0.3,
+        "ambientParticles": "drips",
+        "themes": [
+          {
+            "theme": "flooded",
+            "weight": 4
+          },
+          {
+            "theme": "cave",
+            "weight": 4
+          },
+          {
+            "theme": "crypt",
+            "weight": 2
+          },
+          {
+            "theme": "vault",
+            "weight": 1
+          }
+        ],
+        "puzzles": [
+          "braziers",
+          "levers",
+          "weights"
+        ],
+        "collectibles": [
+          "soul_shard",
+          "lost_letter"
+        ],
+        "collectiblesPerDungeon": 2
+      },
+      {
         "id": "greed",
         "name": "Kreis der Gier",
-        "lore": "Der vierte Kreis. Geizhälse und Verschwender wälzen schwere Lasten gegeneinander, auf ewig. Über ihnen thront Mammon auf einem Berg aus Gold, das niemandem gehört.",
-        "difficulty": 1.6,
+        "lore": "Der vierte Kreis. Geizhälse und Verschwender wälzen Lasten gegeneinander, bis niemand mehr weiß, wem was gehörte. Mammon thront auf einem Berg aus Gold, der niemandem nützt.",
+        "difficulty": 1.7,
         "tileTint": "#FFFFFF",
         "backgroundTint": "#FFFFFF",
         "enemyPool": [
@@ -133,7 +285,7 @@
         ],
         "boss": "boss_mammon",
         "bossReward": "wings_of_ash",
-        "believersPerDungeon": 20,
+        "believersPerDungeon": 22,
         "tileset": "tiles.greed",
         "background": "background.greed",
         "music": "music.greed",
@@ -183,8 +335,8 @@
       {
         "id": "wrath",
         "name": "Kreis des Zorns",
-        "lore": "Der fünfte Kreis. Im Sumpf des Styx zerfleischen sich die Zornigen gegenseitig. Ein Titan, geboren aus ihrer Wut, wacht über die Mauern der Stadt Dis.",
-        "difficulty": 2.3,
+        "lore": "Der fünfte Kreis. Im Sumpf des Styx zerfleischen sich die Zornigen, und unter der Oberfläche gurgeln die Trägen. Ein Titan hält die Mauern der Stadt Dis.",
+        "difficulty": 2.1,
         "tileTint": "#FFFFFF",
         "backgroundTint": "#FFFFFF",
         "enemyPool": [
@@ -227,12 +379,12 @@
         ],
         "boss": "boss_titan",
         "bossReward": "last_judgement",
-        "believersPerDungeon": 30,
+        "believersPerDungeon": 28,
         "tileset": "tiles.wrath",
         "background": "background.wrath",
         "music": "music.wrath",
         "ambientLight": "#5A3840",
-        "decay": 0.8,
+        "decay": 0.6,
         "ambientParticles": "embers",
         "themes": [
           {
@@ -248,7 +400,7 @@
             "weight": 2
           },
           {
-            "theme": "prison",
+            "theme": "flooded",
             "weight": 1
           }
         ],
@@ -264,7 +416,7 @@
         ],
         "collectiblesPerDungeon": 3,
         "prison": {
-          "dungeonIndex": 2,
+          "dungeonIndex": 1,
           "miniBoss": "warden_wrath",
           "guards": "cultist",
           "guardCount": 2,
@@ -272,6 +424,310 @@
           "companionReward": "bell_soul",
           "believers": 50
         }
+      },
+      {
+        "id": "heresy",
+        "name": "Kreis der Ketzerei",
+        "lore": "Der sechste Kreis. Ein Feld offener Gräber, und in jedem brennt einer, der die Seele für sterblich hielt. Die Deckel stehen offen – zugemauert wird erst am Jüngsten Tag.",
+        "difficulty": 2.5,
+        "tileTint": "#FFFFFF",
+        "backgroundTint": "#FFFFFF",
+        "enemyPool": [
+          {
+            "enemy": "cultist",
+            "weight": 4
+          },
+          {
+            "enemy": "knight",
+            "weight": 3
+          },
+          {
+            "enemy": "golem",
+            "weight": 3
+          },
+          {
+            "enemy": "imp",
+            "weight": 3
+          },
+          {
+            "enemy": "wraith",
+            "weight": 2
+          },
+          {
+            "enemy": "drake",
+            "weight": 2
+          },
+          {
+            "enemy": "swarm",
+            "weight": 1
+          }
+        ],
+        "boss": "boss_heresiarch",
+        "bossReward": "soul_lance",
+        "believersPerDungeon": 34,
+        "tileset": "tiles.heresy",
+        "background": "background.heresy",
+        "music": "music.heresy",
+        "ambientLight": "#6A4028",
+        "decay": 0.72,
+        "ambientParticles": "embers",
+        "themes": [
+          {
+            "theme": "crypt",
+            "weight": 4
+          },
+          {
+            "theme": "forge",
+            "weight": 3
+          },
+          {
+            "theme": "cathedral",
+            "weight": 3
+          },
+          {
+            "theme": "vault",
+            "weight": 2
+          }
+        ],
+        "puzzles": [
+          "braziers",
+          "rune_order",
+          "mirrors"
+        ],
+        "collectibles": [
+          "soul_shard",
+          "lost_letter"
+        ],
+        "collectiblesPerDungeon": 3
+      },
+      {
+        "id": "violence",
+        "name": "Kreis der Gewalt",
+        "lore": "Der siebte Kreis. Drei Ringe: ein Fluss aus kochendem Blut, ein Wald, dessen Bäume einmal Menschen waren, und eine Ebene unter fallendem Feuer. Am Eingang scharrt der Minotaur.",
+        "difficulty": 2.9,
+        "tileTint": "#FFFFFF",
+        "backgroundTint": "#FFFFFF",
+        "enemyPool": [
+          {
+            "enemy": "knight",
+            "weight": 4
+          },
+          {
+            "enemy": "golem",
+            "weight": 3
+          },
+          {
+            "enemy": "hound",
+            "weight": 3
+          },
+          {
+            "enemy": "cultist",
+            "weight": 3
+          },
+          {
+            "enemy": "drake",
+            "weight": 3
+          },
+          {
+            "enemy": "imp",
+            "weight": 2
+          },
+          {
+            "enemy": "leech",
+            "weight": 2
+          }
+        ],
+        "boss": "boss_minotaur",
+        "bossReward": "phantom_blades",
+        "believersPerDungeon": 40,
+        "tileset": "tiles.violence",
+        "background": "background.violence",
+        "music": "music.violence",
+        "ambientLight": "#4A4032",
+        "decay": 0.8,
+        "ambientParticles": "embers",
+        "themes": [
+          {
+            "theme": "cave",
+            "weight": 4
+          },
+          {
+            "theme": "forge",
+            "weight": 3
+          },
+          {
+            "theme": "flooded",
+            "weight": 2
+          },
+          {
+            "theme": "crypt",
+            "weight": 2
+          }
+        ],
+        "puzzles": [
+          "weights",
+          "braziers",
+          "mirrors",
+          "levers"
+        ],
+        "collectibles": [
+          "soul_shard",
+          "prayer_beads"
+        ],
+        "collectiblesPerDungeon": 3
+      },
+      {
+        "id": "fraud",
+        "name": "Kreis des Betrugs",
+        "lore": "Der achte Kreis. Zehn steinerne Gräben, in jedem eine andere Lüge. Geryon trägt dich hinab – er hat das Gesicht eines ehrlichen Mannes und den Schwanz eines Skorpions.",
+        "difficulty": 3.3,
+        "tileTint": "#FFFFFF",
+        "backgroundTint": "#FFFFFF",
+        "enemyPool": [
+          {
+            "enemy": "cultist",
+            "weight": 4
+          },
+          {
+            "enemy": "imp",
+            "weight": 4
+          },
+          {
+            "enemy": "knight",
+            "weight": 3
+          },
+          {
+            "enemy": "wraith",
+            "weight": 3
+          },
+          {
+            "enemy": "swarm",
+            "weight": 3
+          },
+          {
+            "enemy": "drake",
+            "weight": 2
+          },
+          {
+            "enemy": "golem",
+            "weight": 2
+          }
+        ],
+        "boss": "boss_geryon",
+        "bossReward": "orbiting_candles",
+        "believersPerDungeon": 48,
+        "tileset": "tiles.fraud",
+        "background": "background.fraud",
+        "music": "music.fraud",
+        "ambientLight": "#3E3450",
+        "decay": 0.88,
+        "ambientParticles": "ash",
+        "themes": [
+          {
+            "theme": "vault",
+            "weight": 4
+          },
+          {
+            "theme": "cathedral",
+            "weight": 3
+          },
+          {
+            "theme": "crypt",
+            "weight": 3
+          },
+          {
+            "theme": "forge",
+            "weight": 2
+          }
+        ],
+        "puzzles": [
+          "mirrors",
+          "rune_order",
+          "weights",
+          "braziers"
+        ],
+        "collectibles": [
+          "lost_letter",
+          "soul_shard"
+        ],
+        "collectiblesPerDungeon": 3
+      },
+      {
+        "id": "treachery",
+        "name": "Kreis des Verrats",
+        "lore": "Der neunte Kreis. Kein Feuer mehr, nur Eis. Der Kokytos hält die Verräter fest, und in seiner Mitte steckt der, der als Erster fiel – bis zur Brust, mit drei Gesichtern und sechs Flügeln, die den Frost machen.",
+        "difficulty": 3.8,
+        "tileTint": "#FFFFFF",
+        "backgroundTint": "#FFFFFF",
+        "enemyPool": [
+          {
+            "enemy": "knight",
+            "weight": 5
+          },
+          {
+            "enemy": "golem",
+            "weight": 4
+          },
+          {
+            "enemy": "cultist",
+            "weight": 3
+          },
+          {
+            "enemy": "wraith",
+            "weight": 3
+          },
+          {
+            "enemy": "drake",
+            "weight": 3
+          },
+          {
+            "enemy": "imp",
+            "weight": 2
+          },
+          {
+            "enemy": "skeleton",
+            "weight": 2
+          }
+        ],
+        "boss": "boss_lucifer",
+        "bossReward": "shadow_veil",
+        "believersPerDungeon": 60,
+        "tileset": "tiles.treachery",
+        "background": "background.treachery",
+        "music": "music.treachery",
+        "ambientLight": "#38465E",
+        "decay": 0.95,
+        "ambientParticles": "dust",
+        "themes": [
+          {
+            "theme": "cathedral",
+            "weight": 4
+          },
+          {
+            "theme": "vault",
+            "weight": 3
+          },
+          {
+            "theme": "crypt",
+            "weight": 3
+          },
+          {
+            "theme": "cave",
+            "weight": 2
+          }
+        ],
+        "puzzles": [
+          "mirrors",
+          "weights",
+          "rune_order",
+          "braziers"
+        ],
+        "collectibles": [
+          "soul_shard",
+          "lost_letter",
+          "prayer_beads"
+        ],
+        "collectiblesPerDungeon": 3
       }
     ]
   }

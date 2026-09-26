@@ -85,10 +85,13 @@ public static class ResultSceneFactory
         string title = outcome.GameCompleted ? "Das Inferno ist gebrochen"
             : outcome.CircleCompleted ? "Der Kreis ist befreit"
             : "Das Verlies ist geläutert";
-        // Lambda wählt das Ziel erst beim Bestätigen -> kein unnötiger Szenenaufbau vorab
-        Action next = outcome.GameCompleted
-            ? () => context.Scenes.Replace(new TitleScene(context))
-            : () => context.Scenes.Replace(new HubScene(context));
-        return new MessageScene(context, title, string.Join("\n\n", lines), Palette.Gold, next);
+
+        // Ein Bildschirm mit ZWEI Wegen statt einer Taste: tiefer oder heim. Das Spiel schob den
+        // Spieler vorher nach jedem Verlies ungefragt in den Tempel zurück.
+        // Beim Spielende gibt es nichts zu wählen - dann bleibt es beim schlichten Textbildschirm.
+        if (outcome.GameCompleted)
+            return new MessageScene(context, title, string.Join("\n\n", lines), Palette.Gold,
+                                    () => context.Scenes.Replace(new TitleScene(context)));
+        return new DescentChoiceScene(context, outcome, title, lines);
     }
 }

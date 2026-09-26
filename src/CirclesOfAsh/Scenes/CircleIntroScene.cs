@@ -42,13 +42,17 @@ public sealed class CircleIntroScene : SceneBase
         CircleDefinition circle = Context.Progression.CircleOf(Run);
         int dungeons = Context.Definitions.Balance.DungeonsPerCircle;
         Texture2D pixel = Context.Assets.Pixel;
-        float darkness = MathF.Min(0.85f, 0.5f + 0.12f * Run.CircleIndex);   // tiefer = dunkler
+        // Dunkelheit als ANTEIL der Gesamttiefe, nicht in festen Schritten: Mit 0.12 je Kreis lief
+        // sie schon beim vierten von neun an den Anschlag, und die untere Haelfte des Infernos sah
+        // ueberall gleich aus.
+        float depth = world.Circles.Count <= 1 ? 1f : Run.CircleIndex / (float)(world.Circles.Count - 1);
+        float darkness = 0.5f + 0.35f * depth;
 
         UiDraw.Begin(spriteBatch);
         UiDraw.Backdrop(spriteBatch, Context, darkness, circle.Background);
 
         // Links: Trichter aller Kreise, der aktuelle pulsiert
-        InfernoFunnel.Draw(spriteBatch, pixel, new Vector2(96, 74), 170f, 120f, world.Circles.Count, Run.CircleIndex, _time, animate: false);
+        InfernoFunnel.Draw(spriteBatch, pixel, new Vector2(96, 60), 170f, 140f, world.Circles.Count, Run.CircleIndex, _time, animate: false);
         Context.Font.DrawCentered(spriteBatch, $"Tiefe {Run.CircleIndex + 1} / {world.Circles.Count}", 96, 212, Palette.Ash);
 
         // Rechts: Name, Lore, Verliese

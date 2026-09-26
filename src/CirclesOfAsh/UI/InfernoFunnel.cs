@@ -16,7 +16,11 @@ public static class InfernoFunnel
             // t = 0 (oben, weit) .. 1 (unten, eng). Animiert wandert jeder Ring mit der Zeit nach unten ("%": Endlosschleife)
             float t = animate ? (ring + time * 0.6f) % rings / rings : ring / (float)Math.Max(1, rings - 1);
             float radiusX = width / 2f * (1f - t * 0.82f);
-            float radiusY = radiusX * 0.26f;
+            // Die Ringhoehe an den ABSTAND der Ringe koppeln. Fest bei 0.26 verschmolzen neun
+            // Ringe zu Brei: Sie stehen dann nur noch depth/8 Pixel auseinander, waren oben aber
+            // gut doppelt so hoch. Bei wenigen Ringen aendert die Obergrenze nichts.
+            float spacing = depth / Math.Max(1, rings - 1);
+            float radiusY = MathF.Min(radiusX * 0.26f, spacing * 0.42f);
             var center = new Vector2(top.X, top.Y + t * depth);
 
             Color color;

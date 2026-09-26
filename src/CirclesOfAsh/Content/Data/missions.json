@@ -28,6 +28,27 @@
     "target": "warden_greed", "count": 1, "rewardBelievers": 45, "requiredBelievers": 80,
     "text": "Der Schuldeneintreiber trägt die Schlüssel zu hundert Zellen. Nimm sie ihm." },
 
+  // ---------------- Die tieferen Kreise. requiredBelievers staffelt sie, damit sie erst
+  // auftauchen, wenn man realistisch so weit unten war.
+  { "id": "past_the_storm", "giver": "Zwei Liebende im Wind", "title": "Jenseits des Sturms", "type": "CompleteCircle",
+    "target": "lust", "count": 1, "rewardBelievers": 70, "requiredBelievers": 20,
+    "text": "Wir werden seit tausend Jahren auseinandergerissen. Lege den Sturm, und wir glauben an dich." },
+  { "id": "silence_the_maws", "giver": "Ein Verhungerter", "title": "Die drei Schlünde", "type": "Slay",
+    "target": "boss_cerberus", "count": 1, "rewardBelievers": 75, "requiredBelievers": 30,
+    "text": "Er frisst und frisst und wird nie satt. Stopf ihm alle drei Mäuler." },
+  { "id": "close_the_graves", "giver": "Die Ketzer im Feuer", "title": "Die offenen Gräber", "type": "CompleteCircle",
+    "target": "heresy", "count": 1, "rewardBelievers": 110, "requiredBelievers": 180,
+    "text": "Unsere Deckel stehen offen bis zum Jüngsten Tag. Mach ihn heute." },
+  { "id": "still_the_bull", "giver": "Der Fährmann der Blutfurt", "title": "Den Stier bändigen", "type": "Slay",
+    "target": "boss_minotaur", "count": 1, "rewardBelievers": 130, "requiredBelievers": 260,
+    "text": "Niemand kommt über die Furt, solange er scharrt. Niemand." },
+  { "id": "the_honest_face", "giver": "Ein betrogener Betrüger", "title": "Das ehrliche Gesicht", "type": "CompleteCircle",
+    "target": "fraud", "count": 1, "rewardBelievers": 160, "requiredBelievers": 400,
+    "text": "Er lächelt, während sein Schwanz zusticht. Glaub ihm kein Wort." },
+  { "id": "break_the_ice", "giver": "Der Chor der Gläubigen", "title": "Das Eis brechen", "type": "CompleteCircle",
+    "target": "treachery", "count": 1, "rewardBelievers": 250, "requiredBelievers": 600,
+    "text": "Ganz unten ist es nicht heiß, sondern still und kalt. Geh hin. Wir warten." },
+
   // ---------------- v2: Seelen in Not (Rescue-Events in Verliesen) und tiefere Jagden
   { "id": "lost_souls", "giver": "Der Chor der Geretteten", "title": "Verlorene Seelen", "type": "Rescue",
     "target": "*", "count": 5, "rewardBelievers": 60, "requiredBelievers": 30,
