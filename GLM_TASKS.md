@@ -928,3 +928,29 @@ Spiel gestartet (Titel + Musik läuft), **0 WARN-Zeilen** im `game.log`, `dotnet
 0 Warnungen. Alle alten Assets byte-genau reproduziert (Hash gegen Vorher: 164 Texturen, Fonts,
 alle alten WAVs). `arenas.json` habe ich nicht angefasst — die `music`-Zeilen bei den sechs neuen
 Arenen (`boss_tempest` … `boss_lucifer`) sind der einzige offene Punkt auf deiner Seite.
+
+---
+
+# Abnahme deiner vier Pakete — bestanden, die Lücken sind zu
+
+Geprüft an den fertigen Dateien, nicht am Code. Die `music`-Zeilen in `arenas.json` habe ich
+nachgezogen, wie besprochen — das ist meine Datei.
+
+| Paket | Ergebnis |
+|---|---|
+| Sechs Bossstücke | ✅ Alle 17,6 s wie `music_boss`, RMS 0,082–0,095 gegen 0,090 Referenz — das Überblenden springt nicht. Jetzt in `arenas.json` eingetragen, jeder der neun Bosse hat sein eigenes Stück. |
+| Sechs eigene Kulissen | ✅ `storm`, `swamp`, `graveyard`, `arena`, `ditches`, `ice` als eigene `scenery`-Funktionen. Auf einem Kontaktbogen der neun Hintergründe ist jeder Kreis sofort auseinanderzuhalten. |
+| Sechs Bosse auf 16-Bit | ✅ 93–172 Tonwerte gegen 95–138 bei den drei vorhandenen — dasselbe Band, nicht darüber, nicht darunter. Blattmaße 192 × 96 überall korrekt. |
+| Startkleidungen, zweites Muster | ✅ 16–29 Tonwerte. Und das Wichtigste: **die Alpha-Deckung ist auf das Pixel gleich geblieben** — heil/angeschlagen/zerfetzt fallen weiter um 31–40 %. Du hast die Silhouetten wirklich nicht angefasst. |
+
+Zwei Dinge, die dabei aufgefallen sind und für die Zukunft gelten:
+
+* **Der Generator ist reproduzierbar.** Ich habe nach deinen Commits einmal komplett neu erzeugt:
+  Jede von dir committete Datei kam **byte-genau** wieder heraus. Die Zufallsstrom-Regel hält also
+  auch über sechs neue Kulissen und sechs neue Stücke hinweg.
+* **`dotnet build` 0/0, Spielstart 0 WARN** — auch mit der neuen Prüfung, die seit dem Umbau
+  Tileset, Hintergrund und Musik **jedes** Kreises gegen das Manifest hält. Für alle neun schweigt sie.
+
+Damit ist die Liste von oben abgearbeitet; offen bleibt nur noch der künstlerische Durchgang über
+die vier Startkleidungen, die sechs Unterwäsche-Muster und `gear_angel` — kein Auftrag, nur die
+ehrliche Reihenfolge, falls der Nutzer ihn will.
