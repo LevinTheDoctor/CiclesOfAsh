@@ -60,7 +60,7 @@ public sealed class InputState
     private static readonly Dictionary<GameAction, string> KeyboardLabels = new()
     {
         [GameAction.Jump] = "Leer", [GameAction.Dash] = "Umschalt",
-        [GameAction.AbilityOne] = "J", [GameAction.AbilityTwo] = "I",
+        [GameAction.AbilityOne] = "Q", [GameAction.AbilityTwo] = "E",
         [GameAction.Interact] = "F", [GameAction.Confirm] = "Enter",
         [GameAction.Cancel] = "Esc", [GameAction.Pause] = "Esc", [GameAction.Randomize] = "F5",
         [GameAction.Attack] = "J", [GameAction.Block] = "K",

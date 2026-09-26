@@ -15,6 +15,9 @@
 
 ![Platzhalter-Sprites](docs/sprites-preview.png)
 
+<sub>Die Vorschaubilder in `docs/` sind von Hand gemacht und zeigen einen älteren Platzhalter-Stand –
+Figuren, Kleidungsstufen und Tilesets sind im Spiel inzwischen weiter.</sub>
+
 ---
 
 ## Inhalt
@@ -57,6 +60,10 @@ Welt "Das Inferno"
 | 8 | Betrug | Geryon, das ehrliche Gesicht | violett |
 | 9 | Verrat | Luzifer im Eis | eisblau |
 
+**Stand v1.2.0 in Zahlen:** 9 Kreise · 27 Verliese (3 je Kreis, `balance.json`) · 9 Bosse und
+3 Kerkermeister, jeder mit eigener Arena und eigenem Musikstück · 25 Gegnerarten · 4 Klassen ·
+7 Begleitseelen · 13 Fähigkeiten · 20 Items · 20 Bitten der Gläubigen · 24 Musikstücke.
+
 **Nach jedem Verlies entscheidest du selbst:** sofort weiter hinab, oder zurück in den Tempel.
 Der Tempel ist die sichere Wahl – der Lauf ist gespeichert, beim nächsten Aufbruch steigst du an
 derselben Stelle wieder ein, und dazwischen kannst du ausrüsten, Bitten annehmen und Gläubige
@@ -75,7 +82,7 @@ Viertel der Gläubigen.
 - **Metroidvania-Sperren**: Schatzräume liegen hinter rissigen Wänden. Erst mit dem *Abgrundschritt*
   (Belohnung des ersten Bosses) kommst du hinein – in allen künftigen Läufen.
 
-### Neu in Version 2
+### In v1.0.0 dazugekommen
 
 | Feature | Was passiert im Spiel | Wo im Code / in den Daten |
 |---|---|---|
@@ -87,16 +94,16 @@ Viertel der Gläubigen.
 | **Räume mit Persönlichkeit** | Krypta, Tropfsteinhöhle (zerklüftet, **Fledermäuse flattern davon**), Kathedrale, überfluteter Kreuzgang (**Teich** zum Schwimmen), Schatzgewölbe, Glutschmiede … | `themes.json`, `props.json`, `Props/PropBehaviors.cs` |
 | **Mehrere Wege** | Der Generator baut Parallelrouten (Umwege) neben dem Hauptpfad | `DungeonGenerator.AddDetours` |
 | **Rätsel & Siegeltor** | Das Siegel steht hinter einem Gittertor. Öffnen durch: verteilte **Hebel**, **Runenfolge** (Hinweis-Inschrift in einem anderen Raum) oder **Feuerbecken** auf Zeit | `Puzzles/Puzzles.cs`, `worlds.json` (`puzzles`) |
-| **Kerker & Mini-Boss** | Ein Verlies pro Kreis hat einen optionalen Kerker. Besiege den Kerkermeister → Gefangene frei → **neue Begleitseele** | `WaveDirector`, `worlds.json` (`prison`), `companions.json` (`unlockAtBelievers: -1`) |
+| **Kerker & Mini-Boss** | Drei Kreise (Limbus, Gier, Zorn) haben ein Verlies mit optionalem Kerker. Besiege den Kerkermeister → Gefangene frei → **neue Begleitseele** | `WaveDirector`, `worlds.json` (`prison`), `companions.json` (`unlockAtBelievers: -1`) |
 | **Logo & Ladebildschirm** | Animierter Höllentrichter, Asche, Tipps, echter Fortschritt (Assets werden vorgeladen) | `Scenes/LoadingScene.cs`, `UI/InfernoFunnel.cs`, `tips.json` |
 
-### Neu in Version 3
+### Neu in v1.2.0
 
 | Feature | Was passiert im Spiel | Wo im Code / in den Daten |
 |---|---|---|
 | **Figur statt Klasse zuerst** | Der Editor fragt Name → Geschlecht → Statur (Kräftig/Normal/Trainiert) → Klasse → Aussehen. Geschlecht und Statur sind zwei Zeilen, liegen in den Daten aber weiter in **einer** Liste – ein Katalog rechnet hin und her, deshalb ohne Migration | `Scenes/CharacterCreatorScene.cs`, `Progression/BodyTypeCatalog.cs`, `appearance.json` |
 | **Alles geht kaputt, wie in Ghosts 'n Goblins** | Jede Klasse startet in ihrer **eigenen** Kleidung, und Kleidung **ist** Rüstung: Sie fängt Treffer **ganz** ab und zerfällt dabei in **drei sichtbaren Stufen** – heil, angeschlagen, zerfetzt –, bis nur die Unterwäsche bleibt. Unzerstörbare Rüstung gibt es nicht | `Progression/EquipmentService.cs` (`Stages`, `ArmorStage`), `Entities/Player.cs`, `items.json` (`armorHits`), `classes.json` (`startingArmor`) |
-| **Unterwäsche mit Muster** | Die einzige unzerstörbare Ebene, und reiner Gag: Herzchen, Streifen, Punkte, Flämmchen, Knöchlein. Das Muster wird **pro Lauf** gewürfelt, nicht im Editor gewählt | `appearance.json` (`underwearStyles`), `RunState.Underwear`, `tools/assetgen/characters.py` (`underwear_frame`) |
+| **Unterwäsche mit Muster** | Die einzige unzerstörbare Ebene, und reiner Gag: schlicht, Herzchen, Streifen, Punkte, Flämmchen, Knöchlein – sechs Muster. Gewürfelt wird **pro Lauf**, nicht im Editor gewählt | `appearance.json` (`underwearStyles`), `RunState.Underwear`, `tools/assetgen/characters.py` (`underwear_frame`) |
 | **Waffen liegen in der Hand** | Alle sechs Körpertypen laufen mit dem Unterarm auf **eine** gemeinsame Faustzelle zu; Faust und Waffe hängen an demselben Anker und schwingen mit Lauf und Sprung mit. Die Waffe liegt in einer eigenen, unzerstörbaren Ebene – sie bleibt also auch dann in der Hand, wenn die Kleidung zerfallen ist | `tools/assetgen/characters.py` (`hand_anchor`, `gear_frame`), `classes.json` (`gearSprite`) |
 | **Selbst kämpfen** | Kombo aus drei Schlägen, Block mit Parade-Fenster, Drehsprung auf `W`. Im Optionsmenü wählbar, ob im Bosskampf die Automatik mithilft oder schweigt | `Entities/Player.cs`, `Scenes/SettingsScene.cs` |
 | **Ducken** | Durch niedrige Spalten, die sonst den Weg nehmen | `Player.UpdateCrouch` |
@@ -104,7 +111,7 @@ Viertel der Gläubigen.
 | **Begleiter-Fassungen** | Jede der sieben Seelen in drei Farbfassungen – im Tempel über „Gestalt wechseln", haltbar über Läufe | `Companions/CompanionSkins.cs`, Migration V4 (`pets.skin`) |
 | **Optionales Tutorial** | Zehn Schritte, jeder wartet auf **eine** Handlung. Kein Zwang, `F5` bricht ab. Nutzt dieselben Ereignisse wie die Zwischenrufe – eine Meldestelle für beide | `Tutorial/TutorialDirector.cs`, `tutorial.json` |
 | **Zwei neue Rätseltypen** | **Gewichte**: drei Druckplatten gleichzeitig beschweren, aber nur zwei Schiebeblöcke – auf der dritten stehst du selbst. **Spiegel**: einen Lichtstrahl umlenken, flach gestellte Spiegel lassen ihn durch | `Puzzles/Puzzles.cs`, `props.json`, `worlds.json` (`puzzles`) |
-| **Eigene Arena je Boss** | Jeder der sechs Boss- und Mini-Boss-Kämpfe hat eigene Geometrie, Deko, Lichtstimmung und ein eigenes Musikstück. Beim Mini-Boss wechselt es mitten im Verlies | `arenas.json`, `DungeonGenerator.BuildArena` |
+| **Eigene Arena je Boss** | Alle zwölf Kämpfe – neun Kreis-Bosse und drei Kerkermeister – haben eigene Geometrie, Deko, Lichtstimmung und ein eigenes Musikstück. Beim Kerkermeister wechselt es mitten im Verlies und danach zurück | `arenas.json`, `DungeonGenerator.BuildArena` |
 | **Drachen** | Als Gegner (Drachenjunges ab Limbus, Aschdrache ab Gier) und als Begleiter | `enemies.json`, `companions.json`, `worlds.json` |
 | **Flügel, Make-up, Körpertypen** | Eigene Sprite-Ebenen im Editor; Flügel tragen zugleich die Gleitfunktion | `Progression/CharacterVisuals.cs`, `appearance.json` |
 | **16-Bit-Grafik, 24 × 32** | Figuren größer und in mehr Farbtönen; die Kollisionsbox leitet sich aus der Sprite-Größe ab, statt fest im Code zu stehen | `tools/assetgen/*.py`, `Assets/LayeredSprite.cs` |
@@ -122,6 +129,18 @@ git clone https://github.com/LevinTheDoctor/CiclesOfAsh.git
 cd CiclesOfAsh
 dotnet run --project src/CirclesOfAsh
 ```
+
+### Fertiges Paket für das eigene System (ein Befehl)
+
+```bash
+./build/build.sh
+```
+
+Ohne Argument erkennt das Skript das laufende System und baut das passende, eigenständige Paket:
+macOS → `publish/osx-*/CirclesOfAsh.app` (es delegiert dafür an `build/macos-app.sh`),
+Linux → `publish/linux-*/` mit Binary, Startskript `CirclesOfAsh.sh` und `circlesofash.desktop`,
+Windows → `publish/win-x64/CirclesOfAsh.exe`. Ein Runtime Identifier als Argument
+(`./build/build.sh linux-arm64`) übergeht die Erkennung.
 
 ### Windows-Build (eigenständig, ohne installiertes .NET beim Spieler)
 
@@ -170,7 +189,11 @@ Mehr dazu unter [Auslieferung & Release](#auslieferung--release).
 | Schwimmen (im Wasser) | Springen mehrfach | A mehrfach |
 | Menü bestätigen | Enter | A / Start |
 | Zufällige Gestalt (Editor) | F5 | Back |
-| Pause / Zurück | Esc | Start / B |
+| Pause / Zurück | Esc / P | Start / B |
+
+Menüs gehen auch mit der **Maus**: Reiter und Zeilen sind anklickbar, Regler lassen sich ziehen
+(auch über den Balken hinaus), das Scrollrad blättert. Das Spiel merkt sich, welches Gerät zuletzt
+benutzt wurde, und beschriftet die Hinweise entsprechend (`Core/InputState.cs`).
 
 Die Fähigkeiten feuern weiterhin automatisch, sobald Abklingzeit und Mana passen. **Zusätzlich**
 gibt es einen manuellen Nahkampf: Schlagkombo, Block mit Parade und Drehsprung, alle drei über die
@@ -217,12 +240,17 @@ damit Erkennung und Darstellung nicht auseinanderlaufen.
 
 ## Optionen & Schwierigkeit
 
-Das Optionsmenü (`Esc` → Optionen, `Scenes/SettingsScene.cs`) wirkt sofort und wird in SQLite gesichert:
+Das Optionsmenü (`Esc` → Optionen, `Scenes/SettingsScene.cs`) hat **vier Reiter** – links/rechts
+wechselt den Reiter, hoch/runter die Zeile, die Schultertasten den Wert. Alles wirkt sofort und wird
+in SQLite gesichert:
 
 * **Bildschirm** – Größe (Auto = füllt den Bildschirm, oder pixelgenau 1×–6× der virtuellen 480×270), Vollbild, VSync.
   Das Fenster lässt sich außerdem frei ziehen oder maximieren – das Bild wächst mit
-* **Audio** – Master, Musik und Effekte getrennt regelbar
-* **Gameplay** – Helligkeit (gegen zu dunkle Verliese), Vibration, Schadenszahlen, Schwierigkeit
+* **Audio** – Master, Musik und Effekte getrennt regelbar; beim Ändern der Effekte spielt ein Probe-Sound
+* **Steuerung** – zeigt den erkannten Controller und sein Beschriftungsprofil aus `controllers.json`.
+  Das freie Umbelegen der Tasten steht noch auf der [Roadmap](#roadmap)
+* **Gameplay** – Helligkeit (gegen zu dunkle Verliese), Vibration, Schadenszahlen, Tutorial an/aus,
+  Bosskämpfe selbst bestreiten, Schwierigkeit
 
 ### Schwierigkeitsstufen
 
@@ -272,8 +300,11 @@ CirclesOfAsh/
 │  └─ UI/            HUD, Minikarte, Menüs, Panels
 ├─ tools/generate_placeholder_assets.py   ← erzeugt alle Platzhalter-Assets (CC0)
 ├─ tools/assetgen/                         ← Generator-Module: Charaktere, Kreaturen, Welt, Medien, Musik, Icons
-├─ build/publish.sh, macos-app.sh          ← Publish-Skripte, macOS-Programmbündel
+├─ tools/SeedSweep/                        ← Kommandozeilen-Prüfer: viele Seeds erzeugen, Erreichbarkeit messen
+├─ build/build.sh                          ← ein Befehl, Paket für das laufende System
+├─ build/publish.sh, macos-app.sh          ← Cross-Builds, macOS-Programmbündel
 ├─ build/icons/                            ← erzeugte App-Icons (.icns/.ico)
+├─ docs/                                   ← Logo und Vorschaubilder für diese Datei
 └─ .github/workflows/                      ← CI (build.yml) und Release für alle Systeme (release.yml)
 ```
 
@@ -387,6 +418,30 @@ Vier Phasen (siehe `World/DungeonGenerator.cs`):
 
 Gleicher Seed ⇒ gleicher Dungeon. Der Seed steht im Log (`%APPDATA%/CirclesOfAsh/game.log`).
 
+### 7. Erreichbarkeit messen, nicht raten
+
+Ein prozeduraler Generator kann einen Pflichtraum einmauern. Deshalb läuft nach **jeder** Erzeugung
+`DungeonReachability.Check` (`World/DungeonReachability.cs`): eine Flutfüllung vom Spielerstart über
+begehbare Kacheln, die bis zu **6 Kacheln** nach oben steigen darf – so hoch springt die Figur
+(≈ 96 px) – und beliebig weit fällt. Was dabei nicht besucht wird, aber besucht werden müsste
+(Siegeltor, Arenen, Kerker, Schatzräume), landet als Zeile im Log.
+
+Die Prüfung **bricht nichts ab**: ein unerreichbarer Schatzraum ist ärgerlich, ein Absturz wäre
+schlimmer. Über viele Seeds hinweg lässt sie sich ohne Spielstart und ohne Grafik-Assets auslösen:
+
+```bash
+dotnet run --project tools/SeedSweep -- 200    # Standard sind 200 Seeds, je vier Verliese
+```
+
+Ausgegeben wird eine Zeile je Befund und am Ende die Zahl der geprüften Dungeons; Einzelheiten
+stehen in `seed-sweep.log` im temporären Verzeichnis.
+
+**Offener Punkt, Stand v1.2.0:** Der Sweep meldet reichlich – 50 Seeds (= 200 Verliese) ergaben 622
+Befunde, darunter Räume, die als Start **und** als unerreichbar gelten. Das ist kein Beleg dafür,
+dass 622 Verliese unspielbar sind, sondern zuerst ein Hinweis auf die Prüfung selbst: die Flutfüllung
+läuft nur über begehbare Kacheln und kennt weder Türen noch Schächte, wie sie der Generator öffnet.
+Erst Messen, dann Urteilen – ob Prüfung oder Generator nachgezogen wird, ist offen (siehe Roadmap).
+
 ---
 
 ## Erweitern – Schritt für Schritt
@@ -405,7 +460,8 @@ Gleicher Seed ⇒ gleicher Dungeon. Der Seed steht im Log (`%APPDATA%/CirclesOfA
 ```
 Dann in `classes.json` bei einer Klasse unter `abilityPool` eintragen – fertig, sie erscheint beim Level-Up.
 
-Verfügbare `behavior`-Schlüssel: `projectile`, `melee_arc`, `nova`, `orbit`, `stealth`, `dash`, `air_jump`.
+Verfügbare `behavior`-Schlüssel: `projectile`, `melee_arc`, `nova`, `orbit`, `stealth`, `dash`,
+`air_jump`, `glide` (siehe `Modding/BehaviorRegistry.cs`).
 
 ### Neues Fähigkeits-Verhalten (C#)
 
@@ -433,7 +489,8 @@ Nun kann jede Fähigkeit in JSON `"behavior": "life_steal"` nutzen.
 ### Neuer Gegner
 1. Spritesheet nach `Content/Textures/` legen und in `manifest.json` unter `spriteSheets` eintragen
    (Animationen `idle`, optional `run`, `cast`).
-2. In `enemies.json` anlegen, `brain` = `walker` | `flyer` | `caster` | `boss`.
+2. In `enemies.json` anlegen, `brain` = `walker` | `flyer` | `caster` | `charger` | `swarmer` |
+   `ambusher` | `boss`.
 3. In `worlds.json` im `enemyPool` eines Kreises mit `weight` eintragen.
 
 Eigene KI: Klasse mit `IEnemyBrain` schreiben und `registry.RegisterEnemyBrain("mein_brain", ...)`.
@@ -459,14 +516,16 @@ wichtiger werden Laternen), `decay` (0–1: zerbrochene Wände, bröckelnde Plat
 `bossReward` ist die **Ewige Gabe** – eine beliebige Fähigkeits-ID.
 
 **Eigene Farbwelt dazu:** Ein Eintrag in `MATERIALS` (`tools/assetgen/world.py`) genügt – das ist die
-einzige Farbquelle eines Kreises, für Kacheln **und** Hintergrund. `scenery` wählt eine der drei
-Kulissen (`castle`, `cave`, `ember`), der Rest sind Farben. `generate()` schreibt daraus von selbst
-`tiles_<id>.png` und `bg_<id>.png`; ins `manifest.json` müssen beide noch als `tiles.<id>` und
-`background.<id>` eingetragen werden. Beim Start warnt das Spiel jetzt, wenn Tileset, Hintergrund
+einzige Farbquelle eines Kreises, für Kacheln **und** Hintergrund. `scenery` wählt eine der neun
+Kulissen (`castle`, `cave`, `ember`, `storm`, `swamp`, `graveyard`, `arena`, `ditches`, `ice`), der
+Rest sind Farben. `generate()` schreibt daraus von selbst `tiles_<id>.png` und `bg_<id>.png`; ins
+`manifest.json` müssen beide noch als `tiles.<id>` und `background.<id>` eingetragen werden. Beim Start warnt das Spiel jetzt, wenn Tileset, Hintergrund
 oder Musik eines Kreises fehlen – vorher fiel der Kreis still auf die Bilder des Limbus zurück.
 
 **Wichtig:** `prison.dungeonIndex` muss **kleiner** sein als `dungeonsPerCircle - 1`, sonst läge der
-Kerker auf dem Thronsaal und würde nie gebaut. Das wird beim Start geprüft.
+Kerker auf dem Thronsaal und würde nie gebaut. Das wird beim Start geprüft
+(`DefinitionRegistry.Validate`). `dungeonsPerCircle` selbst steht nicht in `worlds.json`, sondern
+zentral in `balance.json` – derzeit **3**: zwei Wellen-Verliese und der Thronsaal.
 
 ### Neue Klasse
 `classes.json` erweitern. Eine Klasse bringt **drei** Dinge mit:
@@ -544,10 +603,6 @@ Liste steht als Konstanten in `Companions/CompanionChatter.cs`, und `DefinitionR
 prüft sie beim Start. Ein unbekannter Auslöser würde den Spieler sonst für immer an derselben
 Aufforderung festhalten.
 
-### Neue Bitte der Gläubigen
-Nur `missions.json`: `type` (`Collect`, `Slay`, `Rescue`, `CompleteCircle`), `target` (Item-, Gegner-,
-Kreis-ID oder `*`), `count`, `rewardBelievers`, optional `requiredBelievers`.
-
 ### Neuer NPC mit Dialog
 Zwei JSON-Dateien, kein Code:
 1. `dialogs.json`: ein Eintrag mit `id` und `lines`. Jede Zeile hat `id`, `text` und optional
@@ -569,9 +624,19 @@ Ein Eintrag in `difficulties.json` – alle Felder sind Multiplikatoren, siehe
 [Optionen & Schwierigkeit](#optionen--schwierigkeit). Sie taucht automatisch im Optionsmenü auf.
 
 ### Neues Musikstück
-In `tools/assetgen/music.py` ein `_compose(...)` mit Akkordfolge, Grundton und Melodie ergänzen,
-in `Content/manifest.json` unter `"music"` eine ID vergeben und sie in `worlds.json` beim Kreis
-(`music` / `bossMusic`) oder direkt in einer Szene über `Context.Music.Play("...")` benutzen.
+In `tools/assetgen/music.py` ein `_compose(...)` mit Akkordfolge, Grundton und Melodie ergänzen und
+in `Content/manifest.json` unter `"music"` eine ID vergeben. Benutzt wird sie an drei Stellen:
+
+| Wo | Schlüssel | Wirkung |
+|---|---|---|
+| `worlds.json` beim Kreis | `music` | läuft in allen Verliesen des Kreises |
+| `arenas.json` beim Kampf | `music` | **schlägt** das Kreisstück; beim Kerkermeister wechselt es mitten im Verlies und danach zurück |
+| beliebige Szene | `Context.Music.Play("…")` | Titel, Tempel, Ladebildschirm |
+
+`bossMusic` am Kreis ist nur noch der Rückfall für einen Thronsaal ohne Arena-Eintrag – gesetzt hat
+es derzeit kein Kreis. Zeigt eine Arena auf ein Stück, das noch nicht im Manifest steht, bleibt es
+beim bisherigen (`DungeonScene`, `DungeonWorld.StartArenaMusic`).
+
 Wer echte Musik hat, ersetzt einfach die WAV-Datei – die ID bleibt.
 
 ### Balancing
@@ -602,6 +667,10 @@ Für Overlays `IsOverlay => true` überschreiben.
   JSON-Listen werden per `id` zusammengeführt: gleiche ID = überschreiben, neue ID = hinzufügen.
   Mehrere Mods: alphabetisch **später** gewinnt (`zz_` vor `aa_`).
 - **Platzhalter neu erzeugen:** `python tools/generate_placeholder_assets.py` (benötigt `pip install pillow`).
+  Der Lauf leert `Content/Textures/` und schreibt es neu, dazu Fonts, Sounds, Musik, die App-Icons
+  sowie `docs/logo.png` und `docs/icon-preview.png`. Die übrigen Bilder in `docs/`
+  (`sprites-preview.png`, `dungeon-layouts.png`, `background-preview.png`) erzeugt **kein**
+  Generator – sie sind von Hand gemacht und können hinter dem Spielstand herhinken.
 
 ---
 
@@ -620,11 +689,12 @@ Pfad: `%APPDATA%\CirclesOfAsh\save.db` (Windows), `~/.config/CirclesOfAsh/save.d
 | `missions` *(v2)* | Bitten der Gläubigen: Status (`Active`/`Completed`) und Fortschritt |
 | `settings` *(v3)* | Optionsmenü: Bildschirm, Lautstärken, Helligkeit, Vibration, Schwierigkeit |
 | `hub_deco` *(v3)* | Im Tempel platzierte Deko (Prop-Id + Kachelkoordinate) |
-| `pets` *(v3)* | Begleitseelen: Name, Stimmung, Loyalität, letzte Fütterung |
+| `pets` *(v3, Spalte `skin` ab v4)* | Begleitseelen: Name, Stimmung, Loyalität, letzte Fütterung, Farbfassung |
 | `collectibles` *(v3)* | Gefundene Reliquien über alle Läufe (Schrein im Tempel) |
 
 Befreite Kerker stehen in `unlocks` mit `kind = 'prison'` (Belohnung nur einmal pro Lauf).
-Alte Spielstände werden beim Start automatisch bis zur aktuellen Version migriert (zuletzt v3).
+Alte Spielstände werden beim Start automatisch bis zur aktuellen Version migriert (zuletzt **v4**:
+`pets.skin`, die Farbfassung der Begleitseelen).
 Fehlt in `settings` ein Schlüssel – frische Installation oder neu dazugekommene Option –, gilt der
 Standardwert aus `GameSettings`; ein fehlender Wert darf nicht als 0 durchschlagen (sonst wäre das
 Spiel beim ersten Start stumm).
@@ -653,6 +723,8 @@ Ergebnis: `build/icons/CirclesOfAsh.ico` (Windows, in die .exe eingebettet über
 und `CirclesOfAsh.icns` (macOS, landet im `.app`). Wo `iconutil` verfügbar ist, wird es genutzt,
 sonst schreibt das Skript das icns-Format selbst – die CI unter Linux kommt damit ebenfalls klar.
 
+<p align="center"><img src="docs/icon-preview.png" alt="App-Icon, 512 px" width="192"></p>
+
 ### macOS-Programmbündel
 
 `build/macos-app.sh` baut `CirclesOfAsh.app` mit `Contents/{Info.plist, MacOS/, Resources/}`.
@@ -667,8 +739,8 @@ Das Bündel ist **nicht signiert**. Beim ersten Start meldet sich Gatekeeper; ei
 `.github/workflows/release.yml` löst bei einem Versions-Tag aus:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag -a v1.2.0 -m "Circles of Ash v1.2.0"
+git push origin v1.2.0
 ```
 
 Gebaut wird für `win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64` und `osx-x64` – alle eigenständig,
@@ -697,8 +769,13 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
 - [x] Geschlecht, Körpertypen, Make-up, Flügel und Engel-Klasse im Charakter-Editor
 - [x] Alle neun Kreise nach Dante, je mit eigenem Tileset, Boss und Musikstück
 - [x] Nach jedem Verlies selbst entscheiden: tiefer hinab oder zurück in den Tempel
-- [ ] Tastenbelegung frei belegbar aus `Content/Data/input.json` (Profile gibt es, das Umbelegen fehlt)
-- [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus, Erreichbarkeit) und `ProgressionService`
+- [x] Erreichbarkeitsprüfung nach jeder Erzeugung, dazu `tools/SeedSweep` für viele Seeds auf einmal
+- [ ] Der Sweep schlägt derzeit auf den meisten Verliesen an: klären, ob die Flutfüllung Türen und
+      Schächte mitzählen muss oder der Generator tatsächlich einmauert
+- [ ] Tastenbelegung frei belegbar aus `Content/Data/input.json` (Profile und der Reiter „Steuerung"
+      gibt es, das Umbelegen fehlt)
+- [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus) und `ProgressionService` – gemessen wird
+      die Erreichbarkeit bisher nur im Log und per Seed-Sweep, nicht in einer Testsuite
 - [ ] Mehr Welten (Purgatorio, Paradiso) und Kreise
 - [ ] Handgezeichnete Raumvorlagen (Room Templates) als JSON statt reiner Prozedur
 - [ ] Echte Musik statt der prozeduralen Platzhalter; signiertes und notarisiertes macOS-Bündel
