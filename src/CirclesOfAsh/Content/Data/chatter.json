@@ -63,7 +63,9 @@
     "repeat": 30,
     "lines": [
       { "text": "Deine Rüstung! Sie ist hin!" },
-      { "text": "Die Splitter fliegen – such dir neue, schnell!" },
+      { "text": "Die Fetzen fliegen – such dir neue, schnell!" },
+      { "text": "Ein Gott in Unterhosen. Die Verdammten werden Lieder singen." },
+      { "text": "Ich schaue weg. Ehrlich. Ich schaue weg." },
       { "behavior": "healer", "text": "Ohne Panzer bist du zu weich. Pass auf dich auf." }
     ]
   },

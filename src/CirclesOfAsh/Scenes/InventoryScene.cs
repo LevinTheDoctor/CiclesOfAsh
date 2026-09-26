@@ -42,11 +42,15 @@ public sealed class InventoryScene : SceneBase
         {
             ItemDefinition captured = item;
             string marker = EquipmentService.IsEquipped(_run, item) ? " (angelegt)" : "";
-            // Bei getragener Rüstung zeigt die Zeile, wie viele Treffer sie noch abfängt.
+            // Bei getragener Kleidung zeigt die Zeile, wie viele Treffer sie noch abfängt – und in
+            // welchem Zustand sie dabei ist, denn genau das sieht man am Sprite.
             int armorHits = item.Slot == ItemSlot.Armor ? EquipmentService.ArmorHitsOf(item) : 0;
-            string wear = armorHits > 0 && EquipmentService.IsEquipped(_run, item)
-                ? $"  {Math.Clamp(_run.ArmorDurability, 0, armorHits)}/{armorHits} Treffer"
-                : "";
+            string wear = "";
+            if (armorHits > 0 && EquipmentService.IsEquipped(_run, item))
+            {
+                int remaining = Math.Clamp(_run.ArmorDurability, 0, armorHits);
+                wear = $"  {remaining}/{armorHits} Treffer · {EquipmentService.StageNames[EquipmentService.ArmorStage(item, _run)]}";
+            }
             _menu.Add($"[{SlotName(item.Slot)}] {item.Name}{marker}{wear}", () => Toggle(captured), hint: Describe(item));
         }
         _menu.Select(selectedIndex);
@@ -103,7 +107,7 @@ public sealed class InventoryScene : SceneBase
         ItemSlot.Lamp => "Laterne",
         ItemSlot.Amulet => "Amulett",
         ItemSlot.Ring => "Ring",
-        ItemSlot.Armor => "Rüstung",
+        ItemSlot.Armor => "Kleidung",
         _ => "Fund",
     };
 

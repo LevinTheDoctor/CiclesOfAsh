@@ -38,8 +38,13 @@ public sealed class RunState
     public List<string> Items { get; set; } = new();
     /// <summary>Pro Slot höchstens ein ausgerüstetes Item.</summary>
     public Dictionary<ItemSlot, string> Equipped { get; set; } = new();
-    /// <summary>Verbleibende Haltbarkeit der getragenen Rüstung. 0 = keine oder zersprungen.</summary>
+    /// <summary>Verbleibende Treffer der getragenen Kleidung. 0 = keine oder zerfallen.</summary>
     public int ArmorDurability { get; set; }
+    /// <summary>
+    /// Muster der Unterwäsche (Index in appearance.json). Bewusst am Lauf und nicht am Charakter:
+    /// Es wird bei jedem neuen Lauf gewürfelt und ist reine Zierde – die Unterwäsche geht nie kaputt.
+    /// </summary>
+    public int Underwear { get; set; }
 
     /// <summary>
     /// Tiefe Kopie. Der Dungeon arbeitet auf einer Kopie; nur bei Erfolg wird sie übernommen.
@@ -61,6 +66,7 @@ public sealed class RunState
         Items = new List<string>(Items),
         Equipped = new Dictionary<ItemSlot, string>(Equipped),
         ArmorDurability = ArmorDurability,
+        Underwear = Underwear,
     };
 }
 

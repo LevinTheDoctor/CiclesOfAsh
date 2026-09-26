@@ -1,3 +1,4 @@
+using CirclesOfAsh.Assets;
 using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
@@ -36,70 +37,127 @@ public static class EquipmentService
     }
 
     /// <summary>
-    /// Wie viele Treffer diese Rüstung abfängt. Ohne ausdrückliche Angabe aus der Robustheit
-    /// abgeleitet, damit vorhandene Daten ohne Änderung sinnvolle Werte ergeben
-    /// (60 → 2, 110 → 3, 180 → 4, 300 → 5).
+    /// Kleinste Trefferzahl einer Rüstung. Bei weniger als <see cref="Stages"/> Treffern wären
+    /// nicht alle Verfallsstufen zu sehen – der Verfall ist aber der halbe Reiz.
+    /// </summary>
+    public const int MinArmorHits = Stages;
+
+    /// <summary>
+    /// Wie viele Treffer dieses Stück abfängt. Ohne ausdrückliche Angabe aus der Robustheit
+    /// abgeleitet, damit vorhandene Daten ohne Änderung sinnvolle Werte ergeben.
     ///
-    /// Das "+ 1" ist Absicht: JEDE Rüstung fängt mindestens einen Treffer ganz ab, bevor sie
-    /// zerspringt. Ohne das war das Lederwams bei 60 Robustheit sofort hin – man sah die
-    /// Splitter, aber nie den Moment, in dem der Panzer einen Schlag schluckt.
+    /// UNZERSTÖRBARE Rüstung gibt es nicht: Auch ein Stück ohne jede Angabe kommt über die
+    /// Untergrenze auf <see cref="MinArmorHits"/> Treffer. Das ist der Sinn der Mechanik – alles,
+    /// was man trägt, geht irgendwann kaputt, bis auf die Unterwäsche.
     /// </summary>
     public static int ArmorHitsOf(ItemDefinition item) =>
-        item.ArmorHits > 0 ? item.ArmorHits : Math.Clamp((int)MathF.Round(item.Durability / 60f) + 1, 1, 5);
+        item.ArmorHits > 0
+            ? item.ArmorHits
+            : Math.Clamp((int)MathF.Round(item.Durability / 60f) + 1, MinArmorHits, 6);
 
     /// <summary>Ergebnis eines Treffers auf die Rüstung.</summary>
     public enum ArmorResult { None, Absorbed, Shattered }
 
     /// <summary>
-    /// Die Rüstung fängt einen Treffer VOLLSTÄNDIG ab (Vorbild Ghosts 'n Goblins) und verliert
-    /// dabei eine Stufe. Beim letzten Treffer zerspringt sie: abgelegt und aus dem Inventar weg.
+    /// Was der Treffer angerichtet hat. Mehr als das <see cref="ArmorResult"/>, weil die Meldung
+    /// im Spiel den Namen des Stücks braucht: "Deine Rüstung zerspringt" ist für eine Rußrobe
+    /// schlicht falsch.
     /// </summary>
-    public static ArmorResult AbsorbHit(DefinitionRegistry definitions, RunState run)
+    /// <param name="Stage">Verfallsstufe NACH dem Treffer (0 heil … <see cref="Stages"/>-1 zerfetzt).</param>
+    /// <param name="StageChanged">Ob der Treffer eine neue Stufe erreicht hat – nur dann lohnt eine Meldung.</param>
+    public readonly record struct ArmorHit(ArmorResult Result, string ItemName, int Stage, bool StageChanged)
+    {
+        public static ArmorHit None { get; } = new(ArmorResult.None, "", 0, false);
+    }
+
+    /// <summary>
+    /// Das Stück fängt einen Treffer VOLLSTÄNDIG ab (Vorbild Ghosts 'n Goblins) und verliert dabei
+    /// einen Treffer seines Vorrats. Beim letzten zerfällt es: abgelegt und aus dem Inventar weg.
+    /// </summary>
+    public static ArmorHit AbsorbHit(DefinitionRegistry definitions, RunState run)
     {
         if (!run.Equipped.TryGetValue(ItemSlot.Armor, out string? armorId) || !definitions.Items.Contains(armorId))
-            return ArmorResult.None;
+            return ArmorHit.None;
 
+        ItemDefinition item = definitions.Items.Get(armorId);
         // Alte Spielstände führten hier einen Schadenspool (z. B. 60) – auf die Trefferzahl klemmen.
-        int maxHits = ArmorHitsOf(definitions.Items.Get(armorId));
+        int maxHits = ArmorHitsOf(item);
         int remaining = Math.Clamp(run.ArmorDurability, 0, maxHits);
-        if (remaining <= 0) return ArmorResult.None;
+        if (remaining <= 0) return ArmorHit.None;
 
+        int stageBefore = StageOf(remaining, maxHits);
         remaining--;
         run.ArmorDurability = remaining;
-        if (remaining > 0) return ArmorResult.Absorbed;
+        if (remaining > 0)
+        {
+            int stage = StageOf(remaining, maxHits);
+            return new ArmorHit(ArmorResult.Absorbed, item.Name, stage, stage != stageBefore);
+        }
 
         run.Equipped.Remove(ItemSlot.Armor);
         run.Items.Remove(armorId);
-        return ArmorResult.Shattered;
+        return new ArmorHit(ArmorResult.Shattered, item.Name, Stages - 1, true);
     }
 
-    /// <summary>Anhängsel der halb verbrauchten Fassung – dieselbe Namensregel wie bei den Begleiter-Fassungen.</summary>
-    public const string WornSuffix = ".worn";
+    /// <summary>
+    /// Sichtbare Verfallsstufen eines Kleidungsstücks: heil, angeschlagen, zerfetzt. Danach ist es
+    /// weg. Drei Stufen, weil ein einzelner Sprung von "ganz" auf "hin" den Verfall verschluckt.
+    /// </summary>
+    public const int Stages = 3;
 
     /// <summary>
-    /// Sprite-Ebene der getragenen Rüstung, oder null (keine getragen / kein Bild hinterlegt).
-    ///
-    /// Ist höchstens die HÄLFTE der Treffer übrig, kommt die ramponierte Fassung – man soll sehen,
-    /// dass es ernst wird, statt erst beim Zerspringen etwas zu merken. Fehlt dieses Bild, bleibt
-    /// es beim heilen: Eine Rüstung ohne eigene Schadensfassung sieht dann eben unverändert aus,
-    /// statt unsichtbar zu werden.
+    /// Anhängsel je Stufe. Der Index ist die Stufe, die heile Fassung trägt gar keins – so bleibt
+    /// die Sprite-Id eines Items auch ohne Verfallsbilder gültig.
     /// </summary>
-    public static string? ArmorSprite(DefinitionRegistry definitions, RunState run)
+    public static readonly string[] StageSuffixes = { "", ".worn", ".broken" };
+
+    /// <summary>Menschenlesbare Stufennamen für Inventar und Meldungen.</summary>
+    public static readonly string[] StageNames = { "heil", "angeschlagen", "zerfetzt" };
+
+    /// <summary>
+    /// Verfallsstufe aus verbleibenden und höchstmöglichen Treffern. Gleichmäßig in Drittel
+    /// geteilt, damit auch das kleinste Stück (drei Treffer) jede Stufe genau einmal zeigt.
+    /// </summary>
+    public static int StageOf(int remaining, int maxHits)
+    {
+        if (maxHits <= 0 || remaining <= 0) return Stages - 1;
+        if (remaining * Stages > maxHits * 2) return 0;
+        return remaining * Stages > maxHits ? 1 : 2;
+    }
+
+    /// <summary>Verfallsstufe des getragenen Stücks.</summary>
+    public static int ArmorStage(ItemDefinition item, RunState run)
+    {
+        int maxHits = ArmorHitsOf(item);
+        return StageOf(Math.Clamp(run.ArmorDurability, 0, maxHits), maxHits);
+    }
+
+    /// <summary>
+    /// Sprite-Ebene der getragenen Kleidung, oder null (nichts getragen / kein Bild hinterlegt).
+    ///
+    /// Mit jedem Drittel des Vorrats kommt die nächste Verfallsfassung – man soll den Panzer
+    /// aufgehen sehen, statt erst beim Zerfallen etwas zu merken. Fehlt ein Verfallsbild, wird auf
+    /// die nächstniedrigere Stufe zurückgefallen: Ein Stück ohne eigene Schadensfassung sieht dann
+    /// eben unverändert aus, statt als magenta Platzhalter zu erscheinen.
+    /// </summary>
+    public static string? ArmorSprite(DefinitionRegistry definitions, RunState run, AssetManager? assets = null)
     {
         if (!run.Equipped.TryGetValue(ItemSlot.Armor, out string? armorId) || !definitions.Items.Contains(armorId))
             return null;
         ItemDefinition item = definitions.Items.Get(armorId);
-        string sprite = item.Sprite;
-        if (string.IsNullOrEmpty(sprite)) return null;
-        return IsWorn(item, run) ? sprite + WornSuffix : sprite;
+        if (string.IsNullOrEmpty(item.Sprite)) return null;
+        return StageSprite(item.Sprite, ArmorStage(item, run), assets);
     }
 
-    /// <summary>Ist die Rüstung schon halb verbraucht?</summary>
-    public static bool IsWorn(ItemDefinition item, RunState run)
+    /// <summary>Sprite-Id einer Stufe, mit Rückfall auf die nächstniedrigere vorhandene Fassung.</summary>
+    public static string StageSprite(string sprite, int stage, AssetManager? assets = null)
     {
-        int maxHits = ArmorHitsOf(item);
-        int remaining = Math.Clamp(run.ArmorDurability, 0, maxHits);
-        return remaining > 0 && remaining * 2 <= maxHits;
+        for (int step = Math.Clamp(stage, 0, Stages - 1); step > 0; step--)
+        {
+            string candidate = sprite + StageSuffixes[step];
+            if (assets is null || assets.HasSpriteSheet(candidate)) return candidate;
+        }
+        return sprite;
     }
 
     /// <summary>Verbleibende Treffer und Höchstzahl der getragenen Rüstung – für die Anzeige im HUD.</summary>
@@ -144,7 +202,8 @@ public static class EquipmentService
     public static ItemDefinition? RollLoot(DefinitionRegistry definitions, RunState run, int circleIndex, Random random, bool isTreasure)
     {
         List<ItemDefinition> pool = definitions.Items.All
-            .Where(item => item.Slot != ItemSlot.Collectible && item.MinCircle <= circleIndex && !run.Items.Contains(item.Id))
+            .Where(item => item.Lootable && item.Slot != ItemSlot.Collectible
+                           && item.MinCircle <= circleIndex && !run.Items.Contains(item.Id))
             .ToList();
         if (pool.Count == 0) return null;
 

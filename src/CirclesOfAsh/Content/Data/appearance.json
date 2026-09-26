@@ -34,5 +34,15 @@
     { "id": "feathered", "name": "Gefiedert", "sprite": "wings.feathered" },
     { "id": "tattered",  "name": "Zerfetzt",  "sprite": "wings.tattered" },
     { "id": "ember",     "name": "Glut",      "sprite": "wings.ember" }
+  ],
+  // Die einzige unzerstörbare Kleidungsebene – und der einzige Gag. NICHT im Editor wählbar:
+  // Das Muster wird pro Lauf gewürfelt, man sieht es erst, wenn alles andere zerfallen ist.
+  "underwearStyles": [
+    { "id": "plain",   "name": "Schlicht",  "sprite": "under.plain" },
+    { "id": "hearts",  "name": "Herzchen",  "sprite": "under.hearts" },
+    { "id": "stripes", "name": "Streifen",  "sprite": "under.stripes" },
+    { "id": "polka",   "name": "Punkte",    "sprite": "under.polka" },
+    { "id": "flames",  "name": "Flämmchen", "sprite": "under.flames" },
+    { "id": "bones",   "name": "Knöchlein", "sprite": "under.bones" }
   ]
 }

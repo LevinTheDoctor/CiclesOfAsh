@@ -119,20 +119,36 @@ public sealed class DefinitionRegistry
                 Log.Warn($"{owner}: Spritesheet '{spriteId}' fehlt im Manifest.");
         }
 
+        // Kacheln, Hintergrund und Musik eines Kreises wurden bisher GAR NICHT geprüft. Ein
+        // Tippfehler fiel damit nirgends auf: CircleDefinition setzt als Vorgabe die Werte des
+        // Limbus, der Kreis sah also einfach aus wie der erste und klang wie er. Bei neun Kreisen
+        // ist das der wahrscheinlichste Fehler überhaupt.
+        void WarnIfTextureMissing(string textureId, string owner)
+        {
+            if (!string.IsNullOrEmpty(textureId) && !assets.HasTexture(textureId))
+                Log.Warn($"{owner}: Textur '{textureId}' fehlt im Manifest.");
+        }
+
+        void WarnIfMusicMissing(string musicId, string owner)
+        {
+            if (!string.IsNullOrEmpty(musicId) && !assets.Manifest.Music.ContainsKey(musicId))
+                Log.Warn($"{owner}: Musikstück '{musicId}' fehlt im Manifest.");
+        }
+
         Require(Classes.Count > 0, "Es ist keine Klasse definiert (Data/classes.json).");
         Require(Worlds.Count > 0, "Es ist keine Welt definiert (Data/worlds.json).");
 
         foreach (ClassDefinition playerClass in Classes.All)
         {
-            WarnIfSpriteMissing(playerClass.OutfitSprite, $"Klasse '{playerClass.Id}'");
             WarnIfSpriteMissing(playerClass.AccentSprite, $"Klasse '{playerClass.Id}'");
+            WarnIfSpriteMissing(playerClass.GearSprite, $"Klasse '{playerClass.Id}' (Ausrüstung)");
             foreach (string statName in playerClass.BaseStats.Keys)
                 Require(StatSheet.TryParse(statName, out _), $"Klasse '{playerClass.Id}': unbekannter Stat '{statName}'.");
             // Concat verbindet zwei Listen zu einer Sequenz, Distinct entfernt Duplikate
             foreach (string abilityId in playerClass.StartingAbilities.Concat(playerClass.AbilityPool).Distinct())
                 Require(Abilities.Contains(abilityId), $"Klasse '{playerClass.Id}': Fähigkeit '{abilityId}' existiert nicht.");
             Require(playerClass.StartingArmor.Length == 0 || Items.Contains(playerClass.StartingArmor),
-                $"Klasse '{playerClass.Id}': Startrüstung '{playerClass.StartingArmor}' existiert nicht.");
+                $"Klasse '{playerClass.Id}': Startkleidung '{playerClass.StartingArmor}' existiert nicht.");
         }
 
         foreach (AbilityDefinition ability in Abilities.All)
@@ -195,6 +211,10 @@ public sealed class DefinitionRegistry
                 foreach (SpawnWeight spawn in circle.EnemyPool)
                     Require(Enemies.Contains(spawn.Enemy), $"Kreis '{circle.Id}': Gegner '{spawn.Enemy}' existiert nicht.");
                 Require(Enemies.Contains(circle.Boss), $"Kreis '{circle.Id}': Boss '{circle.Boss}' existiert nicht.");
+                WarnIfTextureMissing(circle.Tileset, $"Kreis '{circle.Id}'");
+                WarnIfTextureMissing(circle.Background, $"Kreis '{circle.Id}'");
+                WarnIfMusicMissing(circle.Music, $"Kreis '{circle.Id}'");
+                WarnIfMusicMissing(circle.BossMusic, $"Kreis '{circle.Id}' (Bosskampf)");
                 Require(string.IsNullOrEmpty(circle.BossReward) || Abilities.Contains(circle.BossReward),
                     $"Kreis '{circle.Id}': Belohnung '{circle.BossReward}' existiert nicht.");
                 foreach (ThemeWeight theme in circle.Themes)
@@ -205,6 +225,12 @@ public sealed class DefinitionRegistry
                     Require(Items.Contains(collectible), $"Kreis '{circle.Id}': Sammelobjekt '{collectible}' existiert nicht.");
                 if (circle.Prison is { } prison)   // Property-Pattern: nicht null -> in Variable "prison"
                 {
+                    // Der Kerker wird nur in einem Wellen-Verlies gebaut. Liegt sein Index auf dem
+                    // Thronsaal oder dahinter, entsteht er NIE - und der Begleiter dahinter bleibt
+                    // für immer unerreichbar, ohne dass irgendwo etwas schiefginge.
+                    Require(prison.DungeonIndex < Balance.DungeonsPerCircle - 1,
+                        $"Kreis '{circle.Id}': prison.dungeonIndex {prison.DungeonIndex} liegt auf dem Bossverlies oder dahinter "
+                        + $"(dungeonsPerCircle {Balance.DungeonsPerCircle}) - der Kerker würde nie gebaut.");
                     Require(Enemies.Contains(prison.MiniBoss), $"Kreis '{circle.Id}': Mini-Boss '{prison.MiniBoss}' existiert nicht.");
                     Require(string.IsNullOrEmpty(prison.Guards) || Enemies.Contains(prison.Guards), $"Kreis '{circle.Id}': Wache '{prison.Guards}' existiert nicht.");
                     Require(string.IsNullOrEmpty(prison.CompanionReward) || Companions.Contains(prison.CompanionReward),
@@ -215,13 +241,20 @@ public sealed class DefinitionRegistry
 
         foreach (ItemDefinition item in Items.All)
         {
-            // Ein falsch benanntes Rüstungssprite fiele sonst nirgends auf: Die Ebene bliebe
-            // einfach weg und die Rüstung wäre unsichtbar, ohne eine einzige Fehlermeldung.
+            // Ein falsch benanntes Kleidungssprite fiele sonst nirgends auf: Die Ebene bliebe
+            // einfach weg und das Stück wäre unsichtbar, ohne eine einzige Fehlermeldung.
             WarnIfSpriteMissing(item.Sprite, $"Item '{item.Id}'");
-            // Die halb verbrauchte Fassung ist freiwillig – aber wenn es sie gibt, muss sie sitzen.
-            if (item.Slot == ItemSlot.Armor && item.Sprite.Length > 0
-                && assets.HasSpriteSheet(item.Sprite + Progression.EquipmentService.WornSuffix) is false)
-                Log.Info($"Item '{item.Id}': keine ramponierte Fassung ('{item.Sprite}{Progression.EquipmentService.WornSuffix}') – bleibt beim heilen Bild.");
+            // Die Verfallsfassungen sind freiwillig – fehlt eine, fällt die Anzeige auf die
+            // nächstniedrigere Stufe zurück (EquipmentService.StageSprite). Nur hinweisen.
+            if (item.Slot == ItemSlot.Armor && item.Sprite.Length > 0)
+            {
+                for (int stage = 1; stage < Progression.EquipmentService.Stages; stage++)
+                {
+                    string staged = item.Sprite + Progression.EquipmentService.StageSuffixes[stage];
+                    if (!assets.HasSpriteSheet(staged))
+                        Log.Info($"Item '{item.Id}': keine Fassung '{staged}' ({Progression.EquipmentService.StageNames[stage]}) – fällt auf die vorige Stufe zurück.");
+                }
+            }
             foreach (StatModifierDefinition modifier in item.Modifiers)
                 Require(StatSheet.TryParse(modifier.Stat, out _), $"Item '{item.Id}': unbekannter Stat '{modifier.Stat}'.");
         }
@@ -262,6 +295,8 @@ public sealed class DefinitionRegistry
 
         Require(Appearance.SkinTones.Count > 0 && Appearance.HairStyles.Count > 0, "appearance.json: Hauttöne und Frisuren dürfen nicht leer sein.");
         WarnIfSpriteMissing(Appearance.BodySprite, "Aussehen (Körper)");
+        foreach (AppearanceOptionDefinition pattern in Appearance.UnderwearStyles)
+            WarnIfSpriteMissing(pattern.Sprite, $"Unterwäsche '{pattern.Id}'");
 
         if (errors.Count > 0)
         {

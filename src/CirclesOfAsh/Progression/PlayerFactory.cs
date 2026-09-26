@@ -28,7 +28,8 @@ public static class PlayerFactory
         }
 
         var player = new Player(playerClass,
-            CharacterVisuals.Create(context, playerClass, run.Appearance, EquipmentService.ArmorSprite(context.Definitions, run)),
+            CharacterVisuals.Create(context, playerClass, run.Appearance,
+                EquipmentService.ArmorSprite(context.Definitions, run, context.Assets), run.Underwear),
             stats, Vector2.Zero);
         // "spawn" ist die Mitte der Fuesse. Die Ecke erst JETZT ableiten, wenn die Kollisionsbox
         // feststeht - sie haengt an der Sprite-Groesse und ist keine feste Zahl mehr.
@@ -80,11 +81,12 @@ public static class PlayerFactory
         CharacterAppearance appearance = context.Progression.CurrentRun?.Appearance ?? CharacterAppearance.Default;
         var stats = new StatSheet(StatSheet.ParseAll(playerClass.BaseStats));
         stats.AddPercent(StatType.Might, context.Progression.BelieverBonus(context.Definitions.Balance.MightPerHundredBelievers));
-        // Im Tempel traegt der Spieler seine Ruestung ebenfalls sichtbar.
-        string? hubArmor = context.Progression.CurrentRun is { } hubRun
-            ? EquipmentService.ArmorSprite(context.Definitions, hubRun)
-            : null;
-        var player = new Player(playerClass, CharacterVisuals.Create(context, playerClass, appearance, hubArmor), stats, Vector2.Zero);
+        // Im Tempel traegt der Spieler seine Kleidung ebenfalls sichtbar - samt Verfallsstufe.
+        RunState? hubRun = context.Progression.CurrentRun;
+        string? hubArmor = hubRun is null ? null : EquipmentService.ArmorSprite(context.Definitions, hubRun, context.Assets);
+        var player = new Player(playerClass,
+            CharacterVisuals.Create(context, playerClass, appearance, hubArmor, hubRun?.Underwear ?? 0),
+            stats, Vector2.Zero);
         // Erst jetzt ist die Größe der Kollisionsbox bekannt -> Ecke daraus ableiten.
         player.Position = bottomCenter - new Vector2(player.Size.X / 2f, player.Size.Y);
         return player;

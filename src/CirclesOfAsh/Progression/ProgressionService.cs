@@ -55,7 +55,12 @@ public sealed class ProgressionService
         _definitions.Companions.All.Where(companion => Meta.UnlockedCompanions.Contains(companion.Id));
 
     // ------------------------------------------------------------------ Lauf
-    public RunState StartNewRun(string classId, CharacterAppearance appearance, IEnumerable<string> companionIds)
+    /// <param name="underwear">
+    /// Muster der Unterwäsche, oder -1 zum Würfeln. Der Editor gibt das durch, was er in der
+    /// Vorschau gezeigt hat – sonst würde der Lauf mit einem anderen Muster beginnen als versprochen.
+    /// </param>
+    public RunState StartNewRun(string classId, CharacterAppearance appearance, IEnumerable<string> companionIds,
+                               int underwear = -1)
     {
         ClassDefinition playerClass = _definitions.Classes.Get(classId);
         var run = new RunState
@@ -65,9 +70,10 @@ public sealed class ProgressionService
             WorldId = _definitions.Worlds.All.First().Id,
             Seed = Random.Shared.Next(),
             CompanionIds = companionIds.Take(Balance.CompanionSlots).ToList(),
+            Underwear = underwear >= 0 ? underwear : RollUnderwear(),
         };
         foreach (string abilityId in playerClass.StartingAbilities) run.AbilityLevels[abilityId] = 1;
-        // Startrüstung über den normalen Weg anlegen: AddItem setzt die Trefferzahl gleich mit.
+        // Startkleidung über den normalen Weg anlegen: AddItem setzt die Trefferzahl gleich mit.
         if (_definitions.Items.TryGet(playerClass.StartingArmor, out ItemDefinition? armor))
             EquipmentService.AddItem(run, armor);
 
@@ -76,6 +82,13 @@ public sealed class ProgressionService
         _saves.SaveRun(run);
         _saves.SaveMeta(Meta);
         return run;
+    }
+
+    /// <summary>Würfelt ein Unterwäsche-Muster. Ohne hinterlegte Muster bleibt es bei 0.</summary>
+    public int RollUnderwear()
+    {
+        int count = _definitions.Appearance.UnderwearStyles.Count;
+        return count > 0 ? Random.Shared.Next(count) : 0;
     }
 
     public DungeonPlan CreateDungeonPlan(RunState run)
