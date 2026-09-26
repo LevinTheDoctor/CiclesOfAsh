@@ -29,6 +29,7 @@ public sealed class Hud
         UiDraw.Bar(spriteBatch, pixel, new Rectangle(6, 22, 70, 4),
             player.Stamina / player.MaxStaminaValue, player.IsBlocking ? Palette.Gold : Palette.Ash);
         font.DrawShadowed(spriteBatch, $"{player.Health.Current:0}/{player.Health.Max:0}", new Vector2(100, 5), Palette.Bone);
+        DrawArmor(spriteBatch, pixel, world);
 
         // Unten: Seelenleiste (XP) über die volle Breite
         float needed = _context.Progression.ExperienceForNextLevel(world.Run.Level);
@@ -82,6 +83,25 @@ public sealed class Hud
     }
 
     /// <summary>Aktive Bitten rechts unter den Gläubigen – mit Fortschritt.</summary>
+    /// <summary>
+    /// Ein Kästchen je verbleibendem Rüstungstreffer, rechts neben der Lebensleiste. Ohne das
+    /// bleibt "die Rüstung wird verbraucht" eine Behauptung, die man erst bemerkt, wenn sie schon
+    /// zersprungen ist. Leere Kästchen zeigen, wie viel sie einmal ausgehalten hat.
+    /// </summary>
+    private void DrawArmor(SpriteBatch spriteBatch, Texture2D pixel, DungeonWorld world)
+    {
+        var (remaining, max) = EquipmentService.ArmorHits(_context.Definitions, world.Run);
+        if (max <= 0) return;
+
+        for (int index = 0; index < max; index++)
+        {
+            var box = new Rectangle(100 + index * 6, 15, 5, 5);
+            bool intact = index < remaining;
+            UiDraw.Rect(spriteBatch, pixel, box, intact ? Palette.Bone : new Color(40, 36, 46));
+            UiDraw.Border(spriteBatch, pixel, box, intact ? Palette.Gold : new Color(70, 64, 80));
+        }
+    }
+
     private void DrawMissions(SpriteBatch spriteBatch, DungeonWorld world)
     {
         var font = _context.Font;

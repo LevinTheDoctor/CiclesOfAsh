@@ -412,6 +412,8 @@ public sealed class Player : Actor
             world.Effects.Burst(Center, Palette.Ash, 8, 90f, 0.45f);
             world.Context.Audio.Play("hit", 0.7f, -0.45f);   // dumpfer als ein Treffer auf Fleisch
             world.ShakeCamera(2.5f);
+            // Ohne das erschiene die ramponierte Fassung nie: Apply ruehrt nur die Werte an.
+            RefreshAppearance(world.Context, world.Run);
             return;
         }
 

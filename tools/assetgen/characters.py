@@ -428,10 +428,24 @@ def wings_frame(kind, p):
 
 
 # ------------------------------------------------------------------ Rüstung (feste Materialien, Ebene über der Kleidung)
-def armor_frame(kind, p):
+def punch(image, x, y, width=1, height=1):
+    """Schlägt ein LOCH in die Rüstung: Die Pixel werden durchsichtig, darunter kommt der Körper
+    zum Vorschein. Nicht über ImageDraw, denn das würde malen statt wegnehmen."""
+    for oy in range(height):
+        for ox in range(width):
+            px, py = x + ox, y + oy
+            if 0 <= px < image.width and 0 <= py < image.height:
+                image.putpixel((px, py), (0, 0, 0, 0))
+
+
+def armor_frame(kind, p, worn=False):
     """Deckt den Rumpf (y 13-21) ab — hier darf eine geschlossene Fläche entstehen.
     16-Bit: je Material vier bis sechs Tonwerte mit Licht oben links.
-    Bewusst FARBIG statt in Graustufen: Der Code zeichnet die Rüstung ungetönt (Color.White)."""
+    Bewusst FARBIG statt in Graustufen: Der Code zeichnet die Rüstung ungetönt (Color.White).
+
+    worn=True zeichnet dasselbe Stück ramponiert: Risse und echte Löcher (siehe punch), durch die
+    der Körper durchscheint. Gezeichnet wird immer erst das heile Stück und dann der Schaden
+    hineingeschlagen — so bleiben beide Fassungen zwangsläufig deckungsgleich."""
     image = new_image(W, H)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
@@ -488,7 +502,45 @@ def armor_frame(kind, p):
         rect(draw, 5, 13 + b, 2, 4, mid)                     # breite Schulterklappen
         rect(draw, 17, 13 + b, 2, 4, mid)
         rect(draw, 5, 13 + b, 2, 1, lite)
+
+    if worn:
+        armor_damage(image, draw, kind, b)
     return polish(image, outline=OUTLINE, light=10, dark=-20, gradient=0)
+
+
+def armor_damage(image, draw, kind, b):
+    """Der Schaden auf der halb verbrauchten Rüstung. Je Material das, was dort zuerst nachgibt."""
+    if kind == "leather":
+        # Schnürung geplatzt, Riss quer über die Brust, Saum ausgefranst.
+        for y in range(15, 20):
+            punch(image, 11, y + b, 2, 1)                     # die Naht ist auf
+        for step, y in enumerate(range(16, 21)):
+            punch(image, 8 + step, y + b)                     # schräger Riss
+        punch(image, 7, 22 + b, 2, 1)                         # Saum eingerissen
+        punch(image, 14, 22 + b, 2, 1)
+        rect(draw, 7, 20 + b, 3, 1, (46, 28, 18, 255))       # aufgescheuertes Leder
+    elif kind == "chain":
+        # An der linken Schulter sind die Maschen aufgerissen, dort blitzt die Haut durch.
+        punch(image, 6, 13 + b, 3, 3)
+        punch(image, 7, 16 + b, 2, 2)
+        punch(image, 15, 19 + b, 2, 2)                        # zweites Loch tiefer rechts
+        punch(image, 11, 17 + b, 1, 3)                        # aufgetrennte Reihe in der Mitte
+        rect(draw, 9, 16 + b, 1, 2, (52, 52, 64, 255))       # dunkle Bruchkante
+    elif kind == "scale":
+        # Fleckweise fehlen Schuppen, die Lederkante unten ist gerissen.
+        for x, y, w, h in ((8, 15, 2, 2), (13, 14, 2, 2), (10, 19, 3, 1), (15, 17, 1, 2)):
+            punch(image, x, y + b, w, h)
+        punch(image, 9, 22 + b, 3, 1)
+        rect(draw, 7, 16 + b, 1, 4, (100, 70, 26, 255))      # freigelegter Bronzegrund
+    else:  # ash
+        # Platten abgesprengt, die Glut darunter liegt offen.
+        punch(image, 6, 13 + b, 2, 3)
+        punch(image, 16, 18 + b, 2, 3)
+        punch(image, 11, 14 + b, 2, 1)
+        for x, y in ((9, 16), (10, 17), (13, 17), (14, 19), (12, 20)):
+            pixel(draw, x, y + b, EMBER)                      # Adern brechen auf
+        for x, y in ((10, 17), (13, 17)):
+            pixel(draw, x, y + b, FLAME)
 
 
 def layer_sheet(frame_function):
@@ -511,6 +563,10 @@ def generate(textures):
         layer_sheet(lambda p, c=cls: accent_frame(c, p)).save(textures / f"char_accent_{cls}.png")
     for kind in ("leather", "chain", "scale", "ash"):
         layer_sheet(lambda p, k=kind: armor_frame(k, p)).save(textures / f"char_armor_{kind}.png")
+        # Halb verbrauchte Fassung. characters.py benutzt bewusst KEINEN Zufall – deshalb
+        # verschieben diese zusätzlichen Blätter den gemeinsamen Zufallsstrom nicht, und alle
+        # später erzeugten Texturen bleiben Byte für Byte gleich.
+        layer_sheet(lambda p, k=kind: armor_frame(k, p, worn=True)).save(textures / f"char_armor_{kind}_worn.png")
 
 
 __all__ = ["generate", "OUTLINE"]

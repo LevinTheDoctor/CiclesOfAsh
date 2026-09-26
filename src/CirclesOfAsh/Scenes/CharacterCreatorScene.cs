@@ -161,8 +161,11 @@ public sealed class CharacterCreatorScene : SceneBase
 
     private void MoveRow(int step)
     {
+        bool showedBody = ShowsBody;
         _rowIndex = CharacterVisuals.Wrap(_rowIndex + step, _rows.Length);
         Context.Audio.Play("pickup", 0.2f, 0.4f);
+        // Nur neu bauen, wenn sich dadurch wirklich etwas ändert (Rüstung an/aus).
+        if (showedBody != ShowsBody) RebuildPreview();
     }
 
     private void ChangeValue(int step)
@@ -206,7 +209,24 @@ public sealed class CharacterCreatorScene : SceneBase
         RebuildPreview();
     }
 
-    private void RebuildPreview() => _preview = CharacterVisuals.Create(Context, SelectedClass, Look);
+    /// <summary>
+    /// Baut die Vorschau neu – mit der Startrüstung der gewählten Klasse, denn genau so betrittst
+    /// du das Verlies. Ausgenommen sind die Zeilen Geschlecht und Statur: Dort geht es um die
+    /// Figur, und die ist unter dem Panzer nicht zu beurteilen. Die Vorschau zeigt also immer das,
+    /// was du gerade bearbeitest – ohne zusätzliche Taste oder Zeile.
+    /// </summary>
+    private void RebuildPreview() =>
+        _preview = CharacterVisuals.Create(Context, SelectedClass, Look, ShowsBody ? null : StartingArmorSprite);
+
+    /// <summary>Auf diesen Zeilen zählt der nackte Körper, nicht die Rüstung darüber.</summary>
+    private bool ShowsBody => CurrentRow is Row.Gender or Row.Body;
+
+    /// <summary>Sprite der Rüstung, mit der diese Klasse startet – oder null.</summary>
+    private string? StartingArmorSprite =>
+        Context.Definitions.Items.TryGet(SelectedClass.StartingArmor, out ItemDefinition? armor)
+        && armor.Sprite.Length > 0
+            ? armor.Sprite
+            : null;
 
     private void StartRun(IEnumerable<string> companionIds)
     {
@@ -252,7 +272,9 @@ public sealed class CharacterCreatorScene : SceneBase
         string help = _step == Step.Look
             ? (CurrentRow == Row.Name
                 ? $"Tippen: Name · Runter/{confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück"
-                : $"Hoch/Runter Zeile · Links/Rechts ändern · {confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück")
+                : ShowsBody
+                    ? $"Hoch/Runter Zeile · Links/Rechts ändern · Rüstung ausgeblendet · {cancelGlyph} zurück"
+                    : $"Hoch/Runter Zeile · Links/Rechts ändern · {confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück")
             : $"{confirmGlyph} wählen · {cancelGlyph} zurück";
         font.DrawCentered(spriteBatch, help, centerX, CirclesGame.VirtualHeight - 14, Palette.Ash);
         spriteBatch.End();

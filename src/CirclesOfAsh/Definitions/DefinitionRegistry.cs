@@ -218,6 +218,10 @@ public sealed class DefinitionRegistry
             // Ein falsch benanntes Rüstungssprite fiele sonst nirgends auf: Die Ebene bliebe
             // einfach weg und die Rüstung wäre unsichtbar, ohne eine einzige Fehlermeldung.
             WarnIfSpriteMissing(item.Sprite, $"Item '{item.Id}'");
+            // Die halb verbrauchte Fassung ist freiwillig – aber wenn es sie gibt, muss sie sitzen.
+            if (item.Slot == ItemSlot.Armor && item.Sprite.Length > 0
+                && assets.HasSpriteSheet(item.Sprite + Progression.EquipmentService.WornSuffix) is false)
+                Log.Info($"Item '{item.Id}': keine ramponierte Fassung ('{item.Sprite}{Progression.EquipmentService.WornSuffix}') – bleibt beim heilen Bild.");
             foreach (StatModifierDefinition modifier in item.Modifiers)
                 Require(StatSheet.TryParse(modifier.Stat, out _), $"Item '{item.Id}': unbekannter Stat '{modifier.Stat}'.");
         }

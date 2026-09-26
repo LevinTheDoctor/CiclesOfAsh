@@ -73,13 +73,42 @@ public static class EquipmentService
         return ArmorResult.Shattered;
     }
 
-    /// <summary>Sprite-Ebene der getragenen Rüstung, oder null (keine getragen / kein Bild hinterlegt).</summary>
+    /// <summary>Anhängsel der halb verbrauchten Fassung – dieselbe Namensregel wie bei den Begleiter-Fassungen.</summary>
+    public const string WornSuffix = ".worn";
+
+    /// <summary>
+    /// Sprite-Ebene der getragenen Rüstung, oder null (keine getragen / kein Bild hinterlegt).
+    ///
+    /// Ist höchstens die HÄLFTE der Treffer übrig, kommt die ramponierte Fassung – man soll sehen,
+    /// dass es ernst wird, statt erst beim Zerspringen etwas zu merken. Fehlt dieses Bild, bleibt
+    /// es beim heilen: Eine Rüstung ohne eigene Schadensfassung sieht dann eben unverändert aus,
+    /// statt unsichtbar zu werden.
+    /// </summary>
     public static string? ArmorSprite(DefinitionRegistry definitions, RunState run)
     {
         if (!run.Equipped.TryGetValue(ItemSlot.Armor, out string? armorId) || !definitions.Items.Contains(armorId))
             return null;
-        string sprite = definitions.Items.Get(armorId).Sprite;
-        return string.IsNullOrEmpty(sprite) ? null : sprite;
+        ItemDefinition item = definitions.Items.Get(armorId);
+        string sprite = item.Sprite;
+        if (string.IsNullOrEmpty(sprite)) return null;
+        return IsWorn(item, run) ? sprite + WornSuffix : sprite;
+    }
+
+    /// <summary>Ist die Rüstung schon halb verbraucht?</summary>
+    public static bool IsWorn(ItemDefinition item, RunState run)
+    {
+        int maxHits = ArmorHitsOf(item);
+        int remaining = Math.Clamp(run.ArmorDurability, 0, maxHits);
+        return remaining > 0 && remaining * 2 <= maxHits;
+    }
+
+    /// <summary>Verbleibende Treffer und Höchstzahl der getragenen Rüstung – für die Anzeige im HUD.</summary>
+    public static (int Remaining, int Max) ArmorHits(DefinitionRegistry definitions, RunState run)
+    {
+        if (!run.Equipped.TryGetValue(ItemSlot.Armor, out string? armorId) || !definitions.Items.Contains(armorId))
+            return (0, 0);
+        int maxHits = ArmorHitsOf(definitions.Items.Get(armorId));
+        return (Math.Clamp(run.ArmorDurability, 0, maxHits), maxHits);
     }
 
     public static bool IsEquipped(RunState run, ItemDefinition item) =>
