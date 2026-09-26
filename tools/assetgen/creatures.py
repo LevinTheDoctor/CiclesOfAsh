@@ -146,6 +146,14 @@ def warden(anim, frame):
     return polish(image)
 
 
+def _over(image, draw, x, y, color):
+    """Zeichnet nur auf bereits gedeckte Pixel. Die Silhouette bleibt damit garantiert
+    unangetastet (G16-Regel: Zusätze laufen über eine Maske, die nur bestehende Pixel
+    überzeichnet — alles, was darüber hinausragt, würde nach polish() die Form verbreitern)."""
+    if 0 <= x < image.width and 0 <= y < image.height and image.getpixel((x, y))[3] > 0:
+        draw.point((x, y), fill=color)
+
+
 def boss(kind, anim, frame):
     image = new_image(48, 48)
     draw = ImageDraw.Draw(image)
@@ -194,6 +202,240 @@ def boss(kind, anim, frame):
         if casting:
             for i in range(5):
                 rect(draw, 3 + i * 9, (frame * 6 + i * 9) % 30, 3, 3, GOLD)
+    elif kind == "tempest":
+        # Wollust: ein Wirbelsturm aus Leibern, der nie zur Ruhe kommt. Kein fester Koerper -
+        # die Silhouette dreht sich mit dem Frame, damit er nie stillzustehen scheint.
+        spin = frame * 3
+        rose_d, rose_m, rose_l = (92, 36, 62, 255), (156, 72, 104, 255), (226, 140, 172, 255)
+        rose_h = (255, 190, 210, 255)                        # hoeller Glanz (fuenfter Ton)
+        for i in range(7):                                 # Trichter von unten nach oben enger
+            wide = 22 - i * 2
+            y = 44 - i * 6
+            off = ((spin + i * 5) % 12) - 6
+            draw.ellipse([24 - wide + off, y - 4, 24 + wide + off, y + 4], fill=rose_d if i % 2 else rose_m)
+            draw.arc([24 - wide + off, y - 4, 24 + wide + off, y + 4], 180, 360, fill=rose_l)
+            _over(image, draw, 24 - wide + 6 + off, y - 3, rose_h)   # Windband-Glanz je Ebene
+            _over(image, draw, 24 + wide - 8 + off, y - 3, rose_l if i % 2 else rose_h)
+        for x, y in ((18, 20), (30, 26), (14, 32), (33, 36), (22, 40)):   # mitgerissene Leiber
+            rect(draw, x + (spin % 3) - 1, y + breathe, 3, 5, BONE)
+            pixel(draw, x + (spin % 3) - 1, y + breathe, WHITE)
+            pixel(draw, x + (spin % 3), y + breathe, shift(BONE, -30))    # Schattenkante am Leib
+        rect(draw, 20, 8 + breathe, 3, 3, BLACK)           # zwei Augen im Auge des Sturms
+        rect(draw, 26, 8 + breathe, 3, 3, BLACK)
+        pixel(draw, 20, 8 + breathe, rose_h)                # Glanz in den Augenkernen
+        pixel(draw, 26, 8 + breathe, rose_h)
+        for i in range(3):                                 # rosa Schleier zwischen den Ebenen
+            _over(image, draw, 12 + spin % 5 + i * 6, 14 + i * 8, (255, 170, 195, 160))
+        if casting:
+            draw.arc([2, 10, 46, 46], 0, 360, fill=rose_l, width=2)
+            draw.arc([4, 12, 44, 44], 0, 360, fill=rose_h, width=1)   # innerer Glanzring
+    elif kind == "cerberus":
+        # Voellerei: drei Koepfe an einem gedrungenen Leib, alle drei kauen.
+        fur_d, fur_m, fur_l = (44, 52, 30, 255), (76, 92, 48, 255), (118, 136, 76, 255)
+        fur_h = (150, 168, 102, 255)                        # Fell-Glanz (vierter Ton)
+        slime = (110, 140, 62, 200)                        # Schleim zwischen den Kiefern
+        rect(draw, 6, 24 + breathe, 36, 18, fur_m)         # massiger Rumpf
+        rect(draw, 6, 24 + breathe, 36, 2, fur_l)          # Ruecken-Lichtkante
+        for x in range(10, 38, 5):                          # Fellsträhnen als innere Kette
+            pixel(draw, x, 26 + breathe, fur_h if x % 2 else fur_l)
+        for x in range(8, 40, 4):                           # Speckfalten am Bauch
+            draw.line([(x, 34 + breathe), (x + 2, 37 + breathe)], fill=fur_d)
+            pixel(draw, x + 1, 35 + breathe, slime)         # Geifer-Tropfen
+        rect(draw, 6, 40, 6, 8, fur_d)                     # vier Laeufe
+        rect(draw, 16, 40, 6, 8, fur_d)
+        rect(draw, 26, 40, 6, 8, fur_d)
+        rect(draw, 36, 40, 6, 8, fur_d)
+        for lx in (6, 16, 26, 36):                          # Lauf-Stirnlicht
+            rect(draw, lx, 40, 6, 1, fur_m)
+        # Je 4 px Luft zwischen den Schaedeln: polish() legt an jede Kante 1 px Kontur, bei
+        # weniger Abstand waechst das Ganze zu einem einzigen gruenen Block zusammen.
+        for i, hx in enumerate((4, 19, 34)):                # drei Schaedel, versetzt kauend
+            chew = breathe if i != 1 else 1 - breathe
+            rect(draw, hx, 8 + chew, 10, 14, fur_m)
+            rect(draw, hx, 8 + chew, 10, 2, fur_l)
+            rect(draw, hx + 1, 8 + chew, 4, 1, fur_h)       # Schaedel-Glanz oben links
+            rect(draw, hx + 1, 13 + chew, 3, 3, FLAME)     # gluehende Augen
+            rect(draw, hx + 6, 13 + chew, 3, 3, FLAME)
+            pixel(draw, hx + 1, 13 + chew, WHITE)           # Augen-Kern
+            pixel(draw, hx + 6, 13 + chew, WHITE)
+            rect(draw, hx + 1, 19 + chew, 8, 2, BLACK)     # Maul
+            for tx in range(hx + 2, hx + 9, 2):
+                pixel(draw, tx, 19 + chew, BONE)           # Zaehne
+            pixel(draw, hx + 4, 20 + chew, slime)          # Geifer im Maulwinkel
+            rect(draw, hx + 3, 22 + chew, 4, 3, fur_d)     # Hals zum Rumpf
+            rect(draw, hx + 3, 22 + chew, 1, 3, fur_m)      # Hals-Schattierung links
+        if casting:
+            for i, hx in enumerate((10, 22, 34)):
+                rect(draw, hx, 24 + frame * 4, 3, 6, EMBER)
+                pixel(draw, hx, 24 + frame * 4, FLAME)      # Brocken-Glanz
+    elif kind == "heresiarch":
+        # Ketzerei: ein Brennender, der aus seinem aufgebrochenen Sarg steigt.
+        tomb_d, tomb_m, tomb_l = (46, 40, 44, 255), (84, 76, 82, 255), (128, 120, 128, 255)
+        tomb_h = (168, 160, 168, 255)                        # Stein-Glanz (vierter Ton)
+        rect(draw, 4, 30, 40, 18, tomb_m)                  # Sarkophag
+        rect(draw, 4, 30, 40, 2, tomb_l)
+        rect(draw, 4, 30, 2, 18, tomb_l)
+        for x in range(8, 42, 7):                          # gesprengter Deckel
+            draw.polygon([(x, 30), (x + 4, 24), (x + 7, 30)], fill=tomb_d)
+            pixel(draw, x + 1, 29, tomb_l)                  # Deckelbruch-Licht
+        rect(draw, 4, 30, 40, 1, tomb_h)                    # Sargkanten-Glanz oben links
+        for x in range(6, 42, 9):                           # Meissel-Spuren im Stein
+            pixel(draw, x, 38, tomb_d)
+            pixel(draw, x + 1, 43, tomb_d)
+        rect(draw, 16, 10 + breathe, 16, 22, DARK_BLOOD)   # Leib in Flammen
+        for y in range(12, 30, 4):
+            draw.line([(17, y + breathe), (31, y + 2 + breathe)], fill=EMBER)
+            pixel(draw, 18 + (y % 8), y + breathe, shift(DARK_BLOOD, 20))  # Glut-Adern im Leib
+        for x, y in ((19, 14), (26, 18), (22, 24)):
+            pixel(draw, x, y + breathe, FLAME)             # Flammenkerne
+            pixel(draw, x, y - 1 + breathe, WHITE)          # weisser Kern im Flammenherd
+        rect(draw, 18, 4 + breathe, 12, 10, ASH)           # Schaedel
+        rect(draw, 18, 4 + breathe, 12, 2, BONE)
+        rect(draw, 18, 4 + breathe, 5, 1, shift(BONE, 22))  # Schaedel-Glanz oben links
+        rect(draw, 20, 8 + breathe, 3, 3, FLAME)
+        rect(draw, 25, 8 + breathe, 3, 3, FLAME)
+        rect(draw, 21, 12 + breathe, 6, 1, BLACK)
+        pixel(draw, 21, 12 + breathe, EMBER)                # Glut im Mund
+        if casting:
+            for i in range(4):
+                rect(draw, 6 + i * 11, 2 + (frame * 5) % 12, 3, 5, EMBER)
+                pixel(draw, 7 + i * 11, 3 + (frame * 5) % 12, FLAME)   # Funken-Glanz
+    elif kind == "minotaur":
+        # Gewalt: schwer, gehoernt, immer im Ansturm.
+        hide_d, hide_m, hide_l = (58, 34, 26, 255), (104, 62, 44, 255), (150, 96, 68, 255)
+        hide_h = (188, 130, 96, 255)                        # Fell-Glanz (vierter Ton)
+        rect(draw, 10, 18 + breathe, 28, 22, hide_m)       # Brustkorb
+        rect(draw, 10, 18 + breathe, 28, 2, hide_l)
+        rect(draw, 10, 18 + breathe, 8, 1, hide_h)          # Brustring-Glanz oben links
+        for y in range(22, 36, 4):                         # Rippenschatten
+            draw.line([(13, y + breathe), (35, y + 1 + breathe)], fill=hide_d)
+            pixel(draw, 13, y + breathe, hide_l)            # Lichtpixel an jeder Rippe
+        rect(draw, 12, 20 + breathe, 3, 3, BLOOD)          # alte Kampfwunde
+        rect(draw, 12, 20 + breathe, 2, 1, (200, 60, 56, 255))   # Wunden-Rand im Licht
+        rect(draw, 8, 40, 10, 8, hide_d)                   # Hufe
+        rect(draw, 30, 40, 10, 8, hide_d)
+        rect(draw, 8, 40, 10, 1, hide_m)                    # Huf-Stirnlicht
+        rect(draw, 30, 40, 10, 1, hide_m)
+        for hx in range(8, 16):                             # Huf-Behaarung (nur innen)
+            _over(image, draw, hx, 39, hide_d)
+            _over(image, draw, hx + 22, 39, hide_d)
+        rect(draw, 2, 20 + breathe, 8, 18, hide_m)         # Arme
+        rect(draw, 38, 20 + breathe, 8, 18, hide_m)
+        rect(draw, 2, 20 + breathe, 2, 18, hide_l)
+        rect(draw, 38, 20 + breathe, 2, 18, hide_l)
+        rect(draw, 2, 20 + breathe, 2, 1, hide_h)           # Schulter-Glanz
+        rect(draw, 38, 20 + breathe, 2, 1, hide_h)
+        rect(draw, 16, 4 + breathe, 16, 14, hide_m)        # Stierschaedel
+        rect(draw, 16, 4 + breathe, 16, 2, hide_l)
+        rect(draw, 16, 4 + breathe, 6, 1, hide_h)           # Stirn-Glanz oben links
+        rect(draw, 19, 10 + breathe, 3, 3, BLOOD)          # blutunterlaufene Augen
+        rect(draw, 26, 10 + breathe, 3, 3, BLOOD)
+        pixel(draw, 19, 10 + breathe, (200, 60, 56, 255))   # Augen-Rand im Licht
+        pixel(draw, 26, 10 + breathe, (200, 60, 56, 255))
+        for ex in (21, 28):                                 # Augen-Glanz innen
+            _over(image, draw, ex, 12 + breathe, (200, 60, 56, 255))
+        rect(draw, 20, 15 + breathe, 8, 3, (40, 26, 20, 255))   # Nuestern
+        pixel(draw, 22, 16 + breathe, BONE)
+        pixel(draw, 25, 16 + breathe, BONE)
+        draw.polygon([(16, 6), (4, 2), (14, 11)], fill=BONE)     # Hoerner
+        draw.polygon([(32, 6), (44, 2), (34, 11)], fill=BONE)
+        pixel(draw, 6, 4, WHITE)
+        pixel(draw, 42, 4, WHITE)
+        for y in range(4, 10, 2):                           # Hornring-Zeichnung (nur innen)
+            _over(image, draw, 12 - y // 2, y, shift(BONE, -40))
+            _over(image, draw, 33 + y // 2, y, shift(BONE, -40))
+        if casting:
+            for i in range(5):                             # Staub beim Scharren
+                pixel(draw, 6 + i * 9, 46 - (frame + i) % 3, ASH)
+                _over(image, draw, 7 + i * 9, 45 - (frame + i) % 3, shift(ASH, 25))   # Staub-Glanz
+    elif kind == "geryon":
+        # Betrug: freundliches Gesicht, Leib einer Schlange, Schwanz mit Stachel.
+        scale_d, scale_m, scale_l = (46, 30, 62, 255), (86, 56, 112, 255), (132, 92, 166, 255)
+        scale_h = (176, 138, 208, 255)                      # Schuppen-Glanz (vierter Ton)
+        for i in range(5):                                 # geringelter Leib
+            y = 20 + i * 6
+            off = 6 if i % 2 else -6
+            draw.ellipse([14 + off, y, 40 + off, y + 9], fill=scale_m if i % 2 else scale_d)
+            draw.arc([14 + off, y, 40 + off, y + 9], 180, 360, fill=scale_l)
+            for sx in range(16 + off, 38 + off, 6):          # einzelne Schuppen als Bögen
+                draw.arc([sx, y + 2, sx + 4, y + 6], 200, 340, fill=scale_l if sx % 12 else scale_h)
+            _over(image, draw, 16 + off, y + 1, scale_h)     # Ring-Anfangs-Glanz
+        draw.polygon([(6, 44), (2, 34), (12, 40)], fill=scale_d)      # Stachelschwanz
+        for sy in range(35, 44):                              # Schwanz-Schattierung (nur innen)
+            sx = 2 + (44 - sy) // 3
+            _over(image, draw, sx, sy, scale_m)
+        pixel(draw, 3, 35, (150, 255, 150, 255))                      # Gift
+        _over(image, draw, 4, 35, (210, 255, 210, 255))               # Gift-Glanz (im Stachel)
+        for side, sign in ((10, -1), (38, 1)):                        # Fluegel
+            draw.polygon([(24, 18 + breathe), (side + sign * 10, 6 + breathe), (side, 22 + breathe)],
+                         fill=scale_d)
+            draw.line([(24, 18 + breathe), (side + sign * 10, 6 + breathe)], fill=scale_l)
+            for wy in range(9, 19, 4):                       # Fluegel-Rippen (nur innen)
+                fx = 24 + sign * (wy - 12)
+                if min(24, fx) <= fx <= max(24, fx):
+                    _over(image, draw, fx, wy + breathe, scale_m)
+        face_l = (244, 224, 200, 255)
+        rect(draw, 18, 4 + breathe, 12, 12, (216, 188, 156, 255))     # ehrliches Menschengesicht
+        rect(draw, 18, 4 + breathe, 12, 2, face_l)
+        rect(draw, 18, 4 + breathe, 5, 1, (255, 238, 220, 255))       # Wangen-Glanz oben links
+        rect(draw, 20, 8 + breathe, 2, 2, BLACK)
+        rect(draw, 26, 8 + breathe, 2, 2, BLACK)
+        pixel(draw, 21, 9 + breathe, (90, 130, 180, 255))   # Iris — fast freundlich
+        pixel(draw, 27, 9 + breathe, (90, 130, 180, 255))
+        draw.line([(21, 13 + breathe), (27, 13 + breathe)], fill=(150, 110, 90, 255))   # Laecheln
+        pixel(draw, 20, 12 + breathe, (150, 110, 90, 255))
+        pixel(draw, 28, 12 + breathe, (150, 110, 90, 255))
+        for tx in (21, 25):                                  # weisse Zaehne im Laecheln
+            pixel(draw, tx, 13 + breathe, WHITE)
+        if casting:
+            draw.ellipse([16, 2, 32, 18], outline=(150, 255, 150, 255))
+            draw.ellipse([18, 4, 30, 16], outline=(210, 255, 210, 255))   # innerer Glanzring
+    elif kind == "lucifer":
+        # Verrat: bis zur Brust im Eis, drei Gesichter, sechs Fluegel, die den Frost erzeugen.
+        ice_d, ice_m, ice_l = (36, 58, 82, 255), (86, 124, 156, 255), (168, 208, 232, 255)
+        ice_h = (220, 240, 252, 255)                        # Eis-Glanz (vierter Ton)
+        body_d, body_m = (28, 22, 34, 255), (58, 48, 66, 255)
+        body_l = (86, 74, 94, 255)                           # Feder-Licht (fuenfter Ton)
+        for side, sign in ((8, -1), (40, 1)):              # drei Fluegelpaare
+            for i, wy in enumerate((10, 20, 30)):
+                tip = side + sign * (10 - i * 2)
+                draw.polygon([(24, wy + breathe), (tip, wy - 6 + breathe), (tip, wy + 6 + breathe)],
+                             fill=body_d if i % 2 else body_m)
+                draw.line([(24, wy + breathe), (tip, wy - 6 + breathe)], fill=ice_m)
+                for fx in range(24, tip, -sign * 3):          # Federknochen im Fluegel
+                    pixel(draw, fx, wy - 2 + breathe + (24 - fx) // 6, body_l)
+        rect(draw, 14, 14 + breathe, 20, 20, body_m)       # Rumpf
+        rect(draw, 14, 14 + breathe, 20, 2, body_d)
+        rect(draw, 14, 14 + breathe, 6, 1, body_l)           # Brust-Glanz oben links
+        for x in range(16, 32, 4):                           # Frostzauber-Zeichen auf der Brust
+            pixel(draw, x, 20 + breathe, ice_m)
+            pixel(draw, x, 24 + breathe, ice_d)
+        # Wieder 4 px Luft (siehe Kerberos) - vorher ueberlappten sich die Gesichter sogar.
+        for i, hx in enumerate((3, 17, 31)):                # drei Gesichter
+            rect(draw, hx, 2 + breathe, 10, 12, body_m)
+            rect(draw, hx, 2 + breathe, 10, 2, ice_m)
+            rect(draw, hx, 2 + breathe, 4, 1, body_l)       # Stirn-Glanz oben links
+            eye = (BLOOD, FLAME, (180, 180, 200, 255))[i]  # rot, gelb, fahl
+            rect(draw, hx + 1, 6 + breathe, 3, 2, eye)
+            rect(draw, hx + 6, 6 + breathe, 3, 2, eye)
+            pixel(draw, hx + 1, 6 + breathe, WHITE)         # Augen-Glanz
+            rect(draw, hx + 2, 11 + breathe, 6, 2, BLACK)  # kauendes Maul
+            for tx in range(hx + 3, hx + 8, 2):
+                pixel(draw, tx, 11 + breathe, BONE)
+        rect(draw, 2, 34, 44, 14, ice_m)                   # zugefrorener Kokytos
+        rect(draw, 2, 34, 44, 2, ice_l)
+        rect(draw, 2, 34, 20, 1, ice_h)                     # Eisfläche-Glanz oben links
+        for x in range(4, 46, 9):                          # Eisrisse
+            draw.line([(x, 36), (x + 4, 47)], fill=ice_d)
+            pixel(draw, x + 1, 38, ice_l)
+            pixel(draw, x + 2, 42, ice_h)                   # Riss-Glanzpunkt
+        for x in range(6, 44, 12):                           # eingeschlossene Luftblasen
+            pixel(draw, x, 40 + (x // 12) % 3, ice_l)
+        if casting:
+            for i in range(6):                             # Frosthauch
+                pixel(draw, 4 + i * 8, 20 + (frame * 3 + i) % 10, ice_l)
+                if i % 2 == 0:
+                    pixel(draw, 5 + i * 8, 21 + (frame * 3 + i) % 10, ice_h)   # Hauch-Glanz
     else:
         blood_l = (200, 44, 56, 255)                       # Fleisch-Licht oben links
         rect(draw, 10, 16 + breathe, 28, 26, DARK_BLOOD)
@@ -705,7 +947,8 @@ def generate(textures):
     build_sheet(16, 20, [[npc_hermit(i) for i in range(4)]]).save(textures / "npc_hermit.png")
     build_sheet(16, 22, [[npc_keeper(i) for i in range(4)]]).save(textures / "npc_keeper.png")
     build_sheet(32, 32, [[warden(a, i) for i in range(4)] for a in ("idle", "run", "cast")]).save(textures / "miniboss_warden.png")
-    for kind in ("shepherd", "mammon", "titan"):
+    for kind in ("shepherd", "mammon", "titan",
+                 "tempest", "cerberus", "heresiarch", "minotaur", "geryon", "lucifer"):
         build_sheet(48, 48, [[boss(kind, "idle", i) for i in range(4)], [boss(kind, "cast", i) for i in range(4)]]).save(textures / f"boss_{kind}.png")
     build_sheet(10, 8, [[bat("hang", 0)], [bat("fly", i) for i in range(2)]]).save(textures / "prop_bat.png")
     # --- Begleitseelen (G7): je zwei Farbfassungen pale/deep neben der Normalfassung
