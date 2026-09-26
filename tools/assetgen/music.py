@@ -10,6 +10,7 @@ Grundstimmung und desto mehr Rauschen liegt darüber.
 """
 import math
 
+from .core import rng
 from .media import SAMPLE_RATE, write_wav
 
 # Halbtonabstände zum Kammerton. Zwölfstufig gleichstufig: jeder Halbton ist Faktor 2^(1/12).
@@ -88,7 +89,48 @@ def _bell(frequency, seconds, amplitude):
     return layer
 
 
-def _compose(chords, root, bars, bar_seconds, melody, melody_gain, drone_gain, brightness):
+def _kick(seconds=0.16, amplitude=0.9, accent=1.0):
+    """Tiefer Stampfer: Frequenz rutscht von 110 auf 35 Hz, Exponent 3 macht den Nachfall kurz."""
+    count = int(SAMPLE_RATE * seconds)
+    phase = 0.0
+    out = []
+    for i in range(count):
+        t = i / count
+        phase += (110 * (1.0 - t) + 35) / SAMPLE_RATE
+        out.append(math.sin(phase * 2 * math.pi) * (1.0 - t) ** 3 * amplitude * accent)
+    return out
+
+
+def _thud(seconds=0.10, amplitude=0.6, accent=1.0):
+    """Dumpfer Holzklop: Sinus 70 Hz plus Rauschklacks, schnell endend."""
+    count = int(SAMPLE_RATE * seconds)
+    out = []
+    for i in range(count):
+        t = i / count
+        body = math.sin(2 * math.pi * 70 * i / SAMPLE_RATE) * (1.0 - t) ** 4
+        out.append((body + rng.uniform(-1, 1) * (1.0 - t) ** 6 * 0.4) * amplitude * accent)
+    return out
+
+
+def _tick(seconds=0.05, amplitude=0.35, accent=1.0):
+    """Metallisches Ticken: kurzer Rauschimpuls mit hartem Ende (Uhren-Anmutung)."""
+    count = int(SAMPLE_RATE * seconds)
+    return [rng.uniform(-1, 1) * (1.0 - i / count) ** 2 * amplitude * accent for i in range(count)]
+
+
+def _clang(seconds=0.22, amplitude=0.4, accent=1.0):
+    """Schlag auf Metall: zwei verstimmt-reibende Sinusse (217/341 Hz), hart abklingend."""
+    count = int(SAMPLE_RATE * seconds)
+    out = []
+    for i in range(count):
+        t = i / count
+        value = math.sin(2 * math.pi * 217 * i / SAMPLE_RATE) + math.sin(2 * math.pi * 341 * i / SAMPLE_RATE)
+        out.append((value * 0.5 * (1.0 - t) ** 2.5 * amplitude + rng.uniform(-1, 1) * (1.0 - t) ** 5 * 0.15) * accent)
+    return out
+
+
+def _compose(chords, root, bars, bar_seconds, melody, melody_gain, drone_gain, brightness,
+             percussion=None, hits=None):
     """
     Baut ein ganzes Stück.
 
@@ -97,6 +139,8 @@ def _compose(chords, root, bars, bar_seconds, melody, melody_gain, drone_gain, b
     bars         Anzahl Takte (Stücklänge = bars * bar_seconds)
     melody       Halbton-Offsets der Melodietöne; None an einer Stelle = Pause
     brightness   0 = dumpf und tief, 1 = hell; mischt die Melodie eine Oktave höher
+    percussion   None oder Klangfabrik (seconds, amplitude) -> samples; gespielt auf jede Position in hits
+    hits         None oder Liste von Schlagpositionen im Takt (0..1); None am Takanfang = Akzent
     """
     total = int(SAMPLE_RATE * bar_seconds * bars)
     track = [0.0] * total
@@ -120,6 +164,14 @@ def _compose(chords, root, bars, bar_seconds, melody, melody_gain, drone_gain, b
                 continue
             frequency = root * (2.0 ** (semitone / 12.0)) * (2.0 if brightness > 0.5 else 1.0)
             _mix(track, _bell(frequency, step_seconds * 0.9, 0.12 * melody_gain), int(step * step_seconds * SAMPLE_RATE))
+
+    # 3b) Percussion: Klang auf jede Position in hits, einmal pro Takt; None in hits = Takanfang-Akzent
+    if percussion and hits:
+        for bar in range(bars):
+            for position in hits:
+                accent = 1.0 if position is None else 0.55
+                offset = int((bar + (position if position is not None else 0.0)) * bar_seconds * SAMPLE_RATE)
+                _mix(track, percussion(accent=accent), offset)
 
     # 4) Sanfte Begrenzung statt hartem Clipping – tanh drückt Spitzen weich zusammen.
     track = [math.tanh(value * 1.4) * 0.55 for value in track]
@@ -183,3 +235,66 @@ def generate(audio):
         root=note(-12, -1), bars=8, bar_seconds=2.2,
         melody=[0, 0, 3, 0, 5, 3, 2, 0],
         melody_gain=0.9, drone_gain=1.3, brightness=0.0))
+
+    # ---------------------------------------------------------------- Boss-Stücke (G17)
+    # Ein eigenes Stück je Arena. Alle wie music_boss lang (8 Takte × 2,2 s = 17,6 s) und laut
+    # (gleiche _compose-Normierung), damit das Ueberblenden nicht springt.
+
+    # Hain des Hirten — getragen, chorartig, trauernd: der Hirte ist kein Boesewicht.
+    # Suzuquart-Kirche (SUS als Vorhalt), Melodie erst hoch (Chor) und dann fallend, sehr langsam.
+    # Etwas lauter als die Stimmung naeligt (drone_gain), sonst faellt das Ueberblenden hoorbar ab.
+    write_wav(audio, "music_boss_shepherd", _compose(
+        chords=[(0, SUS), (-5, MINOR), (-3, MAJOR), (-2, SUS)],
+        root=note(-5, -1), bars=8, bar_seconds=2.2,
+        melody=[7, None, 5, 4, None, 3, 0, None],
+        melody_gain=1.05, drone_gain=1.05, brightness=1.0))
+
+    # Mammons Hort — gierig, hektisch, klimpernd: keine Pause in der Melodie,
+    # _thud auf jede Viertel wie unruhige Finger auf Goldmuenzen.
+    write_wav(audio, "music_boss_mammon", _compose(
+        chords=[(0, MINOR), (2, MINOR), (-1, MAJOR), (0, MINOR)],
+        root=note(-3, -1), bars=8, bar_seconds=2.2,
+        melody=[0, 3, 2, 3, 5, 3, 7, 3],
+        melody_gain=0.8, drone_gain=1.0, brightness=1.0,
+        percussion=lambda accent=0.55: _thud(amplitude=0.5, accent=accent),
+        hits=[0.0, 0.25, 0.5, 0.75]))
+
+    # Mauern von Dis — schwer, stampfend, tief, wenig Melodie:
+    # _kick auf jede halbe Taktlaenge, Melodie nur zwei Toene, brightness 0.
+    write_wav(audio, "music_boss_titan", _compose(
+        chords=[(0, MINOR), (0, MINOR), (-2, MINOR), (-2, MINOR)],
+        root=note(-15, -1), bars=8, bar_seconds=2.2,
+        melody=[0, None, None, None, 0, None, -2, None],
+        melody_gain=0.55, drone_gain=1.5, brightness=0.0,
+        percussion=lambda accent=0.55: _kick(amplitude=0.8, accent=accent),
+        hits=[0.0, 0.5]))
+
+    # Kerkerhof — dumpf, klopfend, bedrueckend eng:
+    # _thud auf 0 und 0.5 (wie Schritte auf Stein), Akkorde eng, Melodie fast nicht da.
+    write_wav(audio, "music_warden_limbo", _compose(
+        chords=[(0, MINOR), (1, MINOR), (0, MINOR), (-2, MINOR)],
+        root=note(-10, -1), bars=8, bar_seconds=2.2,
+        melody=[0, None, None, 1, None, None, 0, None],
+        melody_gain=0.5, drone_gain=1.2, brightness=0.0,
+        percussion=lambda accent=0.55: _thud(amplitude=0.6, accent=accent),
+        hits=[0.0, 0.5]))
+
+    # Schuldturm — tickend wie eine Uhr, draengend:
+    # _tick auf jede Viertel (Uhren-Metrum), Melodie in Achteln vorwaerts getrieben.
+    write_wav(audio, "music_warden_greed", _compose(
+        chords=[(0, MINOR), (3, MINOR), (-2, MINOR), (1, MINOR)],
+        root=note(-7, -1), bars=8, bar_seconds=2.2,
+        melody=[0, 2, 3, 2, 0, 2, 1, 2],
+        melody_gain=0.7, drone_gain=1.1, brightness=0.5,
+        percussion=lambda accent=0.55: _tick(amplitude=0.4, accent=accent),
+        hits=[0.0, 0.25, 0.5, 0.75]))
+
+    # Folterkammer — schrill, metallisch, haemmernd:
+    # _clang auf 0/0.5 (Schlag auf Eisen) und _tick dazwischen, Melodie in Reibung.
+    write_wav(audio, "music_warden_wrath", _compose(
+        chords=[(0, MINOR), (1, MAJOR), (0, MINOR), (6, MINOR)],
+        root=note(-12, -1), bars=8, bar_seconds=2.2,
+        melody=[0, 1, 0, 1, 3, 1, 0, -2],
+        melody_gain=0.75, drone_gain=1.4, brightness=0.0,
+        percussion=lambda accent=0.55: _clang(amplitude=0.45, accent=accent),
+        hits=[0.0, 0.5]))

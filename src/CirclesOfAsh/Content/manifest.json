@@ -40,7 +40,13 @@
     "music.limbo": "Audio/music_limbo.wav",
     "music.greed": "Audio/music_greed.wav",
     "music.wrath": "Audio/music_wrath.wav",
-    "music.boss": "Audio/music_boss.wav"
+    "music.boss": "Audio/music_boss.wav",
+    "music.boss_shepherd": "Audio/music_boss_shepherd.wav",
+    "music.boss_mammon": "Audio/music_boss_mammon.wav",
+    "music.boss_titan": "Audio/music_boss_titan.wav",
+    "music.warden_limbo": "Audio/music_warden_limbo.wav",
+    "music.warden_greed": "Audio/music_warden_greed.wav",
+    "music.warden_wrath": "Audio/music_warden_wrath.wav"
   },
   "spriteSheets": {
     // ---------------- Spieler-Ebenen (Charakter-Editor): body, hair.*, outfit.<klasse>, accent.<klasse>

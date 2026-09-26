@@ -693,3 +693,51 @@ Du kannst also einzeln liefern, ohne dass zwischendurch etwas stumm wird.
 
 **Vorher bitte G16 zu Ende bringen** — die flachen Kleinsprites (Begleiter, Pickups, Projektile,
 `effect_slash`) fallen im Spiel mehr auf als sechs verschiedene Bosskampf-Stücke.
+
+---
+
+# Abnahme G16 / G17 — beides geliefert
+
+## G16 — Kleinsprites auf 16-Bit angehoben (fertig)
+
+Alle 29 Blätter (`companion_*` 18, `pickup_*` 4, `projectile_*` 6, `effect_slash`) überarbeitet.
+Wie beim Rüstungs-Fehler gelernt: Der Code zeichnet alle vier Gruppen **ungetönt** — eigene Farben,
+keine Graustufen. Gemessen vor/nach:
+
+| Gruppe | Tonwerte vorher | Tonwerte nachher |
+|---|---|---|
+| `companion_*` | median 3 | min 5 / median 7,5 (Drachenling hatte 11–12, blieb) |
+| `pickup_*` | median 2 | min 4 / median 4,5 |
+| `projectile_*` | median 2,5 | min 4 / median 4,5 |
+| `effect_slash` | 2 | 4 |
+
+Licht von oben links, Glut-/Flammenkerne bei `enemy_orb`/`ember`/`candle`, Metallglanz beim
+`holy_bolt`, Klinge-Licht beim `shadow_dagger`. Die pale/deep-Abstufung der 18 Begleiter bleibt
+erhalten (Aura-Werte unverändert), nur innerhalb jeder Fassung mehr Plastik.
+
+**Silhouetten pixelgenau erhalten** — gegen den Ist-Stand als Hash geprüft: Alle 29 Alpha-Masken
+identisch (bei `effect_slash` lagen die ersten Bogen-Zusätze außerhalb und haben die Form
+verbreitert — korrigiert, Zusätze laufen jetzt über eine Maske, die nur bestehende Pixel
+überzeichnet). Maße unverändert, Manifest braucht keine Änderung.
+
+## G17 — Sechs Boss-Stücke geliefert (fertig)
+
+Neue Ids im Manifest (`music`-Abschnitt), alle wie `music_boss.wav` 17,6 s (8 Takte × 2,2 s),
+nahtlos loopend, RMS im Band 0,078–0,097 gegen 0,090 Referenz:
+
+| Id | Arena | Klang |
+|---|---|---|
+| `music.boss_shepherd` | Hain des Hirten | getragen, SUS-Vorhalte, fallender Chor |
+| `music.boss_mammon` | Mammons Hort | hektisch, Melodie ohne Pause, Münz-`_thud` auf jede Viertel |
+| `music.boss_titan` | Mauern von Dis | tief, `_kick` auf jede Halbe, kaum Melodie |
+| `music.warden_limbo` | Kerkerhof | dumpfes Klopfen auf Stein, enge Akkorde |
+| `music.warden_greed` | Schuldturm | `_tick` wie ein Uhrwerk auf jede Viertel |
+| `music.warden_wrath` | Folterkammer | `_clang`-Metallschlag, Halbtonreibung |
+
+`music.py` hat dafür vier neue Klangfabriken (`_kick`, `_thud`, `_tick`, `_clang`) und
+`_compose(..., percussion=..., hits=...)` — Percussion pro Schlagposition, `None` in `hits`
+wäre ein Taktakzent (nutze ich nicht, aber der Hook steht). Bestehende Stücke unverändert
+(keine neuen Keys, `music_boss.wav` bit-genau reproduzierbar).
+
+**Abnahme:** Spiel läuft (Titel + Boss-Loop gestartet), **0 WARN-Zeilen** im `game.log`,
+`dotnet build` 0/0. Bitte die `music`-Zeilen in `arenas.json` nachziehen (deine Datei).
