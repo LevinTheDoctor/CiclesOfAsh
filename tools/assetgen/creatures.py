@@ -632,25 +632,50 @@ def bat(anim, frame):
 
 def wisp(core, glow, shape="flame", variant="normal"):
     """Begleitseele. variant: 'normal' | 'pale' (hell/kühl) | 'deep' (dunkel/warm) — nur Farbstimmung,
-    die Silhouette bleibt identisch, damit der Begleiter wiedererkennbar bleibt."""
+    die Silhouette bleibt identisch, damit der Begleiter wiedererkennbar bleibt.
+
+    G16: 16-Bit-Anhebung — der Code zeichnet Begleiter ungetönt (Color.White, Companion.cs:64),
+    also eigene Farben statt Graustufen. Vier bis fünf Tonwerte je Fassung: heller Kern, Licht oben
+    links, Flacker-Reflex, Randschatten unten rechts. Nur Binnenzeichnung: Jedes Pixel wird nur
+    gesetzt, wenn die Kern-Ellipse es schon füllt — Umriss bleibt pixelgenau."""
     if variant == "pale":
         core = shift(core, 60) if core[0] < 200 else core     # Richtung hell/kühl ziehen
         glow = tuple(min(255, c + 70) for c in glow[:3]) + (glow[3],)
     elif variant == "deep":
         core = shift(core, -70)
         glow = (max(30, glow[0] - 60), max(20, glow[1] - 70), max(10, glow[2] - 90), glow[3])
+    light = shift(core, 55)                                    # Licht oben links
+    deep = shift(core, -55)                                    # Schatten unten rechts
+    spark = tuple(min(255, c + 70) for c in glow[:3]) + (255,)  # Flacker-Reflex
     frames = []
     for frame in range(4):
         image = new_image(12, 12)
         draw = ImageDraw.Draw(image)
         flicker = frame % 2
-        draw.ellipse([1, 2 - flicker, 10, 11], fill=glow[:3] + (110,))
-        draw.ellipse([3, 4 - flicker, 8, 9], fill=core)
+        top = 4 - flicker                                      # obere Kernzeile
+        draw.ellipse([1, 2 - flicker, 10, 11], fill=glow[:3] + (110,))   # Aura (unverändert)
+        draw.ellipse([3, top, 8, 9], fill=core)                           # Kern (unverändert)
+
+        def core_pixel(x, y, color):
+            """Setzt nur, wo der Kern schon gefüllt ist — die Silhouette wächst nie."""
+            if image.getpixel((x, y))[3] > 0:
+                pixel(draw, x, y, color)
+
+        for x in range(3, 9):                                  # Licht oben links im Kern
+            core_pixel(x, top, light)
+            core_pixel(3, top + (x - 3), light)
+        for x in range(5, 9):                                  # Schatten unten rechts
+            core_pixel(x, 9 - (8 - x) - flicker, deep)
+        core_pixel(5 - flicker, top + 2, spark)                # wandernder Glanzpunkt
+        core_pixel(4 + flicker, 8 - flicker, shift(core, 30))
         if shape == "chain":
             for i in range(3):
-                pixel(draw, 2 + i * 3, 10, (120, 120, 130, 255))
+                link = (120, 120, 130, 255)
+                pixel(draw, 2 + i * 3, 10, link)
+                pixel(draw, 2 + i * 3, 10, shift(link, 60) if i == 1 else link)  # Mittelglied-Licht
         elif shape == "bell":
             rect(draw, 4, 1 - flicker + 1, 4, 1, GOLD)
+            pixel(draw, 6, 1 - flicker + 1, shift(GOLD, 50))   # Klöppel-Glanz
         pixel(draw, 5, 1 - flicker + 1, core)
         pixel(draw, 4, 6, BLACK)
         pixel(draw, 7, 6, BLACK)

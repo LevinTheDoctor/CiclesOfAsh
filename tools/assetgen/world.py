@@ -705,6 +705,18 @@ def runes(textures):
 
 # ------------------------------------------------------------------ Projektile, Effekte, Pickups, Siegel
 def small_sprites(textures):
+    """G16: 16-Bit-Anhebung der Kleinsprites. Alle vier Gruppen zeichnet der Code ungetönt
+    (Color.White — Pickup.cs:82, Projectile.cs:85, EffectSystem.cs:138), also echte Farben
+    statt Graustufen. Silhouetten bleiben pixelgenau: Binnenzeichnung nur auf Pixeln, die
+    die Grundform schon füllt. Licht von oben links, vier bis sechs Tonwerte je Material."""
+
+    def only_on(draw, image, points, color):
+        """Setzt Pixel nur dort, wo die Grundform schon opak ist — Umriss wächst nie."""
+        data = image.load()
+        for x, y in points:
+            if 0 <= x < image.width and 0 <= y < image.height and data[x, y][3] > 0:
+                pixel(draw, x, y, color)
+
     def projectile(kind):
         frames = []
         for frame in range(2):
@@ -712,21 +724,37 @@ def small_sprites(textures):
             d = ImageDraw.Draw(image)
             if kind == "holy_bolt":
                 d.polygon([(4, 0), (7, 4), (4, 7), (1, 4)], fill=GOLD)
+                only_on(d, image, [(2, 3), (3, 2), (4, 2), (2, 4)], shift(GOLD, 55))    # Licht oben links
+                only_on(d, image, [(6, 5), (5, 6), (6, 4)], shift(GOLD, -50))          # Schatten unten rechts
                 rect(d, 3, 3, 2, 2, WHITE if frame else BONE)
             elif kind == "shadow_dagger":
                 d.polygon([(0, 4), (7, 3), (7, 4), (0, 5)], fill=VIOLET)
+                only_on(d, image, [(1, 4), (2, 4), (3, 4), (4, 4)], shift(VIOLET, 60))  # Klinge-Licht oben
+                only_on(d, image, [(5, 5), (6, 5)], shift(VIOLET, -55))                 # Klingenschatten
                 rect(d, 0, 3 + frame, 2, 2, SHADOW)
+                pixel(d, 7, 3 + frame, shift(VIOLET, -80))                              # Fluchtlicht
             elif kind == "enemy_orb":
                 d.ellipse([1, 1, 6, 6], fill=BLOOD)
+                only_on(d, image, [(2, 2), (3, 2), (2, 3)], DARK_BLOOD)                 # Binnenschatten
+                only_on(d, image, [(5, 5), (6, 5), (5, 6)], shift(BLOOD, -40))
                 d.ellipse([2, 2, 4, 4], fill=EMBER if frame else GOLD)
+                pixel(d, 2, 2, FLAME if frame else WHITE)                               # Glutkern
             elif kind == "ember":
                 d.ellipse([1, 1, 6, 6], fill=EMBER)
+                only_on(d, image, [(2, 2), (3, 2), (2, 3)], FLAME)                      # Heisskern oben links
+                only_on(d, image, [(5, 5), (6, 4), (4, 6)], DARK_BLOOD)                 # veraschte Kante unten
                 rect(d, 3, 3, 2, 2, GOLD)
+                pixel(d, 3, 3, FLAME)                                                   # Glanzpunkt
             elif kind == "candle":
                 rect(d, 3, 4, 2, 4, BONE)
+                only_on(d, image, [(3, 4), (3, 5), (3, 6)], WHITE)                     # Wachs-Licht links
+                only_on(d, image, [(4, 7), (5, 7)], DARK_WOOD)                         # Docht-Ruß
                 d.polygon([(4, 0 + frame), (6, 3), (4, 4), (2, 3)], fill=EMBER if frame else GOLD)
+                pixel(d, 4, 1 + frame, FLAME)                                           # Flammenkern
             elif kind == "soul_spark":
                 d.ellipse([2, 2, 5, 5], fill=SOUL)
+                only_on(d, image, [(2, 2), (3, 2), (2, 3)], shift(SOUL, 50))            # Licht oben links
+                only_on(d, image, [(5, 4), (4, 5), (5, 5)], shift(SOUL, -45))           # Randabdunklung
                 pixel(d, 3 + frame, 1, WHITE)
             frames.append(image)
         build_sheet(8, 8, [frames]).save(textures / f"projectile_{kind}.png")
@@ -741,6 +769,20 @@ def small_sprites(textures):
         width = 4 - frame
         d.arc([2, 2, 30, 30], 200 + frame * 20, 340, fill=WHITE, width=width)
         d.arc([4, 4, 28, 28], 210 + frame * 20, 330, fill=GOLD, width=max(1, width - 1))
+        # G16: Binnenlicht entlang des inneren Bogens — maskiert, nur auf vorhandenen Bogenpixeln
+        # (ein freier Zusatzbogen würde die Silhouette verbreitern, siehe Messung).
+        for bbox, start, end, color in (
+            ([6, 6, 26, 26], 215 + frame * 20, 325, shift(GOLD, -40)),   # Ablösungs-Schimmer innen
+            ([3, 3, 29, 29], 205 + frame * 20, 335, shift(WHITE, 15)),    # Kernlicht oben
+        ):
+            scratch = Image.new("L", image.size, 0)                        # Bogensegment als Maske
+            ImageDraw.Draw(scratch).arc(bbox, start, end, fill=255, width=1)
+            data = image.load()
+            mask = scratch.load()
+            for y in range(image.height):
+                for x in range(image.width):
+                    if mask[x, y] and data[x, y][3] > 0:
+                        d.point((x, y), fill=color)
         slashes.append(image)
     build_sheet(32, 24, [slashes]).save(textures / "effect_slash.png")
 
@@ -752,19 +794,30 @@ def small_sprites(textures):
             d = ImageDraw.Draw(image)
             if kind == "soul":
                 d.ellipse([1, 1, 6, 6], fill=SOUL[:3] + (190,))
+                only_on(d, image, [(2, 2), (3, 2), (2, 3)], shift(SOUL, 55))            # Licht oben links
+                only_on(d, image, [(6, 5), (5, 6), (6, 6)], shift(SOUL, -45))           # Randabdunklung
                 d.ellipse([2, 2 + frame, 4, 4 + frame], fill=WHITE)
+                pixel(d, 2, 2 + frame, shift(WHITE, 20))
             elif kind == "heart":
                 rect(d, 1, 2, 2, 2, BLOOD)
                 rect(d, 5, 2, 2, 2, BLOOD)
                 d.polygon([(0, 3), (7, 3), (4, 7 - frame)], fill=BLOOD)
+                only_on(d, image, [(1, 2), (2, 2), (1, 3), (0, 3)], shift(BLOOD, 55))   # Licht oben links
+                only_on(d, image, [(6, 3), (7, 3), (6, 4)], DARK_BLOOD)                 # Schattenkante
+                only_on(d, image, [(4, 5), (3, 5), (5, 5)], shift(BLOOD, -35))          # Herzgrube
                 pixel(d, 2, 2, WHITE)
             elif kind == "mana":
                 d.polygon([(4, 0), (7, 4), (4, 7), (1, 4)], fill=MANA)
+                only_on(d, image, [(2, 3), (3, 2), (4, 1), (3, 3)], shift(MANA, 60))    # Licht oben links
+                only_on(d, image, [(6, 5), (5, 6), (6, 6)], shift(MANA, -55))          # Schatten unten rechts
                 pixel(d, 3 + frame, 3, WHITE)
             elif kind == "relic":
                 rect(d, 3, 1, 6, 4, GOLD)
                 rect(d, 5, 5, 2, 3, DARK_GOLD)
                 rect(d, 3, 8, 6, 2, GOLD)
+                only_on(d, image, [(3, 1), (4, 1), (5, 1), (3, 2), (3, 3)], shift(GOLD, 50))   # Licht oben links
+                only_on(d, image, [(8, 3), (8, 4), (7, 4)], DARK_GOLD)                          # Schattenkante
+                only_on(d, image, [(4, 8), (5, 8), (6, 8), (4, 9)], shift(GOLD, -35))          # unterer Schatten
                 rect(d, 4, 2, 4, 1, BLOOD)
                 if frame:
                     pixel(d, 8, 0, WHITE)
