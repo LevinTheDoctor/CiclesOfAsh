@@ -1,5 +1,6 @@
 """Tilesets (je Kreis mit zunehmendem Verfall), Hintergründe, Props, Items, Runen, Effekte, Logo."""
 import math
+import random
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -7,28 +8,98 @@ from .core import (ASH, BLACK, BLOOD, BONE, CLEAR, DARK_BLOOD, DARK_GOLD, DARK_S
                    FLAME, FONT_SOURCES, GOLD, LEATHER, MANA, OUTLINE, PALE, SHADOW, SOUL, STEEL, STONE, VIOLET, WHITE,
                    WOOD, build_sheet, dither_rect, new_image, pixel, polish, rect, rng, shift)
 
-# ------------------------------------------------------------------ Tilesets
+# ------------------------------------------------------------------ Tilesets und Hintergruende
 # Reihenfolge der Kacheln (muss zu TileMap.cs passen):
 # 0 Oberkante, 1 Mauer, 2 Plattform, 3 rissige Wand, 4 Hintergrund, 5 Hintergrund zerbrochen,
 # 6 Gittertor, 7 bröckelnde Plattform, 8 Wasser/Flüssigkeit, 9 Hintergrund-Nische
-# Tiefe-Progression: limbo = intakte Burg (ordentliche Ziegel, kaum Schäden),
-# greed = verfallende Ruine (Risse, Goldader, Brocken), wrath = rohe Höhle (organische Ränder, Glut).
+#
+# MATERIALS ist die EINZIGE Farbquelle eines Kreises: Kacheln UND Hintergrund. Vorher lag die
+# Hintergrundfarbe in zwei weiteren Inline-Dicts (in background() und top_color()), und die Kulisse
+# hing an einem "if name == limbo / elif greed / else" — ein vierter Kreis haette darum still die
+# Zorn-Kulisse bekommen. Jetzt ist ein neuer Kreis EIN Eintrag hier, mehr nicht.
+#
+# Schluessel: base/mortar/light/accent/back/back_mortar/hole/liquid/crack = Kacheln,
+# decay/wear = wie ramponiert, sky_top/sky_bottom/horizon/silhouette = Himmel,
+# scenery = eine der Kulissen (castle Burg, cave Hoehle, ember Glut — und die sechs
+#           Eigenkulissen der neuen Kreise: storm Sturmwirbel, swamp Sumpf,
+#           graveyard Grabfeld, arena Felsarena, ditches Malebolge-Gräben, ice Eisfeld).
+#
+# Reihenfolge = Abstiegsreihenfolge nach Dante. Jeder Kreis hat eine eigene Farbwelt, damit man die
+# Ebene am Bild erkennt: grau-blau, rot-violett, faulgruen, gold, rostrot, glutorange, blutbraun,
+# violett-giftgruen, eisblau.
 MATERIALS = {
     "limbo": dict(base=(118, 116, 134), mortar=(70, 68, 86), light=(168, 164, 186), accent=(100, 138, 92),
                   back=(56, 54, 72), back_mortar=(40, 38, 52), hole=(14, 12, 22), liquid=(60, 95, 125, 170),
-                  crack=(200, 190, 230), decay=0.1, wear=2),
+                  crack=(200, 190, 230), decay=0.1, wear=2,
+                  sky_top=(42, 30, 66), sky_bottom=(10, 8, 16), silhouette=(22, 16, 34),
+                  horizon=(48, 36, 74), scenery="castle"),
+    # Rose - Sturm der Wollust
+    "lust": dict(base=(178, 89, 116), mortar=(98, 41, 58), light=(253, 162, 189), accent=(255, 50, 112),
+                  back=(82, 41, 53), back_mortar=(57, 28, 37), hole=(35, 17, 23),
+                  liquid=(150, 60, 110, 175), crack=(255, 197, 214), decay=0.2, wear=3,
+                  sky_top=(92, 48, 61), sky_bottom=(21, 12, 15), silhouette=(46, 23, 30),
+                  horizon=(107, 61, 75), scenery="storm"),
+    # fauliges Olivgruen - Schlamm und Regen
+    "gluttony": dict(base=(164, 178, 146), mortar=(89, 98, 77), light=(239, 253, 220), accent=(222, 255, 181),
+                      back=(75, 82, 67), back_mortar=(52, 57, 46), hole=(32, 35, 29),
+                      liquid=(110, 140, 50, 180), crack=(245, 255, 234), decay=0.32, wear=5,
+                      sky_top=(85, 92, 76), sky_bottom=(20, 21, 18), silhouette=(42, 46, 38),
+                      horizon=(99, 107, 90), scenery="swamp"),
     "greed": dict(base=(138, 112, 76), mortar=(84, 66, 42), light=(186, 160, 104), accent=(214, 178, 82),
                   back=(66, 52, 38), back_mortar=(46, 36, 26), hole=(20, 14, 8), liquid=(170, 140, 60, 180),
-                  crack=(255, 220, 120), decay=0.5, wear=7),
+                  crack=(255, 220, 120), decay=0.5, wear=7,
+                  sky_top=(58, 40, 24), sky_bottom=(14, 9, 6), silhouette=(30, 20, 12),
+                  horizon=(64, 45, 28), scenery="cave"),
     "wrath": dict(base=(84, 42, 44), mortar=(40, 18, 22), light=(122, 66, 60), accent=(235, 104, 48),
                   back=(44, 22, 26), back_mortar=(28, 14, 18), hole=(140, 38, 16), liquid=(120, 18, 30, 200),
-                  crack=(255, 120, 48), decay=0.9, wear=13),
+                  crack=(255, 120, 48), decay=0.9, wear=13,
+                  sky_top=(80, 18, 14), sky_bottom=(12, 4, 6), silhouette=(30, 8, 10),
+                  horizon=(86, 22, 16), scenery="ember"),
+    # Glutorange - offene Graeber
+    "heresy": dict(base=(178, 157, 117), mortar=(98, 85, 59), light=(253, 232, 191), accent=(255, 207, 116),
+                    back=(82, 72, 54), back_mortar=(57, 50, 37), hole=(35, 31, 23),
+                    liquid=(200, 90, 30, 190), crack=(255, 241, 215), decay=0.92, wear=14,
+                    sky_top=(92, 82, 62), sky_bottom=(21, 19, 15), silhouette=(46, 41, 30),
+                    horizon=(107, 96, 76), scenery="graveyard"),
+    # totes Gruen - Wald der Selbstmoerder
+    "violence": dict(base=(58, 117, 64), mortar=(27, 64, 31), light=(106, 166, 112), accent=(35, 175, 49),
+                      back=(26, 53, 29), back_mortar=(18, 37, 20), hole=(11, 23, 12),
+                       liquid=(150, 26, 26, 200), crack=(163, 211, 168), decay=0.94, wear=15,
+                       sky_top=(32, 60, 34), sky_bottom=(8, 14, 9), silhouette=(15, 30, 16),
+                       horizon=(40, 70, 43), scenery="arena"),
+    # Violett - die Malebolge
+    "fraud": dict(base=(80, 58, 117), mortar=(41, 27, 64), light=(129, 106, 166), accent=(88, 35, 175),
+                   back=(37, 26, 53), back_mortar=(25, 18, 37), hole=(16, 11, 23),
+                    liquid=(80, 160, 90, 180), crack=(181, 163, 211), decay=0.95, wear=16,
+                    sky_top=(43, 32, 60), sky_bottom=(10, 8, 14), silhouette=(21, 15, 30),
+                    horizon=(51, 40, 70), scenery="ditches"),
+    # Eisblau - der zugefrorene Kokytos
+    "treachery": dict(base=(89, 167, 178), mortar=(41, 91, 98), light=(162, 242, 253), accent=(50, 230, 255),
+                       back=(41, 77, 82), back_mortar=(28, 53, 57), hole=(17, 33, 35),
+                        liquid=(120, 180, 220, 190), crack=(197, 248, 255), decay=0.96, wear=17,
+                        sky_top=(48, 87, 92), sky_bottom=(12, 20, 21), silhouette=(23, 43, 46),
+                        horizon=(61, 101, 107), scenery="ice"),
 }
 
+# Die drei Kreise, die es vor dem Umbau schon gab. Sie zeichnen weiter aus dem GEMEINSAMEN
+# Zufallsstrom (rng), die sechs neuen aus einem eigenen, aus dem Namen abgeleiteten Strom.
+# Grund ist die Hausregel des Projekts: Neue Blaetter duerfen den gemeinsamen Strom nicht
+# verschieben, sonst aendern sich Props, Items und Musik als Nebenwirkung mit. So bleibt der
+# vorhandene Stapel byte-genau, und jeder weitere Kreis ist von nun an folgenlos.
+ORIGINAL_CIRCLES = ("limbo", "greed", "wrath")
 
-def bricks(draw, ox, base, mortar, light=None, jitter=0):
+
+def circle_rng(name):
+    return rng if name in ORIGINAL_CIRCLES else random.Random(sum(ord(c) * (i + 7) for i, c in enumerate(name)))
+
+
+def bricks(draw, ox, base, mortar, light=None, jitter=0, rng=rng):
     """16-Bit: vier Tonwerte — Ziegel mit Lichtkante oben links neben der Fuge,
-    Fugenschatten unten, individuelles Steinkorn. Reihenversatz wie im klassischen Mauerwerk."""
+    Fugenschatten unten, individuelles Steinkorn. Reihenversatz wie im klassischen Mauerwerk.
+
+    `rng` ist der Zufallsstrom des Kreises (siehe circle_rng). Ohne diesen Parameter griffe die
+    Funktion auf den gemeinsamen Strom zu, und jeder neu hinzugefuegte Kreis wuerde alle danach
+    erzeugten Texturen mitverschieben."""
     base_l = shift(base + (255,), 26)[:3]                     # Ziegel-Licht
     base_d = shift(base + (255,), -26)[:3]                    # Ziegel-Schatten
     rect(draw, ox, 0, 16, 16, base)
@@ -57,7 +128,7 @@ def bricks(draw, ox, base, mortar, light=None, jitter=0):
             pixel(draw, ox + x, y, mortar)
 
 
-def cracks(draw, ox, color, amount):
+def cracks(draw, ox, color, amount, rng=rng):
     for _ in range(amount):
         x, y = rng.randrange(2, 14), rng.randrange(2, 8)
         for _step in range(rng.randrange(3, 7)):
@@ -67,24 +138,28 @@ def cracks(draw, ox, color, amount):
 
 
 def tileset(name):
+    # Eigener Zufallsstrom je neuem Kreis (siehe circle_rng): Die sechs hinzugekommenen Kreise
+    # duerfen den gemeinsamen Strom nicht verschieben, sonst wuerden Props, Items und Musik
+    # als blosse Nebenwirkung anders aussehen.
+    rng = circle_rng(name)
     m = MATERIALS[name]
     image = new_image(160, 16)
     draw = ImageDraw.Draw(image)
     damage = int(m["decay"] * 6)
     wear = m["wear"]
-    bricks(draw, 0, m["base"], m["mortar"], m["light"], jitter=wear)                     # 0 Oberkante
+    bricks(draw, 0, m["base"], m["mortar"], m["light"], jitter=wear, rng=rng)                     # 0 Oberkante
     for _ in range(2 + damage):
         pixel(draw, rng.randrange(16), rng.randrange(0, 3), m["accent"])                 # Moos / Goldader / Glut
-    bricks(draw, 16, shift(m["base"] + (255,), -20)[:3], m["mortar"], jitter=wear)      # 1 Mauer
-    cracks(draw, 16, m["mortar"], damage)
+    bricks(draw, 16, shift(m["base"] + (255,), -20)[:3], m["mortar"], jitter=wear, rng=rng)      # 1 Mauer
+    cracks(draw, 16, m["mortar"], damage, rng=rng)
     rect(draw, 32, 0, 16, 4, m["light"])                                                 # 2 Plattform
     rect(draw, 32, 4, 16, 1, m["mortar"])
     for x in (34, 45):
         rect(draw, x, 5, 2, 4, m["base"])
-    bricks(draw, 48, m["base"], m["mortar"])                                             # 3 rissige Wand
-    cracks(draw, 48, m["crack"], 3)
-    bricks(draw, 64, m["back"], m["back_mortar"])                                        # 4 Hintergrund
-    bricks(draw, 80, m["back"], m["back_mortar"])                                        # 5 zerbrochen
+    bricks(draw, 48, m["base"], m["mortar"], rng=rng)                                             # 3 rissige Wand
+    cracks(draw, 48, m["crack"], 3, rng=rng)
+    bricks(draw, 64, m["back"], m["back_mortar"], rng=rng)                                        # 4 Hintergrund
+    bricks(draw, 80, m["back"], m["back_mortar"], rng=rng)                                        # 5 zerbrochen
     draw.polygon([(84, 3), (92, 2), (94, 9), (90, 14), (83, 12), (82, 7)], fill=m["hole"])
     if name == "wrath":
         draw.polygon([(86, 6), (90, 5), (91, 10), (87, 11)], fill=(255, 120, 40))
@@ -106,7 +181,7 @@ def tileset(name):
     rect(draw, 128, 0, 16, 2, tuple(min(255, c + 60) for c in liquid[:3]) + (220,))
     for x in range(130, 144, 5):
         pixel(draw, x, 6, tuple(min(255, c + 40) for c in liquid[:3]) + (200,))
-    bricks(draw, 144, m["back"], m["back_mortar"])                                       # 9 Nische
+    bricks(draw, 144, m["back"], m["back_mortar"], rng=rng)                                       # 9 Nische
     draw.rectangle([149, 4, 154, 15], fill=m["hole"])
     draw.pieslice([149, 1, 154, 7], 180, 360, fill=m["hole"])
     if name == "wrath":
@@ -124,19 +199,290 @@ def tileset(name):
 
 
 # ------------------------------------------------------------------ Hintergründe
+def scenery_castle(draw, name, rng, width, height, silhouette, sil_light, sil_dark):
+    """Intakte Festung: Sterne, Mond, Tuerme mit Zinnen und Fenstern."""
+    for _ in range(90):
+        pixel(draw, rng.randrange(width), rng.randrange(170), (200, 190, 220, rng.randrange(90, 255)))
+    draw.ellipse([352, 30, 408, 86], fill=(225, 215, 200, 255))
+    draw.ellipse([360, 40, 372, 52], fill=(200, 190, 175, 255))
+    # Burg: Türme mit Zinnen und Fenstern (intakte Festung des Limbus)
+    rect(draw, 0, 215, width, 55, silhouette)
+    rect(draw, 0, 215, width, 2, sil_light)                       # Mauer-Lichtkante
+    for x, spire_height in [(40, 110), (120, 80), (180, 130), (300, 95), (430, 120)]:
+        tower_w = 34
+        top = 215 - spire_height
+        rect(draw, x - tower_w // 2, top, tower_w, spire_height, silhouette)
+        rect(draw, x - tower_w // 2, top, tower_w, 1, sil_light)   # Turm-Lichtkante
+        rect(draw, x - tower_w // 2, top, 2, spire_height, sil_light)   # linke Lichtseite
+        for z in range(x - tower_w // 2, x + tower_w // 2, 8):            # Zinnenkranz
+            rect(draw, z, top - 6, 5, 6, silhouette)
+            rect(draw, z, top - 6, 5, 1, sil_light)
+        rect(draw, x - 4, top + 18, 8, 14, (28, 20, 40, 255))             # Fenster
+        rect(draw, x - 5, top + 17, 10, 1, sil_dark)                       # Fensterrahmen oben
+        rect(draw, x - 3, top + 48, 6, 10, (28, 20, 40, 255))
+        rect(draw, x - 4, top + 47, 8, 1, sil_dark)
+        if spire_height > 100:                                            # Turmspitze
+            draw.polygon([(x - tower_w // 2 - 4, top), (x, top - 26), (x + tower_w // 2 + 4, top)], fill=silhouette)
+            draw.line([(x - tower_w // 2 - 4, top), (x, top - 26)], fill=sil_light)   # Dach-Licht
+        for by in range(top + 8, 215, 12):                                # Ziegel-Reihen andeuten
+            if rng.random() < 0.5:
+                rect(draw, x - tower_w // 2 + rng.randrange(3, 28), by, 4, 1, sil_dark)
+
+
+def scenery_cave(draw, name, rng, width, height, silhouette, sil_light, sil_dark):
+    """Hoehle: Stalaktitendecke, Glitzern in der Wand, halb eingestuerzte Mauern."""
+    for x in range(0, width, 40):                                        # Höhlendecke mit Stalaktiten
+        draw.polygon([(x, 0), (x + 40, 0), (x + 20 + rng.randrange(-6, 6), 30 + rng.randrange(40))], fill=silhouette)
+        draw.line([(x + 2, 0), (x + 16, 28)], fill=sil_light)           # Decken-Lichtkante
+    for _ in range(40):
+        pixel(draw, rng.randrange(width), rng.randrange(60, 200), (240, 200, 90, rng.randrange(60, 200)))  # Goldglitzern
+        if rng.random() < 0.4:
+            px2 = rng.randrange(width), rng.randrange(60, 200)
+            pixel(draw, px2[0], px2[1], (255, 230, 140, rng.randrange(120, 255)))   # heller Glanzkern
+    # Ruinen: halb eingestürzte Mauern mit Lücken
+    rect(draw, 0, 215, width, 55, silhouette)
+    rect(draw, 0, 215, width, 2, sil_light)
+    for x, spire_height in [(60, 60), (200, 100), (260, 70), (390, 110)]:
+        top = 215 - spire_height
+        rect(draw, x - 10, top, 20, spire_height, silhouette)
+        rect(draw, x - 10, top, 20, 1, sil_light)
+        rect(draw, x - 10, top, 2, spire_height, sil_light)
+        draw.polygon([(x - 12, top + 6), (x, top), (x + 12, top + 8)], fill=silhouette)
+        draw.line([(x - 12, top + 6), (x, top)], fill=sil_light)
+        for gap in range(top + 14, 215, 22):                              # herausgebrochene Lücken
+            draw.polygon([(x - 10, gap), (x + 10, gap + 8), (x - 10, gap + 14)], fill=top_color(name, gap))
+
+
+def scenery_ember(draw, name, rng, width, height, silhouette, sil_light, sil_dark):
+    """Glut: Funken, gluehender Schlund, Stalaktiten oben und Stalagmiten unten."""
+    for _ in range(70):
+        pixel(draw, rng.randrange(width), rng.randrange(height), (255, 120, 60, rng.randrange(60, 220)))  # Glut
+        if rng.random() < 0.3:
+            pixel(draw, rng.randrange(width), rng.randrange(height), (255, 200, 90, rng.randrange(80, 255)))  # Glut-Kerne
+    draw.ellipse([190, 150, 290, 250], fill=(160, 40, 20, 90))           # glühender Schlund
+    draw.ellipse([210, 170, 270, 230], fill=(200, 70, 30, 70))          # Schlund-Kern
+    # Höhle: Stalaktiten oben, unregelmäßige Stalagmiten unten
+    for x in range(0, width, 30):
+        draw.polygon([(x, 0), (x + 30, 0), (x + 15 + rng.randrange(-8, 8), 40 + rng.randrange(50))], fill=silhouette)
+        draw.line([(x + 2, 0), (x + 12, 34)], fill=sil_light)
+    rect(draw, 0, 215, width, 55, silhouette)
+    rect(draw, 0, 215, width, 2, sil_light)
+    for x in range(-20, width, 44):
+        spike_h = 30 + rng.randrange(70)
+        draw.polygon([(x, 270), (x + 22, 270), (x + 11 + rng.randrange(-6, 6), 270 - spike_h)], fill=silhouette)
+        draw.line([(x + 2, 270), (x + 9 + rng.randrange(-4, 4), 270 - spike_h + 4)], fill=sil_light)   # Stalagmiten-Licht
+
+
+# ------------------------------------------------------------------ Eigenkulissen der neuen Kreise
+# gleiche Signatur wie scenery_castle/cave/ember. Die Farben kommen weiterhin aus MATERIALS
+# (silhouette, sil_light, sil_dark, top_color) — nur die Formen sind je Kreis eigenständig.
+def scenery_storm(draw, name, rng, width, height, silhouette, sil_light, sil_dark):
+    """Wollust: ein Wirbel aus Wolkenbanden, der sich nie dreht — aber überall rot."""
+    # Konzentrische Wolkenringe, unten dichter als oben, jeder mit Lichtkante oben links.
+    for i in range(6):
+        y = 30 + i * 34
+        radius = 60 + i * 62
+        draw.arc([240 - radius, y - 40, 240 + radius, y + 40], 200, 340, fill=silhouette, width=6)
+        draw.line([(240 - radius + 14, y - 34), (240 - radius + 70, y - 38)], fill=sil_light)
+    # Herabgezogene Leiber im Wind: lange Streifen, die diagonal über den Himmel hängen.
+    for _ in range(14):
+        x = rng.randrange(20, width - 40)
+        y = rng.randrange(10, 120)
+        length = 18 + rng.randrange(30)
+        draw.line([(x, y), (x + 8, y + length)], fill=silhouette, width=2)
+        draw.line([(x, y), (x + 3, y + length // 2)], fill=sil_light, width=1)
+    # Boden: geschwungenes Wolkenmeer, die Wellenkämme mit Licht, das Tal dunkler.
+    rect(draw, 0, 215, width, 55, silhouette)
+    rect(draw, 0, 215, width, 2, sil_light)
+    for x in range(0, width, 24):
+        top = 215 - rng.randrange(14)
+        draw.polygon([(x, 270), (x + 24, 270), (x + 12 + rng.randrange(-4, 4), top)], fill=silhouette)
+        draw.line([(x + 3, 269), (x + 9, top + 2)], fill=sil_light)
+    for _ in range(40):                                          # aufgewirbelte Rosenblätter
+        pixel(draw, rng.randrange(width), rng.randrange(height), (255, 150, 180, rng.randrange(60, 220)))
+        if rng.random() < 0.3:
+            pixel(draw, rng.randrange(width), rng.randrange(height), (255, 210, 220, rng.randrange(100, 255)))
+
+
+def scenery_swamp(draw, name, rng, width, height, silhouette, sil_light, sil_dark):
+    """Völlerei: fauliger Sumpf — Schilfgürtel am Horizont, Blasen auf dem Wasser."""
+    # Hängende Ranken von oben (der Himmel träufelt).
+    for x in range(0, width, 26):
+        length = rng.randrange(18, 70)
+        draw.line([(x + rng.randrange(-6, 6), 0), (x + rng.randrange(-8, 8), length)], fill=silhouette, width=2)
+        draw.line([(x, 0), (x, length // 2)], fill=sil_light, width=1)
+    # Schilf-Inseln: unregelmäßige Hügel mit Halmen, die im Wind stehen.
+    for cx, h in ((50, 28), (150, 42), (260, 24), (360, 38), (440, 30)):
+        draw.ellipse([cx - 34, 215 - h * 2, cx + 34, 215 + h], fill=silhouette)
+        draw.line([(cx - 28, 215 - h), (cx + 10, 215 - h - 8)], fill=sil_light)
+        for _ in range(8):                                       # Halme
+            rx = cx + rng.randrange(-24, 24)
+            top = 215 - h - rng.randrange(10, 26)
+            draw.line([(rx, 215 - h), (rx + rng.randrange(-3, 3), top)], fill=sil_light if rng.random() < 0.4 else silhouette)
+    rect(draw, 0, 215, width, 55, silhouette)
+    rect(draw, 0, 215, width, 2, sil_light)
+    # Faulgase: langsam aufsteigende Punkte, heller Kern oben.
+    for _ in range(28):
+        x, y = rng.randrange(width), rng.randrange(60, 210)
+        pixel(draw, x, y, (200, 255, 150, rng.randrange(30, 90)))
+        if rng.random() < 0.4:
+            pixel(draw, x, y - 2, (240, 255, 220, rng.randrange(60, 160)))
+    # Blasen auf dem Sumpf: Ringe, die kurz vor dem Platzen sind.
+    for _ in range(10):
+        x, y = rng.randrange(width), rng.randrange(225, 260)
+        r = rng.randrange(2, 5)
+        draw.ellipse([x - r, y - r, x + r, y + r], outline=sil_light)
+
+
+def scenery_graveyard(draw, name, rng, width, height, silhouette, sil_light, sil_dark):
+    """Ketzerei: Feld offener Gräber — Grabsteine in Reihen, Säulensplitter, Glut aus der Erde."""
+    # Aufgeschüttete Grabhügel in zwei Tiefenebenen.
+    for x, hy in ((30, 218), (110, 226), (200, 218), (290, 226), (380, 218), (450, 226)):
+        draw.polygon([(x - 26, 270), (x + 26, 270), (x, hy)], fill=silhouette)
+        draw.line([(x - 18, 269), (x, hy + 2)], fill=sil_light)
+    rect(draw, 0, 244, width, 26, silhouette)
+    rect(draw, 0, 244, width, 1, sil_light)
+    # Grabsteine: Kreuz, Rundbogen, Schiefstein — jeweils mit Stirnlicht.
+    for gx, gy, kind in ((45, 240, "cross"), (125, 248, "round"), (215, 240, "slab"),
+                         (305, 248, "cross"), (395, 240, "round"), (460, 248, "slab")):
+        if kind == "cross":
+            rect(draw, gx - 3, gy - 22, 6, 22, silhouette)
+            rect(draw, gx - 8, gy - 16, 16, 5, silhouette)
+            rect(draw, gx - 3, gy - 22, 2, 22, sil_light)
+            rect(draw, gx - 8, gy - 16, 3, 3, sil_light)
+        elif kind == "round":
+            draw.pieslice([gx - 9, gy - 26, gx + 9, gy - 8], 180, 360, fill=silhouette)
+            rect(draw, gx - 9, gy - 17, 18, 17, silhouette)
+            draw.arc([gx - 9, gy - 26, gx + 9, gy - 8], 180, 360, fill=sil_light)
+            rect(draw, gx - 9, gy - 17, 2, 17, sil_light)
+            rect(draw, gx - 6, gy - 20, 8, 2, sil_dark)        # eingravierte Schrift
+            rect(draw, gx - 5, gy - 15, 6, 1, sil_dark)
+        else:
+            draw.polygon([(gx - 7, gy), (gx + 7, gy), (gx + 5, gy - 24), (gx - 6, gy - 20)], fill=silhouette)
+            draw.line([(gx - 5, gy - 1), (gx + 3, gy - 21)], fill=sil_light)
+    # Glut, die aus den offenen Gräbern sickert.
+    for x in (78, 168, 258, 348, 430):
+        draw.ellipse([x - 6, 252, x + 6, 266], fill=(255, 120, 40, 70))
+        draw.ellipse([x - 2, 256, x + 2, 262], fill=(255, 200, 90, 110))
+        pixel(draw, x, 259, (255, 240, 180, 200))
+    # Abgebrochene Säulen zwischen den Gräbern.
+    for cx, top in ((85, 190), (275, 198), (365, 186)):
+        rect(draw, cx - 5, top, 10, 244 - top, silhouette)
+        rect(draw, cx - 5, top, 3, 244 - top, sil_light)
+        rect(draw, cx - 7, top, 14, 4, silhouette)              # Kapitell
+        rect(draw, cx - 7, top, 14, 1, sil_light)
+        rect(draw, cx - 3, top + 8, 3, 2, sil_dark)            # Bruchstelle
+
+
+def scenery_arena(draw, name, rng, width, height, silhouette, sil_light, sil_dark):
+    """Gewalt: die blutige Furt — ein Fluss, der die Arena teilt, Felssporne an den Ufern."""
+    # Der Fluss: gewundenes Band quer durchs Bild, Ufer mit Lichtkante.
+    draw.polygon([(0, 238), (90, 228), (240, 242), (360, 230), (480, 240),
+                  (480, 270), (0, 270)], fill=top_color(name, 250))
+    draw.line([(2, 238), (90, 228), (240, 242), (360, 230), (478, 240)], fill=sil_light, width=2)
+    # Strömungslinien im Wasser.
+    for _ in range(16):
+        x, y = rng.randrange(10, width - 30), rng.randrange(246, 264)
+        draw.line([(x, y), (x + rng.randrange(8, 22), y)], fill=sil_light)
+    # Felssporne, die in den Fluss ragen — gezackte Silhouetten mit Stirnlicht.
+    for cx, spike_count, up in ((40, 3, True), (150, 2, True), (330, 4, True), (445, 3, True)):
+        for i in range(spike_count):
+            sx = cx + i * 14 - 8
+            spike_h = 26 + rng.randrange(30)
+            draw.polygon([(sx, 270), (sx + 16, 270), (sx + 8 + rng.randrange(-4, 4), 270 - spike_h)], fill=silhouette)
+            draw.line([(sx + 2, 269), (sx + 7, 270 - spike_h + 2)], fill=sil_light)
+    rect(draw, 0, 240, width, 30, silhouette)
+    rect(draw, 0, 240, width, 1, sil_light)
+    # Blut, das der Fluss mitführt: dunkle Wolken im Wasser, ein Streifen am Ufer.
+    for x in range(0, width, 32):
+        bx = x + rng.randrange(-8, 8)
+        draw.ellipse([bx, 252 + rng.randrange(8), bx + 24, 266], fill=(150, 26, 26, 140))
+        if rng.random() < 0.5:
+            pixel(draw, bx + rng.randrange(24), 254 + rng.randrange(10), (200, 60, 50, 180))
+    # Dürre Bäume am oberen Horizont.
+    for tx, ty in ((70, 210), (420, 214)):
+        draw.line([(tx, ty), (tx, ty - 26)], fill=silhouette, width=2)
+        for dy in range(6, 26, 6):
+            dx = 6 if (dy // 6) % 2 else -6
+            draw.line([(tx, ty - dy), (tx + dx, ty - dy - rng.randrange(4, 10))], fill=silhouette, width=1)
+        pixel(draw, tx - 1, ty - 26, sil_light)
+
+
+def scenery_ditches(draw, name, rng, width, height, silhouette, sil_light, sil_dark):
+    """Betrug: die Malebolge — zehn Gräben, als gestaffelte Terrassen abfallend."""
+    # Terrassen: von hinten nach vorne abfallende Stufen, jede mit Kante und Licht.
+    depths = [205, 217, 229, 241, 255]
+    for i, y in enumerate(depths):
+        rect(draw, 0, y, width, 270 - y, silhouette)
+        rect(draw, 0, y, width, 2, sil_light if i % 2 == 0 else sil_dark)
+    # Brücken über die Gräben: schmale Stege, schräg gestaffelt.
+    for bx, span in ((60, 90), (230, 70), (370, 95)):
+        top_y = depths[1] + 6
+        draw.polygon([(bx, top_y), (bx + span, top_y + 10), (bx + span, top_y + 14), (bx, top_y + 4)], fill=silhouette)
+        draw.line([(bx + 1, top_y), (bx + span, top_y + 10)], fill=sil_light, width=1)
+        draw.line([(bx + 1, top_y + 4), (bx + span, top_y + 14)], fill=sil_dark, width=1)
+        for px in range(10, span, 22):                           # Steg-Balken
+            rect(draw, bx + px, top_y + 4 + px * 10 // span, 2, 8, sil_dark)
+    # In den Gräben: gestreckte Schattengestalten, die übereinander liegen.
+    for gy in (222, 234, 248, 262):
+        for _ in range(7):
+            x = rng.randrange(width - 24)
+            length = 14 + rng.randrange(10)
+            draw.line([(x, gy), (x + length, gy + rng.randrange(-2, 3))], fill=sil_dark, width=2)
+            pixel(draw, x + length, gy, silhouette)              # Kopf
+    # Stegpfähle oben, mit Licht von links.
+    for px in (95, 250, 400):
+        rect(draw, px, depths[1] - 22, 3, 26, silhouette)
+        rect(draw, px, depths[1] - 22, 1, 26, sil_light)
+
+
+def scenery_ice(draw, name, rng, width, height, silhouette, sil_light, sil_dark):
+    """Verrat: das Eisfeld des Kokytos — Schollen, Eiszacken, Tische, in die Toren eingefroren sind."""
+    # Eisfeld: gezackte Plattformen, die hintereinander staffeln.
+    for cx, top in ((40, 216), (130, 208), (240, 220), (340, 206), (440, 214)):
+        draw.polygon([(cx - 46, 270), (cx + 46, 270), (cx + 34, top), (cx - 30, top + 6)], fill=silhouette)
+        draw.line([(cx - 28, top + 6), (cx + 32, top)], fill=sil_light, width=2)
+        for _ in range(5):                                       # Risse im Eis
+            x = cx + rng.randrange(-30, 30)
+            y = top + rng.randrange(6, 40)
+            draw.line([(x, y), (x + rng.randrange(6, 18), y + rng.randrange(-3, 5))], fill=sil_dark)
+            pixel(draw, x, y, sil_light)
+    # Eiszacken: spitze Säulen, die aus dem Feld ragen (Kokytos ist zugefroren, aber scharf).
+    for cx, spike_h in ((70, 52), (180, 38), (290, 60), (420, 44)):
+        draw.polygon([(cx - 10, 270), (cx + 10, 270), (cx + rng.randrange(-3, 3), 270 - spike_h)], fill=silhouette)
+        draw.line([(cx - 8, 269), (cx - 1, 270 - spike_h + 1)], fill=sil_light, width=1)
+        pixel(draw, cx + 2, 270 - spike_h + 3, sil_light)
+    # Die Toren im Eis: nur Kopf und Schultern ragen aus den Schollen — kleine Bögen.
+    for tx, ty in ((110, 232), (215, 246), (330, 238), (440, 252)):
+        draw.arc([tx - 5, ty - 14, tx + 5, ty + 2], 180, 360, fill=sil_dark, width=2)
+        draw.arc([tx - 5, ty - 14, tx + 5, ty + 2], 180, 340, fill=sil_light)
+        rect(draw, tx - 5, ty + 1, 10, 2, sil_dark)
+    # Frostpartikel in der Luft, mit hellen Kernen.
+    for _ in range(50):
+        x, y = rng.randrange(width), rng.randrange(height)
+        pixel(draw, x, y, (200, 235, 245, rng.randrange(40, 120)))
+        if rng.random() < 0.4:
+            pixel(draw, x, y - 1, (240, 250, 255, rng.randrange(100, 220)))
+
+
+SCENERY = {"castle": scenery_castle, "cave": scenery_cave, "ember": scenery_ember,
+           "storm": scenery_storm, "swamp": scenery_swamp, "graveyard": scenery_graveyard,
+           "arena": scenery_arena, "ditches": scenery_ditches, "ice": scenery_ice}
+
+
 def background(name):
-    """16-Bit-Anhebung (G14): Silhouetten bekommen eine Lichtkante oben links und
-    Binnenstruktur (Zinnen-Schatten, Fensterrahmen, Ziegel-Reihen), Himmel bekommt
-    eine zweite Farbzone am Horizont. Grundgerüst bleibt identisch."""
+    """
+    Parallax-Hintergrund eines Kreises. Die Farbe kommt aus MATERIALS, die Kulisse aus dessen
+    Schluessel `scenery`.
+
+    16-Bit-Anhebung (G14): Silhouetten mit Lichtkante oben links und Binnenstruktur (Zinnen-
+    Schatten, Fensterrahmen, Ziegelreihen), Himmel mit zweiter Farbzone am Horizont.
+    """
     width, height = 480, 270
     image = new_image(width, height)
     draw = ImageDraw.Draw(image)
-    top, bottom, silhouette = {
-        "limbo": ((42, 30, 66), (10, 8, 16), (22, 16, 34)),
-        "greed": ((58, 40, 24), (14, 9, 6), (30, 20, 12)),
-        "wrath": ((80, 18, 14), (12, 4, 6), (30, 8, 10)),
-    }[name]
-    horizon = (48, 36, 74) if name == "limbo" else ((64, 45, 28) if name == "greed" else (86, 22, 16))
+    m = MATERIALS[name]
+    top, bottom, silhouette, horizon = m["sky_top"], m["sky_bottom"], m["silhouette"], m["horizon"]
     for y in range(height):
         t = y / height
         if y > 200:                                  # dunklere Zone direkt über dem Horizont
@@ -148,81 +494,14 @@ def background(name):
         draw.line([(0, y), (width, y)], fill=col + (255,))
     sil_light = tuple(min(255, c + 18) for c in silhouette[:3]) + (255,)   # Silhouetten-Licht oben links
     sil_dark = tuple(max(0, c - 10) for c in silhouette[:3]) + (255,)
-    if name == "limbo":
-        for _ in range(90):
-            pixel(draw, rng.randrange(width), rng.randrange(170), (200, 190, 220, rng.randrange(90, 255)))
-        draw.ellipse([352, 30, 408, 86], fill=(225, 215, 200, 255))
-        draw.ellipse([360, 40, 372, 52], fill=(200, 190, 175, 255))
-        # Burg: Türme mit Zinnen und Fenstern (intakte Festung des Limbus)
-        rect(draw, 0, 215, width, 55, silhouette)
-        rect(draw, 0, 215, width, 2, sil_light)                       # Mauer-Lichtkante
-        for x, spire_height in [(40, 110), (120, 80), (180, 130), (300, 95), (430, 120)]:
-            tower_w = 34
-            top = 215 - spire_height
-            rect(draw, x - tower_w // 2, top, tower_w, spire_height, silhouette)
-            rect(draw, x - tower_w // 2, top, tower_w, 1, sil_light)   # Turm-Lichtkante
-            rect(draw, x - tower_w // 2, top, 2, spire_height, sil_light)   # linke Lichtseite
-            for z in range(x - tower_w // 2, x + tower_w // 2, 8):            # Zinnenkranz
-                rect(draw, z, top - 6, 5, 6, silhouette)
-                rect(draw, z, top - 6, 5, 1, sil_light)
-            rect(draw, x - 4, top + 18, 8, 14, (28, 20, 40, 255))             # Fenster
-            rect(draw, x - 5, top + 17, 10, 1, sil_dark)                       # Fensterrahmen oben
-            rect(draw, x - 3, top + 48, 6, 10, (28, 20, 40, 255))
-            rect(draw, x - 4, top + 47, 8, 1, sil_dark)
-            if spire_height > 100:                                            # Turmspitze
-                draw.polygon([(x - tower_w // 2 - 4, top), (x, top - 26), (x + tower_w // 2 + 4, top)], fill=silhouette)
-                draw.line([(x - tower_w // 2 - 4, top), (x, top - 26)], fill=sil_light)   # Dach-Licht
-            for by in range(top + 8, 215, 12):                                # Ziegel-Reihen andeuten
-                if rng.random() < 0.5:
-                    rect(draw, x - tower_w // 2 + rng.randrange(3, 28), by, 4, 1, sil_dark)
-    elif name == "greed":
-        for x in range(0, width, 40):                                        # Höhlendecke mit Stalaktiten
-            draw.polygon([(x, 0), (x + 40, 0), (x + 20 + rng.randrange(-6, 6), 30 + rng.randrange(40))], fill=silhouette)
-            draw.line([(x + 2, 0), (x + 16, 28)], fill=sil_light)           # Decken-Lichtkante
-        for _ in range(40):
-            pixel(draw, rng.randrange(width), rng.randrange(60, 200), (240, 200, 90, rng.randrange(60, 200)))  # Goldglitzern
-            if rng.random() < 0.4:
-                px2 = rng.randrange(width), rng.randrange(60, 200)
-                pixel(draw, px2[0], px2[1], (255, 230, 140, rng.randrange(120, 255)))   # heller Glanzkern
-        # Ruinen: halb eingestürzte Mauern mit Lücken
-        rect(draw, 0, 215, width, 55, silhouette)
-        rect(draw, 0, 215, width, 2, sil_light)
-        for x, spire_height in [(60, 60), (200, 100), (260, 70), (390, 110)]:
-            top = 215 - spire_height
-            rect(draw, x - 10, top, 20, spire_height, silhouette)
-            rect(draw, x - 10, top, 20, 1, sil_light)
-            rect(draw, x - 10, top, 2, spire_height, sil_light)
-            draw.polygon([(x - 12, top + 6), (x, top), (x + 12, top + 8)], fill=silhouette)
-            draw.line([(x - 12, top + 6), (x, top)], fill=sil_light)
-            for gap in range(top + 14, 215, 22):                              # herausgebrochene Lücken
-                draw.polygon([(x - 10, gap), (x + 10, gap + 8), (x - 10, gap + 14)], fill=top_color(name, gap))
-    else:
-        for _ in range(70):
-            pixel(draw, rng.randrange(width), rng.randrange(height), (255, 120, 60, rng.randrange(60, 220)))  # Glut
-            if rng.random() < 0.3:
-                pixel(draw, rng.randrange(width), rng.randrange(height), (255, 200, 90, rng.randrange(80, 255)))  # Glut-Kerne
-        draw.ellipse([190, 150, 290, 250], fill=(160, 40, 20, 90))           # glühender Schlund
-        draw.ellipse([210, 170, 270, 230], fill=(200, 70, 30, 70))          # Schlund-Kern
-        # Höhle: Stalaktiten oben, unregelmäßige Stalagmiten unten
-        for x in range(0, width, 30):
-            draw.polygon([(x, 0), (x + 30, 0), (x + 15 + rng.randrange(-8, 8), 40 + rng.randrange(50))], fill=silhouette)
-            draw.line([(x + 2, 0), (x + 12, 34)], fill=sil_light)
-        rect(draw, 0, 215, width, 55, silhouette)
-        rect(draw, 0, 215, width, 2, sil_light)
-        for x in range(-20, width, 44):
-            spike_h = 30 + rng.randrange(70)
-            draw.polygon([(x, 270), (x + 22, 270), (x + 11 + rng.randrange(-6, 6), 270 - spike_h)], fill=silhouette)
-            draw.line([(x + 2, 270), (x + 9 + rng.randrange(-4, 4), 270 - spike_h + 4)], fill=sil_light)   # Stalagmiten-Licht
+    SCENERY[m["scenery"]](draw, name, circle_rng(name), width, height, silhouette, sil_light, sil_dark)
     return image
 
 
 def top_color(name, y):
     """Hintergrundfarbe an Höhe y (für "Löcher" in Ruinen-Silhouetten, damit sie durchsichtig wirken)."""
-    top, bottom = {
-        "limbo": ((42, 30, 66), (10, 8, 16)),
-        "greed": ((58, 40, 24), (14, 9, 6)),
-        "wrath": ((80, 18, 14), (12, 4, 6)),
-    }[name]
+    m = MATERIALS[name]
+    top, bottom = m["sky_top"], m["sky_bottom"]
     t = min(1.0, y / 270)
     return tuple(int(top[i] * (1 - t) + bottom[i] * t) for i in range(3)) + (255,)
 
