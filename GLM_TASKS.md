@@ -741,3 +741,190 @@ wäre ein Taktakzent (nutze ich nicht, aber der Hook steht). Bestehende Stücke 
 
 **Abnahme:** Spiel läuft (Titel + Boss-Loop gestartet), **0 WARN-Zeilen** im `game.log`,
 `dotnet build` 0/0. Bitte die `music`-Zeilen in `arenas.json` nachziehen (deine Datei).
+
+---
+
+# Wichtig: Figuren-Ebenen sind umgebaut — bitte nicht zurückdrehen
+
+Der Nutzer wollte den Rüstungs-Umbau in einem Zug, deshalb habe ich `characters.py` diesmal
+**selbst** geändert — ausnahmsweise in deinem Dateibereich. Damit du es nicht versehentlich
+zurückbaust, hier der neue Vertrag. Alles andere in `tools/assetgen/` ist unberührt.
+
+## Was sich geändert hat
+
+| vorher | jetzt |
+|---|---|
+| `outfit_<klasse>` (Hose, Gürtel, Kapuze **und** Waffe in einer Ebene) | **entfällt.** Stoff wandert in die Kleidung, die Waffe in `gear_<klasse>` |
+| `accent_<klasse>` = Umhang, Stola, Schal, Wappenrock | nur noch das **nicht-textile** Klassenzeichen: Schulterplatte, Stabring, Maske, Heiligenschein |
+| `armor_<art>` + `_worn` (zwei Stufen, nur Rumpf) | `garment_<item>` + `_worn` + `_broken` (**drei** Stufen, Rumpf **und** Beine), acht Stücke |
+| — | `under_<muster>` (sechs), `gear_<klasse>` (vier) |
+
+Zeichenreihenfolge im Spiel: `wings → body → under → makeup → hair → garment → gear → accent`.
+
+## Drei Regeln, die dabei herausgekommen sind
+
+1. **Der Hand-Anker.** `hand_anchor(p)` liefert die eine Zelle, an der die vordere Faust sitzt
+   (x 19–20, y 21–22, mit `bob` und Armschwung). Waffe, Faust, Ärmel und der **Unterarm aller
+   sechs Körper** hängen daran. Vorher endete der Arm je Typ woanders (`average` x 17–18/y 22,
+   `heavy` x 21/y 23, `athletic` x 21/y 21) und die Klinge stand fest bei x 21 daneben in der Luft —
+   deshalb sah es nie so aus, als hielte die Figur etwas. Wenn du Körper oder Waffen anfasst:
+   **immer über den Anker**, nie über feste Zahlen.
+2. **Schaden kommt NACH `polish()`.** Die Kontur-Schleife dort färbt jedes durchsichtige Pixel ein,
+   das an ein gedecktes grenzt — sie malt also jedes Loch bis 2 px Breite wieder zu. Genau daran ist
+   die alte `.worn`-Fassung gescheitert: gemessen war sie fast deckungsgleich mit dem heilen Bild.
+   Das ist dieselbe 4-px-Regel wie bei den Körper-Silhouetten, nur von der anderen Seite.
+3. **Ärmel enden an der Ellenbeuge**, nicht an der Hand. Ein Ärmel bis zur Faust schließt die Lücke
+   zwischen Rumpf und Arm (wieder die Kontur) und macht jede Figur zur Tonne.
+
+## Abnahme, die ich gefahren habe
+
+Gegen die fertigen PNGs, nicht gegen den Code: Faust und vorderer Arm überschneiden sich in allen
+14 Frames bei allen sechs Körpern; die Deckung fällt je Stück streng (heil → angeschlagen →
+zerfetzt, am Ende −31 bis −40 %); Kopf (y 3–11) und Fußlinie (y 31) sind pixelgleich zu vorher;
+das G15-Kriterium hält (8 von 14 Rumpfzeilen bei `m`, 9 bei `f`). `dotnet build` 0/0, Spiel startet
+mit **0 WARN**-Zeilen.
+
+## Was für dich offen bleibt (kein Auftrag, nur die ehrliche Liste)
+
+Ich bin Programmierer, nicht Zeichner — die Stücke sind **lesbar**, aber noch nicht auf dem Niveau,
+das du bei G13/G14 erreicht hast. Wenn der Nutzer einen künstlerischen Durchgang will, wäre das hier
+die Reihenfolge: die vier Startkleidungen (`crusader_garb`, `soot_robe`, `confessor_rags`,
+`feather_shift`) haben je nur ein Binnenmuster (`garment_weave`: `quilt`/`folds`/`patch`/`weave`);
+die sechs Unterwäsche-Muster sind bewusst schlicht; und `gear_angel` ist waffenlos und trägt nur ein
+Band. Maße, Ebenennamen und die drei Regeln oben bleiben dabei bitte, wie sie sind.
+
+---
+
+# Neun Kreise — was sich an deinen Dateien geändert hat
+
+Der Nutzer wollte das Inferno auf die vollen **neun Kreise nach Dante** umbauen, jeden an der Farbe
+erkennbar. Das ging nicht ohne `world.py`, `creatures.py` und `music.py`, also habe ich wieder in
+deinem Bereich gearbeitet. Hier der Stand, damit du es nicht zurückdrehst.
+
+## `world.py` — Farbe liegt jetzt an EINER Stelle
+
+Vorher stand die Farbe eines Kreises an **drei** Stellen: `MATERIALS` (Kacheln), ein Inline-Dict in
+`background()` und ein drittes in `top_color()`. Die Kulisse hing an einem
+`if name == "limbo" / elif "greed" / else` — ein vierter Kreis hätte still die Zorn-Kulisse bekommen.
+
+Jetzt: **`MATERIALS` ist die einzige Quelle**, für Kacheln und Hintergrund. Neue Schlüssel je Kreis:
+`sky_top`, `sky_bottom`, `silhouette`, `horizon` und `scenery` (`"castle"` | `"cave"` | `"ember"`).
+Die drei Kulissen sind zu `scenery_castle/cave/ember` geworden und werden über `SCENERY` gewählt.
+**Ein neuer Kreis ist damit ein Eintrag im Dict, mehr nicht.**
+
+Neun Paletten: Limbus grau-blau, Wollust rosé, Völlerei Olivgrün, Gier gold, Zorn rostrot, Ketzerei
+glutorange, Gewalt totes Grün, Betrug violett, Verrat eisblau. Nicht geraten, sondern gesucht: Ein
+Skript hat Sättigung und Helligkeit je Farbtonband durchprobiert und gegen den **echten** Renderer
+gemessen. Der kleinste Abstand zweier Kachelsätze liegt bei 43 (Summe der RGB-Abstände) — mein erster
+Versuch nach Augenmaß lag bei 9, Zorn und Gewalt waren praktisch gleich.
+
+## Die Zufallsstrom-Regel gilt jetzt auch hier
+
+Deine Hausregel („neue Blätter dürfen den gemeinsamen Strom nicht verschieben") war in `world.py`
+nicht durchsetzbar: `bricks()` und `cracks()` griffen fest auf das globale `rng` zu. Beim ersten
+Versuch änderten sich prompt `tiles_greed`, `bg_wrath` und sogar `logo.png` mit.
+
+Behoben: `circle_rng(name)` gibt den gemeinsamen Strom für die drei **alten** Kreise zurück und einen
+eigenen, aus dem Namen abgeleiteten für alle neuen. `bricks()` und `cracks()` nehmen ihn als
+Parameter. Ergebnis: Die drei alten Tilesets und Hintergründe sind **byte-genau unverändert**, und
+jeder weitere Kreis ist von nun an folgenlos.
+
+**Dieselbe Falle steckt in `music.py`:** Die Percussion-Fabriken (`_kick`, `_thud`, `_tick`,
+`_clang`) ziehen aus dem gemeinsamen Strom. Die sechs neuen Kreis-Stücke stehen deshalb **ganz am
+Ende** von `generate()` — weiter oben eingefügt klangen `music_boss_mammon` und die drei
+Wärter-Stücke sofort anders. Wenn du dort etwas einfügst: hinten anhängen.
+
+## `creatures.py` — sechs neue Bosse
+
+`boss(kind, anim, frame)` hat sechs weitere Zweige, gleiches Format (48 × 48, zwei Zeilen
+`idle`/`cast`), gleiches Vokabular (`breathe`, `casting`, `polish`):
+
+| kind | Kreis | Motiv |
+|---|---|---|
+| `tempest` | Wollust | Wirbelsturm aus Leibern, dreht sich mit dem Frame |
+| `cerberus` | Völlerei | drei Köpfe, versetzt kauend |
+| `heresiarch` | Ketzerei | Brennender, der aus dem gesprengten Sarg steigt |
+| `minotaur` | Gewalt | Stierschädel, Hörner, scharrende Hufe |
+| `geryon` | Betrug | ehrliches Menschengesicht, Schlangenleib, Giftstachel |
+| `lucifer` | Verrat | drei Gesichter, sechs Flügel, bis zur Brust im Eis |
+
+Auch hier die 4-px-Regel: Kerberos' Köpfe und Luzifers Gesichter standen zuerst ohne Abstand
+nebeneinander und wuchsen nach `polish()` zu einem einzigen Block zusammen. Jetzt je 4 px Luft.
+
+## Was für dich offen bleibt (kein Auftrag, nur die ehrliche Liste)
+
+* **Die sechs neuen Bosse haben kein eigenes Stück.** Sie fallen über `music.boss` zurück; in
+  `arenas.json` fehlt bei ihnen bewusst die `music`-Zeile. Zwölf Stücke auf einmal waren zu viel.
+  Ids wären `music.boss_tempest`, `_cerberus`, `_heresiarch`, `_minotaur`, `_geryon`, `_lucifer` —
+  du kannst einzeln liefern, es wird nie etwas stumm.
+* **Die sechs neuen Kulissen sind geliehen**: Sie benutzen `castle`, `cave` oder `ember` in eigener
+  Farbe. Eigene Kulissen (Eisfeld für Verrat, Grabfeld für Ketzerei, Gräben für Betrug) wären der
+  nächste sichtbare Sprung — dafür je eine Funktion nach dem Muster von `scenery_cave` und ein
+  `scenery`-Wert im Dict.
+* Die sechs Bosse sind **lesbar**, aber nicht auf dem Niveau deiner G13/G14-Durchgänge.
+
+---
+
+# Alle drei offenen Punkte erledigt (Commits 45b6b5f, 094e888, 8cea75d, 4bde961)
+
+## Die sechs Boss-Stücke stehen — du kannst die `music`-Zeilen in `arenas.json` nachziehen
+
+Neue Ids im Manifest (`music`-Abschnitt), alle wie `music_boss.wav` 17,6 s (8 Takte × 2,2 s),
+nahtlos loopend, RMS im Band 0,082–0,095 gegen 0,090 Referenz:
+
+| Id | Arena | Klang |
+|---|---|---|
+| `music.boss_tempest` | Das Auge des Sturms | wirbelnd, SUS-Vorhalte, `_tick`-Böen auf den Achteln |
+| `music.boss_cerberus` | Der Schlammpfuhl | zwei verschobene Melodiegruppen, `_thud` auf jede Viertel |
+| `music.boss_heresiarch` | Feld der offenen Gräber | Dur über Moll (klingt falsch, soll so), Glut-`_tick` |
+| `music.boss_minotaur` | Die Blutfurt | `_kick` auf jede Viertel, Melodie stammelt nur den Grundton |
+| `music.boss_geryon` | Abgrund der Malebolge | Dur-Anfang, rutscht Takt für Takt halbtonweise ab — die Lüge |
+| `music.boss_lucifer` | Der gefrorene Kokytos | fast nur Bordun, `_clang` auf die Halbe, eiskalt |
+
+Alle sechs stehen **ganz am Ende** von `generate()` (hinter den sechs Kreis-Stücken), damit der
+gemeinsame Zufallsstrom der Percussion nicht verrutscht. Alle alten WAVs byte-genau unverändert
+(gegen Vorher-Hash geprüft).
+
+## Die sechs Kulissen sind keine Leihen mehr
+
+Sechs neue Funktionen in `world.py`, registriert in `SCENERY`, `scenery`-Schlüssel in `MATERIALS`
+**nur bei den sechs neuen Kreisen** umgestellt (limbo/greed/wrath unberührt):
+
+| Kreis | Kulisse | Motiv |
+|---|---|---|
+| Wollust | `scenery_storm` | Wolkenwirbel-Ringe, herabgezogene Leiber im Wind, Rosenblätter |
+| Völlerei | `scenery_swamp` | Himmel mit Ranken, Schilfinseln mit Halmen, Faulgas-Blasen |
+| Ketzerei | `scenery_graveyard` | Grabhügel, Kreuze/Bogen/Platten mit Stirnlicht, Glut aus Gräbern, Säulenreste |
+| Gewalt | `scenery_arena` | Blutfurt-Fluss durchs Bild, Felssporne, Blutwolken, Dürrbäume |
+| Betrug | `scenery_ditches` | Malebolge-Terrassen, Stege über die Gräben, Schattengestalten |
+| Verrat | `scenery_ice` | Eis-Schollenstaffel, Eiszacken, die Toren im Eis (Kopf-Bögen), Frostpartikel |
+
+Jede mit Lichtkanten oben links, Binnenstruktur und Farbzone am Horizont (16-Bit-Regeln wie G14).
+Die drei alten Kreise bleiben byte-genau (eigener Strom je neuem Kreis via `circle_rng`).
+
+## Kunst-Durchgang: Bosse und Startkleidungen auf G13/G14-Niveau
+
+**Sechs neue Bosse** (`creatures.py`): Je Material ein vierter Ton (Glanz) und Innenzeichnung —
+Windband-Glanz und rosa Schleier beim Sturm, Fellsträhnen/Geifer/Speckfalten beim Kerberos,
+Deckelbruch-Licht und weisse Flammenkerne beim Brennenden, Kampfwunde und Hornring-Zeichnung beim
+Minotaur, Schuppenbögen und Iris beim Geryon, Federknochen und Eis-Glanz beim Luzifer.
+**Idle-Silhouetten pixelgenau erhalten** ( gegen Vorher gemessen: Differenz 0 bei allen sechs),
+Tonwerte 78→93 bis 122→172. Dafür gibt es jetzt einen Helfer `_over(image, draw, x, y, color)`
+in `creatures.py`, der nur auf bereits gedeckte Pixel zeichnet — dieselbe Regel wie bei den
+G16-Kleinsprites. Merke: **Glanz-Zusätze immer über `_over`**, sonst verbreitern sie nach
+`polish()` die Form (der Gift-Glanz des Geryon saß zuerst auf einem Konturpixel und hat die
+Silhouette verändert — gemessen und gefixt).
+
+**Vier Startkleidungen** (`characters.py`): Je ein zweites Binnenmuster neben dem Webeschluss:
+Kreuzritter ein gequiltetes Kreuz mit Gold-Nieten, Magier Runenstiche am Kragen plus Ascheflecken,
+Bekenner eine diagonale Flicknaht mit Knopf, Engelelskleid verlorene Daunen auf der Schulter.
+Maße, `hand_anchor`, Wund-Koordinaten und die drei Verfallsstufen unberührt — gemessen: Silhouetten-
+Differenz 0 bei allen zwölf Blättern, Deckung weiterhin streng fallend (heil → worn → broken),
+Tonwerte 14→16 bis 25→29.
+
+## Abnahme
+
+Spiel gestartet (Titel + Musik läuft), **0 WARN-Zeilen** im `game.log`, `dotnet build` 0 Fehler /
+0 Warnungen. Alle alten Assets byte-genau reproduziert (Hash gegen Vorher: 164 Texturen, Fonts,
+alle alten WAVs). `arenas.json` habe ich nicht angefasst — die `music`-Zeilen bei den sechs neuen
+Arenen (`boss_tempest` … `boss_lucifer`) sind der einzige offene Punkt auf deiner Seite.
