@@ -1,4 +1,5 @@
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
 using CirclesOfAsh.World;
 
@@ -70,8 +71,11 @@ public sealed class RuneOrderPuzzle : IPuzzle
             world.OpenGate();
             return;
         }
-        // Falsche Rune: alle rot aufleuchten lassen, dann zurücksetzen
+        // Falsche Rune: alle rot aufleuchten lassen, dann zurücksetzen.
+        // Bewusst OHNE die Lösung im Text: Säulen und Inschrift zeigen Symbole, keine Ziffern –
+        // eine Zahlenfolge im HUD wäre etwas, das der Spieler nirgends wiedererkennt.
         foreach (Prop pillar in world.PropsWithTag("rune")) pillar.Behavior.OnSignal(pillar, world, "error");
+        world.Announce(_step > 0 ? $"Falsche Rune – {_step} Schritte verloren." : "Falsche Rune.");
         world.Context.Audio.Play("error", 0.6f);
         world.ShakeCamera(2f);
         _errorTimer = 0.8f;
@@ -100,16 +104,22 @@ public sealed class BrazierPuzzle : IPuzzle
         ? $"Siegeltor: Entzünde {_total} Feuerbecken rasch hintereinander"
         : $"Siegeltor: Feuer {_lit}/{_total} – noch {MathF.Ceiling(_timeLeft)} s";
 
+    /// <summary>Ab wann die Vorwarnung läuft: die letzten Sekunden zählen sichtbar herunter.</summary>
+    private const float WarningSeconds = 3f;
+    private bool _warned;
+
     public void Initialize(DungeonWorld world)
     {
         _total = world.PropsWithTag("brazier").Count();
-        _timeLimit = world.Context.Definitions.Balance.BrazierTimeLimit;
+        BalanceDefinition balance = world.Context.Definitions.Balance;
+        // Je tiefer der Kreis, desto knapper die Zeit (balance.json, "puzzleScaling").
+        _timeLimit = balance.PuzzleScaling.BrazierTimeLimitAt(balance.BrazierTimeLimit, world.Plan.CircleIndex);
     }
 
     public void OnPropActivated(Prop prop, DungeonWorld world)
     {
         if (prop.Tag != "brazier" || IsSolved) return;
-        if (_lit == 0) _timeLeft = _timeLimit;   // Zeit läuft ab dem ersten Feuer
+        if (_lit == 0) { _timeLeft = _timeLimit; _warned = false; }   // Zeit läuft ab dem ersten Feuer
         _lit++;
         if (_lit < _total) return;
         IsSolved = true;
@@ -121,9 +131,19 @@ public sealed class BrazierPuzzle : IPuzzle
     {
         if (IsSolved || _lit == 0) return;
         _timeLeft -= deltaSeconds;
+        // Vorwarnung: Vorher liefen die Becken ohne jedes Zeichen aus, und das Erlöschen kam aus
+        // dem Nichts. Ein Ton und ein Zucken der brennenden Becken machen die Uhr hörbar.
+        if (!_warned && _timeLeft <= WarningSeconds)
+        {
+            _warned = true;
+            foreach (Prop brazier in world.PropsWithTag("brazier"))
+                if (brazier.State == 1) brazier.Behavior.OnSignal(brazier, world, "flicker");
+            world.Context.Audio.Play("error", 0.3f, 0.6f);
+        }
         if (_timeLeft > 0f) return;
         foreach (Prop brazier in world.PropsWithTag("brazier")) brazier.Behavior.OnSignal(brazier, world, "extinguish");
         _lit = 0;
+        _warned = false;
         world.Announce("Die Flammen erlöschen …");
         world.Context.Audio.Play("error", 0.5f);
     }
@@ -136,19 +156,31 @@ public sealed class BrazierPuzzle : IPuzzle
 /// </summary>
 public sealed class WeightPuzzle : IPuzzle
 {
+    private DungeonWorld? _world;
     private int _total;
-    private int _pressed;
 
     public bool IsSolved { get; private set; }
-    public string Hint => IsSolved ? "" : $"Siegeltor: Platten {_pressed}/{_total} gleichzeitig beschwert";
 
-    public void Initialize(DungeonWorld world) => _total = world.PropsWithTag("plate").Count();
+    /// <summary>
+    /// Zählt bei jedem Blick neu. Ein gemerkter Zähler stand hinterher falsch da: Er wurde nur bei
+    /// einem Plattenereignis fortgeschrieben, und wer von einer Platte heruntertrat, ohne eine
+    /// andere auszulösen, sah weiter die alte Zahl.
+    /// </summary>
+    public string Hint => IsSolved ? "" : $"Siegeltor: Platten {PressedCount()}/{_total} gleichzeitig beschwert";
+
+    private int PressedCount() => _world?.PropsWithTag("plate").Count(plate => plate.State == 1) ?? 0;
+
+    public void Initialize(DungeonWorld world)
+    {
+        _world = world;
+        _total = world.PropsWithTag("plate").Count();
+    }
 
     public void OnPropActivated(Prop prop, DungeonWorld world)
     {
         if (prop.Tag != "plate" || IsSolved) return;
-        _pressed = world.PropsWithTag("plate").Count(plate => plate.State == 1);
-        if (_pressed < _total || _total == 0) return;
+        int pressed = PressedCount();
+        if (pressed < _total || _total == 0) return;
 
         IsSolved = true;
         world.Announce("Der Stein senkt sich unter dem Gewicht.");
@@ -176,12 +208,22 @@ public sealed class MirrorPuzzle : IPuzzle
     private static readonly Point[] Directions = { new(1, 0), new(0, -1), new(-1, 0), new(0, 1) };
 
     private readonly List<Point> _path = new();
+    /// <summary>Spiegel je Kachel. Vorher wurde je Schritt die ganze Liste durchsucht.</summary>
+    private readonly Dictionary<Point, Prop> _mirrorsByTile = new();
     private Prop? _source;
     private Prop? _target;
     private bool _dirty = true;
+    private int _reached;
 
     public bool IsSolved { get; private set; }
-    public string Hint => IsSolved ? "" : "Siegeltor: Lenke das Licht zum Standbild – flache Spiegel lassen es durch";
+
+    /// <summary>
+    /// Zeigt, wie viele Spiegel der Strahl schon erreicht hat. Vorher stand hier immer derselbe
+    /// Satz – man sah nie, ob eine Drehung etwas gebracht hat.
+    /// </summary>
+    public string Hint => IsSolved
+        ? ""
+        : $"Siegeltor: Licht zum Standbild lenken – erreicht: {_reached}/{_mirrorsByTile.Count} Spiegel";
 
     public void Initialize(DungeonWorld world)
     {
@@ -220,7 +262,15 @@ public sealed class MirrorPuzzle : IPuzzle
     private void Trace(DungeonWorld world)
     {
         _path.Clear();
-        foreach (Prop mirror in AllMirrors(world)) mirror.Behavior.OnSignal(mirror, world, "dark");
+        _reached = 0;
+        // Einmal je Durchlauf einsortieren: Die Spiegel bewegen sich nicht, nur ihre Stellung
+        // ändert sich. Vorher lief je Kachel eine lineare Suche über alle Spiegel.
+        _mirrorsByTile.Clear();
+        foreach (Prop mirror in AllMirrors(world))
+        {
+            mirror.Behavior.OnSignal(mirror, world, "dark");
+            _mirrorsByTile[TileOf(mirror)] = mirror;
+        }
         if (_source is null || _target is null) return;
 
         Rectangle bounds = _source.Room.TileBounds;
@@ -247,10 +297,10 @@ public sealed class MirrorPuzzle : IPuzzle
                 return;
             }
 
-            Prop? mirror = AllMirrors(world).FirstOrDefault(m => TileOf(m) == tile);
-            if (mirror is null) continue;
+            if (!_mirrorsByTile.TryGetValue(tile, out Prop? mirror)) continue;
 
             mirror.Behavior.OnSignal(mirror, world, "lit");
+            _reached++;
             bool horizontal = direction.Y == 0;
             switch (mirror.State)
             {

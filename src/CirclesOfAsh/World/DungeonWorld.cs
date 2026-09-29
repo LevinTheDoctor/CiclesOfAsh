@@ -375,6 +375,10 @@ public sealed class DungeonWorld : IDisposable
         CurrentRoom = room;
         if (!room.IsVisited && room.Theme is { } theme && room.Type is RoomType.Corridor or RoomType.Start)
             Announce(theme.Name);   // Raumname beim ersten Betreten -> Räume bekommen Identität
+        // Der Rätselraum meldet sich einmal: Er sieht sonst aus wie jeder andere Korridor, und wer
+        // ihn durchquert, ohne die Teile zu bemerken, sucht das Siegeltor später im ganzen Verlies.
+        if (!room.IsVisited && room.Type == RoomType.Puzzle && Puzzle is { IsSolved: false })
+            Announce("Ein Rätsel versperrt das Siegeltor – hier steht sein Mechanismus.");
         room.IsVisited = true;
     }
 

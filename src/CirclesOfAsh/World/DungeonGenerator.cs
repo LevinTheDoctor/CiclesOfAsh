@@ -82,7 +82,7 @@ public sealed class DungeonGenerator
 
         // ---------- 4. Inhalt (Reihenfolge wichtig: Pflicht-Props zuerst, Deko füllt den Rest)
         List<RoomNode> allRooms = rooms.Values.ToList();
-        PuzzleSpec? puzzle = gateTiles.Count > 0 ? PlacePuzzle(puzzleKey, path, allRooms, plan.LeverCount) : null;
+        PuzzleSpec? puzzle = gateTiles.Count > 0 ? PlacePuzzle(puzzleKey, plan, path, allRooms) : null;
         if (gateTiles.Count > 0 && puzzle is null)
         {
             foreach (Point tile in gateTiles) _map[tile.X, tile.Y] = TileType.Empty;   // kein Rätsel platzierbar -> Tor offen
@@ -590,8 +590,42 @@ public sealed class DungeonGenerator
     }
 
     // =================================================================== 4. Inhalt
-    private PuzzleSpec? PlacePuzzle(string key, List<RoomNode> path, List<RoomNode> rooms, int leverCount)
+    /// <summary>
+    /// Stellt die Teile eines Raetsels auf. Schlaegt das fehl, weicht der Generator auf "levers"
+    /// aus - und dabei muss ALLES verschwinden, was das verworfene Raetsel schon gesetzt hat.
+    /// Sonst bleiben Spiegel stehen, an denen man drehen kann, ohne dass etwas passiert, und
+    /// Druckplatten, die nie zaehlen. Deshalb laeuft jeder Versuch ueber diesen Wrapper: Er merkt
+    /// sich den Stand von _props und schneidet bei Misserfolg darauf zurueck.
+    /// </summary>
+    private PuzzleSpec? PlacePuzzle(string key, DungeonPlan plan, List<RoomNode> path, List<RoomNode> rooms)
     {
+        int mark = _props.Count;
+        PuzzleSpec? placed = PlacePuzzleCore(key, plan, path, rooms, mark);
+        if (placed is null) RollbackProps(mark);
+        return placed;
+    }
+
+    /// <summary>Nimmt alle Props zurueck, die seit <paramref name="mark"/> gesetzt wurden.</summary>
+    private void RollbackProps(int mark)
+    {
+        for (int index = _props.Count - 1; index >= mark; index--)
+        {
+            PropPlacement placement = _props[index];
+            // Die Spalte wieder freigeben, sonst meidet die Deko spaeter einen Platz ohne Grund.
+            // Ueber alle Anker, weil PropPlacement den Anker nicht mitfuehrt - eine Inschrift haengt
+            // an der Wand, Platten und Spiegel stehen auf dem Boden.
+            int column = (int)(placement.BottomCenter.X / TileSize) - placement.Room.TileBounds.X;
+            foreach (PropAnchor anchor in Enum.GetValues<PropAnchor>()) UsedColumns(placement.Room, anchor).Remove(column);
+            _props.RemoveAt(index);
+        }
+    }
+
+    private PuzzleSpec? PlacePuzzleCore(string key, DungeonPlan plan, List<RoomNode> path, List<RoomNode> rooms, int mark)
+    {
+        // Wie stark das Rätsel in diesem Kreis anzieht (balance.json, "puzzleScaling").
+        PuzzleScalingDefinition scaling = _definitions.Balance.PuzzleScaling;
+        int circle = plan.CircleIndex;
+
         // Rätselteile nur in Räumen, die ohne Dash erreichbar und nicht der Ausgang sind
         List<RoomNode> candidates = rooms
             .Where(room => room.Type is not (RoomType.Treasure or RoomType.Exit or RoomType.Prison or RoomType.Boss))
@@ -602,6 +636,7 @@ public sealed class DungeonGenerator
             case "levers":
             {
                 // Optionale Räume (Umwege) bevorzugen -> Erkundung wird belohnt
+                int leverCount = scaling.LeverCountAt(plan.LeverCount, circle);
                 int placed = 0;
                 foreach (RoomNode room in candidates.OrderBy(room => room.IsOptional ? 0 : 1).ThenBy(_ => _random.Next()))
                 {
@@ -613,26 +648,27 @@ public sealed class DungeonGenerator
             case "rune_order":
             {
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
-                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
-                int[] symbols = Enumerable.Range(0, 4).OrderBy(_ => _random.Next()).ToArray();
-                int[] columns = { 5, 11, 17, 23 };
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
+                int steps = Math.Clamp(scaling.RuneOrderLength, 2, 4);   // 4 = Zellen in runes.png
+                int[] symbols = Enumerable.Range(0, steps).OrderBy(_ => _random.Next()).ToArray();
+                int[] columns = SpreadColumns(steps, 5, 23);
                 int pillars = 0;
                 for (int index = 0; index < symbols.Length; index++)
                     if (PlaceProp(puzzleRoom, "rune_pillar", PropAnchor.Floor, "rune", symbols[index], columns[index])) pillars++;
-                if (pillars < symbols.Length) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (pillars < symbols.Length) return FallBackToLevers(plan, path, rooms, mark);
 
                 // Die Inschrift hängt in einem ANDEREN Raum -> man muss sie erst finden.
                 // Any() bricht beim ersten erfolgreichen Platzieren ab.
                 bool muralPlaced = candidates.Where(room => room != puzzleRoom).OrderBy(_ => _random.Next())
                     .Any(room => PlaceProp(room, "mural", PropAnchor.Wall, "mural", 0));
                 if (!muralPlaced) PlaceProp(puzzleRoom, "mural", PropAnchor.Wall, "mural", 0);
-                int[] order = Enumerable.Range(0, 4).OrderBy(_ => _random.Next()).ToArray();
+                int[] order = Enumerable.Range(0, steps).OrderBy(_ => _random.Next()).ToArray();
                 return new PuzzleSpec(key, order);
             }
             case "braziers":
             {
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
-                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
                 int[] columns = { 4, 14, 24 };
                 int placed = 0;
                 for (int index = 0; index < columns.Length; index++)
@@ -642,30 +678,34 @@ public sealed class DungeonGenerator
             case "weights":
             {
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
-                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
 
-                // Drei Platten, zwei Bloecke: Auf der letzten Platte muss der Spieler selbst
-                // stehen bleiben – sonst waere es nur Hin- und Herlaufen.
-                int[] plateColumns = { 6, 14, 22 };
+                // Eine Platte mehr als Bloecke: Auf der letzten muss der Spieler selbst stehen
+                // bleiben – sonst waere es nur Hin- und Herlaufen. Wie viele es sind, haengt am
+                // Kreis (balance.json, "weightPlates").
+                int plateCount = scaling.WeightPlatesAt(circle);
+                int[] plateColumns = SpreadColumns(plateCount, 6, 22);
                 int plates = 0;
                 for (int index = 0; index < plateColumns.Length; index++)
                     if (PlacePropAt(puzzleRoom, "pressure_plate", "plate", index, plateColumns[index], FloorRow)) plates++;
-                if (plates < plateColumns.Length) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (plates < plateColumns.Length) return FallBackToLevers(plan, path, rooms, mark);
 
-                // Bloecke bewusst NICHT auf den Platten: sie stehen dazwischen und muessen
-                // geschoben werden. Eine Kachel Abstand reicht, der Block rutscht je Druck eine weiter.
-                int[] blockColumns = { 10, 18 };
+                // Bloecke bewusst NICHT auf den Platten: sie stehen genau dazwischen und muessen
+                // geschoben werden. Der Block rutscht je Druck eine Kachel weiter.
+                int[] blockColumns = new int[plateCount - 1];
+                for (int index = 0; index < blockColumns.Length; index++)
+                    blockColumns[index] = (plateColumns[index] + plateColumns[index + 1]) / 2;
                 int blocks = 0;
                 for (int index = 0; index < blockColumns.Length; index++)
                     if (PlacePropAt(puzzleRoom, "push_block", "block", index, blockColumns[index], FloorRow)) blocks++;
                 // Ohne beide Bloecke ist eine Platte zu viel und das Raetsel unloesbar.
-                if (blocks < blockColumns.Length) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (blocks < blockColumns.Length) return FallBackToLevers(plan, path, rooms, mark);
                 return new PuzzleSpec(key, Array.Empty<int>());
             }
             case "mirrors":
             {
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
-                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
 
                 // Feste Geometrie, damit das Raetsel garantiert loesbar ist:
                 //   Leuchter (2) --> Spiegel (6, flach stellen) --> Spiegel (11, "/") --> hoch
@@ -691,11 +731,38 @@ public sealed class DungeonGenerator
                           & PlacePropAt(puzzleRoom, "statue", "beam_target", 0, 26, beamRow);
                 // Order = Stellungen der FESTEN Spiegel (0 = "|", 1 = "/", 2 = "–", 3 = "\\").
                 // Loesung fuer die drei drehbaren: Spalte 6 flach (2), Spalte 11 "/" (1), Spalte 21 "\\" (3).
-                return ok ? new PuzzleSpec(key, new[] { 1, 3, 0 }) : PlacePuzzle("levers", path, rooms, leverCount);
+                return ok ? new PuzzleSpec(key, new[] { 1, 3, 0 }) : FallBackToLevers(plan, path, rooms, mark);
             }
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// Rueckfall auf die Hebelsuche. Nimmt die Teile des verworfenen Raetsels zurueck und macht den
+    /// vorgemerkten Raetselraum wieder zum gewoehnlichen Korridor: Sonst verlangt die
+    /// Erreichbarkeitspruefung einen Pflichtraum, in dem nichts steht, und die Minikarte faerbt ihn
+    /// als Raetselraum ein.
+    /// </summary>
+    private PuzzleSpec? FallBackToLevers(DungeonPlan plan, List<RoomNode> path, List<RoomNode> rooms, int mark)
+    {
+        RollbackProps(mark);
+        foreach (RoomNode room in path.Where(room => room.Type == RoomType.Puzzle)) room.Type = RoomType.Corridor;
+        return PlacePuzzleCore("levers", plan, path, rooms, _props.Count);
+    }
+
+    /// <summary>
+    /// Verteilt <paramref name="count"/> Spalten gleichmaessig zwischen zwei Raendern. Ersetzt die
+    /// fest eingetragenen Spaltenlisten, damit die Teilezahl mit der Tiefe wachsen kann, ohne dass
+    /// jemand eine zweite Liste nachpflegen muss.
+    /// </summary>
+    private static int[] SpreadColumns(int count, int first, int last)
+    {
+        if (count <= 1) return new[] { (first + last) / 2 };
+        var columns = new int[count];
+        for (int index = 0; index < count; index++)
+            columns[index] = first + (int)MathF.Round((last - first) * index / (float)(count - 1));
+        return columns;
     }
 
     private void PlaceChests(DungeonPlan plan, List<RoomNode> rooms)

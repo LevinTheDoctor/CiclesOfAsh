@@ -68,7 +68,7 @@ for (int runSeed = 1; runSeed <= count; runSeed++)
         reachabilityFindings += diagnostics.Count;
 
         int puzzleStart = diagnostics.Count;
-        CheckPuzzle(layout, diagnostics);
+        CheckPuzzle(layout, definitions.Balance.PuzzleScaling, run.CircleIndex, diagnostics);
         puzzleFindings += diagnostics.Count - puzzleStart;
 
         foreach (string line in diagnostics) Console.WriteLine($"  [{runSeed}/K{run.CircleIndex}/V{run.DungeonIndex}] {line}");
@@ -87,12 +87,16 @@ return reachabilityFindings + puzzleFindings == 0 ? 0 : 1;
 /// Welche Teile ein Rätsel aufstellen muss. Ein negativer Wert ist eine Mindestzahl statt einer
 /// genauen: Die Hebel verteilen sich über das ganze Verlies, ihre Zahl hängt am Kreis.
 /// </summary>
-static Dictionary<string, int> ExpectedParts(string key) => key switch
+static Dictionary<string, int> ExpectedParts(string key, PuzzleScalingDefinition scaling, int circleIndex) => key switch
 {
     "levers" => new Dictionary<string, int> { ["lever"] = -2 },
-    "rune_order" => new Dictionary<string, int> { ["rune"] = 4, ["mural"] = 1 },
+    "rune_order" => new Dictionary<string, int> { ["rune"] = Math.Clamp(scaling.RuneOrderLength, 2, 4), ["mural"] = 1 },
     "braziers" => new Dictionary<string, int> { ["brazier"] = 3 },
-    "weights" => new Dictionary<string, int> { ["plate"] = 3, ["block"] = 2 },
+    "weights" => new Dictionary<string, int>
+    {
+        ["plate"] = scaling.WeightPlatesAt(circleIndex),
+        ["block"] = scaling.WeightPlatesAt(circleIndex) - 1,   // immer genau einer weniger
+    },
     "mirrors" => new Dictionary<string, int>
     {
         ["beam_source"] = 1, ["mirror"] = 3, ["mirror_fixed"] = 3, ["beam_target"] = 1,
@@ -106,7 +110,7 @@ static string[] AllPuzzleTags() => new[]
     "lever", "rune", "mural", "brazier", "plate", "block", "beam_source", "mirror", "mirror_fixed", "beam_target",
 };
 
-static void CheckPuzzle(DungeonLayout layout, List<string> diagnostics)
+static void CheckPuzzle(DungeonLayout layout, PuzzleScalingDefinition scaling, int circleIndex, List<string> diagnostics)
 {
     var counts = new Dictionary<string, int>();
     foreach (PropPlacement prop in layout.Props) counts[prop.Tag] = counts.GetValueOrDefault(prop.Tag) + 1;
@@ -120,7 +124,7 @@ static void CheckPuzzle(DungeonLayout layout, List<string> diagnostics)
         return;
     }
 
-    Dictionary<string, int> expected = ExpectedParts(spec.Key);
+    Dictionary<string, int> expected = ExpectedParts(spec.Key, scaling, circleIndex);
     if (expected.Count == 0)
     {
         diagnostics.Add($"RÄTSEL: unbekannter Schlüssel '{spec.Key}' – der Sweep kennt seine Teile nicht.");

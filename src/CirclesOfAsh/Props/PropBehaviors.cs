@@ -142,6 +142,17 @@ public sealed class BrazierProp : IPropBehavior
 
     public void OnSignal(Prop prop, DungeonWorld world, string signal)
     {
+        // "flicker" ist die Vorwarnung kurz vor dem Erlöschen: Funken, und das Licht sinkt sichtbar
+        // auf die Hälfte. Der Zustand bleibt unangetastet – über das Erlöschen entscheidet weiter
+        // allein das Rätsel, und beim Entzünden steht der volle Schein wieder.
+        if (signal == "flicker")
+        {
+            if (prop.State != 1) return;
+            world.Effects.Burst(prop.Center, Palette.Ash, 6, 34f, gravity: -40f);
+            prop.LightRadius = 34f;
+            return;
+        }
+
         bool lit = signal == "light";
         bool wasLit = prop.State == 1;
         prop.State = lit ? 1 : 0;
