@@ -235,6 +235,18 @@ public sealed class BalanceDefinition
     /// leerere Räume. Ein Regler statt zehn Themen einzeln anzufassen.
     /// </summary>
     public float DecorDensity { get; init; } = 1f;
+
+    /// <summary>
+    /// Glutschmiede im Tempel: Kleidung gegen Gläubige flicken. Der Preis steigt mit jeder Nutzung
+    /// im selben Lauf, damit Reparieren eine Entscheidung bleibt und keine Gewohnheit wird.
+    /// </summary>
+    public int ForgeMendCost { get; init; } = 8;
+    /// <summary>Aufschlag je bereits genutzter Reparatur im selben Lauf.</summary>
+    public int ForgeCostPerUse { get; init; } = 6;
+    /// <summary>Neu weben, wenn gar nichts mehr da ist. Deutlich teurer als Flicken.</summary>
+    public int ForgeWeaveCost { get; init; } = 25;
+    /// <summary>Wie viele Treffer ein Besuch zurückgibt. Eine Stufe, nicht das ganze Stück.</summary>
+    public int ForgeMendHits { get; init; } = 1;
 }
 
 /// <summary>

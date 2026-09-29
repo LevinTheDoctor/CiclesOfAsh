@@ -47,6 +47,12 @@
     "interactable": true, "prompt": "Spiegel drehen", "lightColor": "#FFE9A8" },
   { "id": "brazier", "name": "Kohlenbecken", "spriteSheet": "prop.brazier", "behavior": "brazier", "width": 16, "height": 16,
     "interactable": true, "prompt": "Entzünden", "lightColor": "#FF8040", "lightFlicker": 0.15 },
+  // Flickstelle: einmal je Verlies die Kleidung eine Stufe zurueckholen, oder - wenn gar nichts
+  // mehr da ist - die Startkleidung der Klasse neu weben (zerfetzt, nicht heil). Nutzt vorerst das
+  // Blatt des Trauernden Engels; ein eigenes Motiv steht als Aufgabe in GLM_TASKS.md.
+  { "id": "mending_angel", "name": "Trauernder Engel", "spriteSheet": "prop.statue", "behavior": "mend_shrine",
+    "width": 16, "height": 28, "interactable": true, "prompt": "Kleidung flicken", "lightColor": "#C8D8FF" },
+
   { "id": "chest", "name": "Truhe", "spriteSheet": "prop.chest", "behavior": "chest", "width": 16, "height": 12, "interactable": true, "prompt": "Öffnen" },
   { "id": "cage", "name": "Käfig", "spriteSheet": "prop.cage", "behavior": "cage", "width": 16, "height": 24 }
 ]

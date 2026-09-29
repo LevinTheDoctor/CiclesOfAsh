@@ -67,6 +67,7 @@ public sealed class BehaviorRegistry
         registry.RegisterProp("pressure_plate", () => new PressurePlateProp());
         registry.RegisterProp("push_block", () => new PushBlockProp());
         registry.RegisterProp("mirror", () => new MirrorProp());
+        registry.RegisterProp("mend_shrine", () => new MendShrineProp());
 
         registry.RegisterPuzzle("levers", () => new LeverPuzzle());
         registry.RegisterPuzzle("rune_order", () => new RuneOrderPuzzle());

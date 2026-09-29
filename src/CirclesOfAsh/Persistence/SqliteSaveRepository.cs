@@ -286,6 +286,8 @@ public sealed class SqliteSaveRepository : ISaveRepository
             (int)ReadLong(profile, "makeup_color"),
             (int)ReadLong(profile, "wings"));
         run.ArmorDurability = (int)ReadLong(profile, "armor_durability");
+        run.ArmorWear = ReadWear(profile, "armor_wear");
+        run.ForgeUses = (int)ReadLong(profile, "forge_uses");
         run.Underwear = (int)ReadLong(profile, "underwear");
         return run;
     }
@@ -341,6 +343,8 @@ public sealed class SqliteSaveRepository : ISaveRepository
             ("makeup_color", look.MakeupColor.ToString(CultureInfo.InvariantCulture)),
             ("wings", look.Wings.ToString(CultureInfo.InvariantCulture)),
             ("armor_durability", run.ArmorDurability.ToString(CultureInfo.InvariantCulture)),
+            ("armor_wear", WriteWear(run.ArmorWear)),
+            ("forge_uses", run.ForgeUses.ToString(CultureInfo.InvariantCulture)),
             ("underwear", run.Underwear.ToString(CultureInfo.InvariantCulture)),
         };
         foreach (var (key, value) in profileValues)
@@ -529,6 +533,28 @@ public sealed class SqliteSaveRepository : ISaveRepository
         command.Transaction = transaction;
         return command;
     }
+
+    /// <summary>
+    /// Zustand abgelegter Kleidung als eine Zeile: "id:treffer;id:treffer". Bewusst KEINE eigene
+    /// Tabelle: run_profile ist Schlüssel/Wert, ein fehlender Schlüssel liest sich als leer, und
+    /// damit kommen ältere Spielstände ohne Migration aus (Schema bleibt auf 4).
+    /// </summary>
+    private static Dictionary<string, int> ReadWear(Dictionary<string, string> values, string key)
+    {
+        var wear = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        if (!values.TryGetValue(key, out string? raw) || string.IsNullOrWhiteSpace(raw)) return wear;
+        foreach (string entry in raw.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            int separator = entry.LastIndexOf(':');
+            if (separator <= 0) continue;
+            if (int.TryParse(entry[(separator + 1)..], NumberStyles.Integer, CultureInfo.InvariantCulture, out int hits))
+                wear[entry[..separator]] = hits;
+        }
+        return wear;
+    }
+
+    private static string WriteWear(Dictionary<string, int> wear) =>
+        string.Join(';', wear.Select(entry => $"{entry.Key}:{entry.Value.ToString(CultureInfo.InvariantCulture)}"));
 
     private static long ReadLong(Dictionary<string, string> values, string key, long fallback = 0L) =>
         values.TryGetValue(key, out string? raw) && long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out long parsed)

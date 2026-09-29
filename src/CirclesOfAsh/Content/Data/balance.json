@@ -46,5 +46,12 @@
   "ambientLift": 0.32,
   "defaultScreenScale": 3,
   // Deko-Regler: 1 = Mengen wie in themes.json, kleiner = leerere Räume.
-  "decorDensity": 0.6
+  "decorDensity": 0.6,
+  // Glutschmiede im Tempel. Flicken kostet forgeMendCost + forgeCostPerUse * bisherige Nutzungen
+  // im selben Lauf - Reparieren soll eine Entscheidung bleiben, keine Gewohnheit. Neu weben gibt
+  // es nur, wenn gar nichts mehr getragen wird, und kommt zerfetzt heraus.
+  "forgeMendCost": 8,
+  "forgeCostPerUse": 6,
+  "forgeWeaveCost": 25,
+  "forgeMendHits": 1
 }

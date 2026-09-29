@@ -1,6 +1,9 @@
 using CirclesOfAsh.Assets;
+using CirclesOfAsh.Companions;
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Progression;
 using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Props;
@@ -175,6 +178,63 @@ public sealed class ChestProp : IPropBehavior
         prop.CanInteract = false;
         prop.Animation.Play("open");
         world.OpenChest(prop, isTreasure: prop.Tag == "chest_treasure");
+        return true;
+    }
+}
+
+/// <summary>
+/// "mend_shrine": Der Trauernde Engel. Einmal je Verlies darf man hier seine Kleidung flicken –
+/// der einzige Weg zurück, der nichts kostet ausser dem Umweg, ihn zu finden.
+///
+/// Ist die Kleidung schon ganz zerfallen, webt der Engel die Startkleidung der Klasse neu, und
+/// zwar zerfetzt: Man steht wieder in Lumpen, aber nicht mehr in Unterwäsche. Danach ist er
+/// verbraucht (<see cref="Prop.CanInteract"/> = false) – deshalb bleibt der Verfall spürbar.
+/// </summary>
+public sealed class MendShrineProp : IPropBehavior
+{
+    /// <summary>Wie viele Treffer der Engel zurückgibt. Eine Stufe, nicht das ganze Stück.</summary>
+    private const int MendHits = 1;
+
+    public void Initialize(Prop prop, DungeonWorld world)
+    {
+        prop.Animation.Play("idle");
+        prop.LightRadius = 30f;
+    }
+
+    public bool Interact(Prop prop, DungeonWorld world)
+    {
+        if (prop.State != 0) return false;
+
+        ClassDefinition? playerClass = world.Context.Definitions.Classes.Contains(world.Run.ClassId)
+            ? world.Context.Definitions.Classes.Get(world.Run.ClassId)
+            : null;
+        EquipmentService.MendOutcome outcome =
+            EquipmentService.Mend(world.Context.Definitions, world.Run, playerClass, MendHits);
+
+        if (!outcome.Changed)
+        {
+            // Nicht verbrauchen, wenn nichts passiert ist: Wer heil hier vorbeikommt, soll
+            // auf dem Rückweg noch flicken können.
+            world.Announce(outcome.Result == EquipmentService.MendResult.AlreadyWhole
+                ? "Deine Kleidung ist heil – der Engel schweigt."
+                : "Der Engel findet nichts, was er weben könnte.");
+            world.Context.Audio.Play("error", 0.4f);
+            return false;
+        }
+
+        prop.State = 1;
+        prop.CanInteract = false;
+        prop.LightRadius = 0f;
+        EquipmentService.Apply(world.Context.Definitions, world.Run, world.Player);
+        world.Player.RefreshAppearance(world.Context, world.Run);
+        world.Context.Progression.SaveRun(world.Run);
+
+        world.Effects.Burst(prop.Center, Palette.Faith, 22, 60f, 1.1f, gravity: -70f);
+        world.Context.Audio.Play("unseal", 0.7f);
+        world.Announce(outcome.Result == EquipmentService.MendResult.Reweaved
+            ? $"Der Engel webt {outcome.ItemName} aus Asche – zerfetzt, aber Kleidung."
+            : $"{outcome.ItemName} geflickt ({EquipmentService.StageNames[outcome.Stage]}).");
+        world.Say(CompanionChatter.ArmorMended);
         return true;
     }
 }

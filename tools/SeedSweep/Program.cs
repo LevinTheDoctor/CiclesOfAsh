@@ -69,6 +69,7 @@ for (int runSeed = 1; runSeed <= count; runSeed++)
 
         int puzzleStart = diagnostics.Count;
         CheckPuzzle(layout, definitions.Balance.PuzzleScaling, run.CircleIndex, diagnostics);
+        CheckMendShrine(layout, plan, diagnostics);
         puzzleFindings += diagnostics.Count - puzzleStart;
 
         foreach (string line in diagnostics) Console.WriteLine($"  [{runSeed}/K{run.CircleIndex}/V{run.DungeonIndex}] {line}");
@@ -150,6 +151,30 @@ static void CheckPuzzle(DungeonLayout layout, PuzzleScalingDefinition scaling, i
         if (!DungeonReachability.IsSpotReached(visited, layout.Map, prop.BottomCenter))
             diagnostics.Add($"RÄTSEL '{spec.Key}': Teil '{prop.Tag}' #{prop.Index} in {prop.Room.OwnerKey} ist nicht erreichbar.");
     }
+}
+
+/// <summary>
+/// Der Trauernde Engel ist der Weg zurueck zu einer Ruestung. Steht keiner im Verlies, gibt es
+/// ihn faktisch nicht; stehen mehrere, ist der Verfall entwertet; steht er unerreichbar, ist er
+/// eine Verhoehnung. Alle drei Faelle sind hier ein Befund.
+/// </summary>
+static void CheckMendShrine(DungeonLayout layout, DungeonPlan plan, List<string> diagnostics)
+{
+    int shrines = layout.Props.Count(prop => prop.Tag == "mend_shrine");
+    if (plan.IsBossDungeon)
+    {
+        if (shrines > 0) diagnostics.Add($"ENGEL: {shrines} im Thronsaal – dort soll keiner stehen.");
+        return;
+    }
+    if (shrines != 1)
+    {
+        diagnostics.Add($"ENGEL: {shrines} im Verlies, erwartet genau 1.");
+        return;
+    }
+    bool[] visited = DungeonReachability.Flood(layout.Map, layout.PlayerSpawn);
+    PropPlacement shrine = layout.Props.First(prop => prop.Tag == "mend_shrine");
+    if (!DungeonReachability.IsSpotReached(visited, layout.Map, shrine.BottomCenter))
+        diagnostics.Add($"ENGEL: steht in {shrine.Room.OwnerKey} und ist nicht erreichbar.");
 }
 
 /// <summary>

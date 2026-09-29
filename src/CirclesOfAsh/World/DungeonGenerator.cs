@@ -89,6 +89,7 @@ public sealed class DungeonGenerator
             gateTiles.Clear();
         }
         PlaceChests(plan, allRooms);
+        PlaceMendShrine(plan, allRooms);
         PlaceCages(allRooms);
         PlaceArenaProps(plan, allRooms);
         foreach (RoomNode room in allRooms) Decorate(room);
@@ -101,7 +102,7 @@ public sealed class DungeonGenerator
             GridSize = new Point(gridWidth, GridHeight),
             // Mitte der Fuesse, nicht die linke obere Ecke: Die Figurhoehe haengt an der
             // Sprite-Groesse, der Generator kennt sie nicht.
-            PlayerSpawn = new Vector2((start.TileBounds.X + 3) * TileSize + TileSize / 2f, FloorPixelY(start)),
+            PlayerSpawn = PlayerSpawnOf(start),
             GoalRoom = goal,
             GoalBottomCenter = FloorCenter(goal),
             Props = _props.ToList(),
@@ -112,6 +113,13 @@ public sealed class DungeonGenerator
     }
 
     public static float FloorPixelY(RoomNode room) => (room.TileBounds.Y + FloorRow) * TileSize;
+
+    /// <summary>Wo der Spieler startet. Eine Formel, zwei Nutzer: das Layout und die Engelsprobe.</summary>
+    private static Vector2 PlayerSpawnOf(RoomNode start) =>
+        new((start.TileBounds.X + 3) * TileSize + TileSize / 2f, FloorPixelY(start));
+
+    private static Vector2 PlayerSpawnOf(List<RoomNode> rooms) =>
+        PlayerSpawnOf(rooms.First(room => room.Type == RoomType.Start));
 
     private static Vector2 FloorCenter(RoomNode room) =>
         new((room.TileBounds.X + RoomWidthTiles / 2f) * TileSize, FloorPixelY(room));
@@ -763,6 +771,35 @@ public sealed class DungeonGenerator
         for (int index = 0; index < count; index++)
             columns[index] = first + (int)MathF.Round((last - first) * index / (float)(count - 1));
         return columns;
+    }
+
+    /// <summary>
+    /// Der Trauernde Engel: genau EINER je Verlies, und nur in den Wellenverliesen - im Thronsaal
+    /// waere er eine Rettung mitten im Bosskampf. Bevorzugt in einem optionalen Raum, damit der
+    /// Umweg sich lohnt; findet sich dort keiner, geht auch ein Raum am Weg.
+    /// Mehr als einer waere zu viel: Der Verfall soll spuerbar bleiben.
+    ///
+    /// SCHATZRAEUME sind ausgenommen. Sie liegen hinter rissigen Waenden, die erst der Dash oeffnet
+    /// - eine Flickstelle, die man nur mit einer Bossgabe erreicht, hilft genau dann nicht, wenn man
+    /// sie braucht. Und weil auch ein Umweg mal hinter einer Sperre enden kann, wird der Platz
+    /// gegen dieselbe Flutfuellung geprueft, die auch die Erreichbarkeitspruefung benutzt: Ein Engel,
+    /// den man sieht und nicht erreicht, waere schlimmer als gar keiner.
+    /// </summary>
+    private void PlaceMendShrine(DungeonPlan plan, List<RoomNode> rooms)
+    {
+        if (plan.IsBossDungeon) return;
+        bool[] reachable = DungeonReachability.Flood(_map, PlayerSpawnOf(rooms));
+        IEnumerable<RoomNode> candidates = rooms
+            .Where(room => room.Type is RoomType.Corridor or RoomType.Puzzle or RoomType.Start)
+            .OrderBy(room => room.IsOptional ? 0 : 1)
+            .ThenBy(_ => _random.Next());
+        foreach (RoomNode room in candidates)
+        {
+            int before = _props.Count;
+            if (!PlaceProp(room, "mending_angel", PropAnchor.Floor, "mend_shrine", 0)) continue;
+            if (DungeonReachability.IsSpotReached(reachable, _map, _props[^1].BottomCenter)) return;
+            RollbackProps(before);   // unerreichbar -> naechsten Raum versuchen
+        }
     }
 
     private void PlaceChests(DungeonPlan plan, List<RoomNode> rooms)
