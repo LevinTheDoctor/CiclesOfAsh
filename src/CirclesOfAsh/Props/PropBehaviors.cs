@@ -80,12 +80,18 @@ public sealed class LeverProp : IPropBehavior
 public sealed class RunePillarProp : IPropBehavior
 {
     private SpriteSheet? _runes;
+    /// <summary>
+    /// Kranz-Modus: Eine leuchtende Säule bleibt berührbar. Die Runenfolge braucht das Gegenteil –
+    /// dort ist eine gesetzte Säule ein erledigter Schritt und darf nicht noch einmal angefasst
+    /// werden. Welcher Modus gilt, sagt das Rätsel beim Start ("ring_on"/"ring_off").
+    /// </summary>
+    private bool _ringMode;
 
     public void Initialize(Prop prop, DungeonWorld world) => _runes = world.Context.Assets.GetSpriteSheet("ui.runes");
 
     public bool Interact(Prop prop, DungeonWorld world)
     {
-        if (prop.State == 1) return false;
+        if (prop.State == 1 && !_ringMode) return false;
         world.Context.Audio.Play("lever", 0.5f, 0.4f);
         world.NotifyPuzzle(prop);
         return true;
@@ -93,9 +99,15 @@ public sealed class RunePillarProp : IPropBehavior
 
     public void OnSignal(Prop prop, DungeonWorld world, string signal)
     {
+        if (signal is "ring_on" or "ring_off")
+        {
+            _ringMode = signal == "ring_on";
+            prop.CanInteract = true;
+            return;
+        }
         prop.State = signal switch { "activate" => 1, "error" => 2, _ => 0 };
         prop.Animation.Play(prop.State switch { 1 => "active", 2 => "error", _ => "idle" });
-        prop.CanInteract = prop.State != 1;
+        prop.CanInteract = _ringMode || prop.State != 1;
         prop.LightRadius = prop.State == 1 ? 34f : 0f;
     }
 

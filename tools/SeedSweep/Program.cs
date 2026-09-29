@@ -15,7 +15,9 @@ using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Persistence;
 using CirclesOfAsh.Progression;
+using CirclesOfAsh.Puzzles;
 using CirclesOfAsh.World;
+using Microsoft.Xna.Framework;
 
 int count = args.Length > 0 && int.TryParse(args[0], out int parsed) ? parsed : 200;
 
@@ -70,6 +72,7 @@ for (int runSeed = 1; runSeed <= count; runSeed++)
         int puzzleStart = diagnostics.Count;
         CheckPuzzle(layout, definitions.Balance.PuzzleScaling, run.CircleIndex, diagnostics);
         CheckMendShrine(layout, plan, diagnostics);
+        CheckMirrorSolvable(layout, diagnostics);
         puzzleFindings += diagnostics.Count - puzzleStart;
 
         foreach (string line in diagnostics) Console.WriteLine($"  [{runSeed}/K{run.CircleIndex}/V{run.DungeonIndex}] {line}");
@@ -92,6 +95,8 @@ static Dictionary<string, int> ExpectedParts(string key, PuzzleScalingDefinition
 {
     "levers" => new Dictionary<string, int> { ["lever"] = -2 },
     "rune_order" => new Dictionary<string, int> { ["rune"] = Math.Clamp(scaling.RuneOrderLength, 2, 4), ["mural"] = 1 },
+    // Der Lichtkranz braucht keine Inschrift: Die Regel steht im HUD, es gibt nichts zu merken.
+    "rune_circle" => new Dictionary<string, int> { ["rune"] = 4 },
     "braziers" => new Dictionary<string, int> { ["brazier"] = 3 },
     "weights" => new Dictionary<string, int>
     {
@@ -151,6 +156,41 @@ static void CheckPuzzle(DungeonLayout layout, PuzzleScalingDefinition scaling, i
         if (!DungeonReachability.IsSpotReached(visited, layout.Map, prop.BottomCenter))
             diagnostics.Add($"RÄTSEL '{spec.Key}': Teil '{prop.Tag}' #{prop.Index} in {prop.Room.OwnerKey} ist nicht erreichbar.");
     }
+}
+
+/// <summary>
+/// Spiegelraetsel: Probiert alle 4^3 Stellungen der drehbaren Spiegel durch. Zwei Dinge koennen
+/// schiefgehen, und beide sind unsichtbar, solange man nur davorsteht: Es gibt GAR KEINE Loesung,
+/// oder es ist schon von Anfang an geloest und das Siegeltor springt ungefragt auf. Der Kommentar
+/// im Generator berichtet, dass genau der zweite Fall schon einmal eingebaut war.
+/// </summary>
+static void CheckMirrorSolvable(DungeonLayout layout, List<string> diagnostics)
+{
+    if (layout.Puzzle is not { Key: "mirrors" } spec) return;
+    PropPlacement? source = layout.Props.FirstOrDefault(prop => prop.Tag == "beam_source");
+    PropPlacement? target = layout.Props.FirstOrDefault(prop => prop.Tag == "beam_target");
+    if (source is null || target is null) { diagnostics.Add("SPIEGEL: Leuchter oder Standbild fehlt."); return; }
+
+    List<Point> turnable = layout.Props.Where(prop => prop.Tag == "mirror")
+        .OrderBy(prop => prop.Index).Select(TileOfProp).ToList();
+    var fixedMirrors = new Dictionary<Point, int>();
+    foreach (PropPlacement prop in layout.Props.Where(prop => prop.Tag == "mirror_fixed"))
+        fixedMirrors[TileOfProp(prop)] = prop.Index < spec.Order.Count ? spec.Order[prop.Index] & 3 : 1;
+
+    (int solutions, int total, bool startsSolved) = BeamTracer.CountSolutions(
+        layout.Map, source.Room.TileBounds, TileOfProp(source), TileOfProp(target),
+        turnable, fixedMirrors, Array.Empty<int>());
+
+    if (solutions == 0) diagnostics.Add($"SPIEGEL: keine der {total} Stellungen trifft das Standbild – unloesbar.");
+    if (startsSolved) diagnostics.Add("SPIEGEL: schon in der Ausgangsstellung geloest – das Tor springt ungefragt auf.");
+}
+
+/// <summary>Kachel eines Props aus seiner Fusshoehe – dieselbe Rechnung wie MirrorPuzzle.TileOf.</summary>
+static Point TileOfProp(PropPlacement prop)
+{
+    float centerX = prop.BottomCenter.X;
+    float centerY = prop.BottomCenter.Y - prop.Definition.Height / 2f;
+    return new Point(TileMap.ToTile(centerX), TileMap.ToTile(centerY));
 }
 
 /// <summary>

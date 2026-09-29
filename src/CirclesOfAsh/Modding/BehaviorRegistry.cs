@@ -71,6 +71,7 @@ public sealed class BehaviorRegistry
 
         registry.RegisterPuzzle("levers", () => new LeverPuzzle());
         registry.RegisterPuzzle("rune_order", () => new RuneOrderPuzzle());
+        registry.RegisterPuzzle("rune_circle", () => new RuneCirclePuzzle());
         registry.RegisterPuzzle("braziers", () => new BrazierPuzzle());
         registry.RegisterPuzzle("weights", () => new WeightPuzzle());
         registry.RegisterPuzzle("mirrors", () => new MirrorPuzzle());

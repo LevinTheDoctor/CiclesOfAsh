@@ -91,6 +91,77 @@ public sealed class RuneOrderPuzzle : IPuzzle
     }
 }
 
+/// <summary>
+/// "rune_circle" – der Lichtkranz. Vier Runensäulen stehen im Kreis; eine zu berühren kippt SIE
+/// UND IHRE BEIDEN NACHBARN. Ziel: alle vier leuchten zugleich. Die äußeren beiden gelten als
+/// benachbart, der Kranz schließt sich also – deshalb der Name.
+///
+/// Das ist das klassische "Lights Out" auf einem Ring aus vier Feldern. Über GF(2) ist die
+/// zugehörige Matrix umkehrbar (1 + x + x³ ist teilerfremd zu x⁴ + 1), JEDE Ausgangsstellung ist
+/// also lösbar – und weil der Generator ohnehin von der gelösten Stellung aus rückwärts würfelt,
+/// gibt es doppelt keinen Weg in eine Sackgasse.
+///
+/// Warum vier und nicht fünf: Textures/runes.png hat genau vier Symbole. Eine fünfte Säule sähe
+/// aus wie eine der anderen.
+///
+/// Unterschied zur Runenfolge: Hier gibt es keine Reihenfolge und keinen Fehlschlag, nur Nachdenken.
+/// </summary>
+public sealed class RuneCirclePuzzle : IPuzzle
+{
+    private readonly List<Prop> _pillars = new();
+    private int _moves;
+
+    public bool IsSolved { get; private set; }
+
+    public string Hint => IsSolved
+        ? ""
+        : $"Lichtkranz: alle vier Runen zum Leuchten bringen ({LitCount()}/{_pillars.Count}) – "
+        + "jede Berührung kippt auch die Nachbarn";
+
+    private int LitCount() => _pillars.Count(pillar => pillar.State == 1);
+
+    public void Initialize(DungeonWorld world)
+    {
+        _pillars.Clear();
+        // Nach Index sortiert, damit "Nachbar" dasselbe heißt wie beim Aufstellen im Generator.
+        _pillars.AddRange(world.PropsWithTag("rune").OrderBy(pillar => pillar.Index));
+
+        IReadOnlyList<int> start = world.Layout.Puzzle?.Order ?? Array.Empty<int>();
+        for (int index = 0; index < _pillars.Count; index++)
+        {
+            Prop pillar = _pillars[index];
+            // Kranz-Modus: Eine leuchtende Säule bleibt hier berührbar – anders als in der Runenfolge.
+            pillar.Behavior.OnSignal(pillar, world, "ring_on");
+            bool lit = index < start.Count && start[index] != 0;
+            pillar.Behavior.OnSignal(pillar, world, lit ? "activate" : "reset");
+            pillar.Behavior.OnSignal(pillar, world, "ring_on");   // "activate" setzt CanInteract neu
+        }
+    }
+
+    public void OnPropActivated(Prop prop, DungeonWorld world)
+    {
+        if (prop.Tag != "rune" || IsSolved) return;
+        int position = _pillars.IndexOf(prop);
+        if (position < 0 || _pillars.Count == 0) return;
+
+        _moves++;
+        // Die Säule selbst und ihre beiden Nachbarn im Kranz. "+ Count" hält den Rest positiv.
+        foreach (int offset in new[] { -1, 0, 1 })
+        {
+            Prop neighbour = _pillars[(position + offset + _pillars.Count) % _pillars.Count];
+            bool lit = neighbour.State == 1;
+            neighbour.Behavior.OnSignal(neighbour, world, lit ? "reset" : "activate");
+            neighbour.Behavior.OnSignal(neighbour, world, "ring_on");
+        }
+        world.Context.Audio.Play("lever", 0.4f, 0.2f);
+
+        if (LitCount() < _pillars.Count) return;
+        IsSolved = true;
+        world.Announce($"Der Kranz schließt sich ({_moves} Berührungen).");
+        world.OpenGate();
+    }
+}
+
 /// <summary>"braziers": Alle Kohlenbecken innerhalb des Zeitlimits entzünden, sonst erlöschen sie.</summary>
 public sealed class BrazierPuzzle : IPuzzle
 {
@@ -202,10 +273,8 @@ public sealed class WeightPuzzle : IPuzzle
 /// </summary>
 public sealed class MirrorPuzzle : IPuzzle
 {
-    private const int MaxSteps = 200;
     private const string MirrorTag = "mirror";
     private const string FixedTag = "mirror_fixed";
-    private static readonly Point[] Directions = { new(1, 0), new(0, -1), new(-1, 0), new(0, 1) };
 
     private readonly List<Point> _path = new();
     /// <summary>Spiegel je Kachel. Vorher wurde je Schritt die ganze Liste durchsucht.</summary>
@@ -261,63 +330,42 @@ public sealed class MirrorPuzzle : IPuzzle
 
     private void Trace(DungeonWorld world)
     {
-        _path.Clear();
         _reached = 0;
         // Einmal je Durchlauf einsortieren: Die Spiegel bewegen sich nicht, nur ihre Stellung
         // ändert sich. Vorher lief je Kachel eine lineare Suche über alle Spiegel.
         _mirrorsByTile.Clear();
+        var states = new Dictionary<Point, int>();
         foreach (Prop mirror in AllMirrors(world))
         {
             mirror.Behavior.OnSignal(mirror, world, "dark");
-            _mirrorsByTile[TileOf(mirror)] = mirror;
+            Point tile = TileOf(mirror);
+            _mirrorsByTile[tile] = mirror;
+            states[tile] = mirror.State;
         }
-        if (_source is null || _target is null) return;
-
-        Rectangle bounds = _source.Room.TileBounds;
-        Point tile = TileOf(_source);
-        Point targetTile = TileOf(_target);
-        Point direction = Directions[0];   // der Leuchter strahlt nach rechts
-        _path.Add(tile);
-
-        for (int step = 0; step < MaxSteps; step++)
+        if (_source is null || _target is null)
         {
-            tile += direction;
-            if (!bounds.Contains(tile)) break;
-            if (TileMap.IsBlocking(world.Map[tile.X, tile.Y])) break;
-            _path.Add(tile);
+            _path.Clear();
+            return;
+        }
 
-            if (tile == targetTile)
-            {
-                if (IsSolved) return;
-                IsSolved = true;
-                _target.LightRadius = 70f;
-                world.Announce("Das Licht trifft das Standbild.");
-                world.Context.Audio.Play("unseal", 0.8f);
-                world.OpenGate();
-                return;
-            }
-
+        // Die Strahlenregel liegt in BeamTracer, damit der Seed-Sweep dieselbe prüfen kann, ohne
+        // eine laufende Welt zu brauchen - und nicht eine zweite, leicht abweichende Kopie davon.
+        var touched = new List<Point>();
+        bool hit = BeamTracer.Trace(world.Map, _source.Room.TileBounds, TileOf(_source), TileOf(_target),
+                                    states, _path, touched);
+        foreach (Point tile in touched)
+        {
             if (!_mirrorsByTile.TryGetValue(tile, out Prop? mirror)) continue;
-
             mirror.Behavior.OnSignal(mirror, world, "lit");
             _reached++;
-            bool horizontal = direction.Y == 0;
-            switch (mirror.State)
-            {
-                case 0 when horizontal:   // "|" steht quer zum waagerechten Strahl
-                case 2 when !horizontal:  // "–" steht quer zum senkrechten Strahl
-                    return;
-                case 0:
-                case 2:
-                    continue;             // flach in Strahlrichtung -> der Strahl läuft weiter
-                case 1:                   // "/": rechts<->oben, links<->unten
-                    direction = new Point(-direction.Y, -direction.X);
-                    break;
-                default:                  // "\": rechts<->unten, links<->oben
-                    direction = new Point(direction.Y, direction.X);
-                    break;
-            }
         }
+        if (!hit || IsSolved) return;
+
+        IsSolved = true;
+        _target.LightRadius = 70f;
+        world.Announce("Das Licht trifft das Standbild.");
+        world.Context.Audio.Play("unseal", 0.8f);
+        world.OpenGate();
     }
 
     private static Point TileOf(Prop prop) =>

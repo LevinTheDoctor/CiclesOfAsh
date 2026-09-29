@@ -160,7 +160,7 @@ public sealed class DungeonGenerator
     private static readonly int[] NearbyOffsets = { 0, -1, 1, -2, 2, -3, 3 };
 
     private static readonly HashSet<string> NeedsPuzzleRoom =
-        new(StringComparer.OrdinalIgnoreCase) { "rune_order", "braziers", "weights", "mirrors" };
+        new(StringComparer.OrdinalIgnoreCase) { "rune_order", "rune_circle", "braziers", "weights", "mirrors" };
 
     /// <summary>Setzt Start, Ziel und Arenen. Der Rätselraum kommt später (siehe <see cref="AssignPuzzleRoom"/>).</summary>
     private void AssignRoomTypes(DungeonPlan plan, List<RoomNode> path)
@@ -673,6 +673,40 @@ public sealed class DungeonGenerator
                 int[] order = Enumerable.Range(0, steps).OrderBy(_ => _random.Next()).ToArray();
                 return new PuzzleSpec(key, order);
             }
+            case "rune_circle":
+            {
+                RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
+
+                // Vier Saeulen, jede mit eigenem Symbol - mehr Runen hat runes.png nicht.
+                const int ringSize = 4;
+                int[] ringColumns = SpreadColumns(ringSize, 5, 23);
+                int pillars = 0;
+                for (int index = 0; index < ringSize; index++)
+                    if (PlaceProp(puzzleRoom, "rune_pillar", PropAnchor.Floor, "rune", index, ringColumns[index])) pillars++;
+                if (pillars < ringSize) return FallBackToLevers(plan, path, rooms, mark);
+
+                // Die Startstellung entsteht RUECKWAERTS aus der geloesten: Von "alle leuchten" aus
+                // werden ein paar zufaellige Zuege angewandt. Damit ist sie garantiert loesbar, und
+                // zwar in hoechstens so vielen Zuegen, wie hier gewuerfelt wurden.
+                var lit = new bool[ringSize];
+                Array.Fill(lit, true);
+                int shuffles = 2 + _random.Next(ringSize);
+                for (int move = 0; move < shuffles; move++)
+                {
+                    int touched = _random.Next(ringSize);
+                    for (int offset = -1; offset <= 1; offset++)
+                    {
+                        int at = (touched + offset + ringSize) % ringSize;
+                        lit[at] = !lit[at];
+                    }
+                }
+                // Alles-leuchtet waere schon geloest - dann einmal von Hand verdrehen.
+                if (lit.All(on => on))
+                    for (int offset = -1; offset <= 1; offset++) lit[(offset + ringSize) % ringSize] = false;
+
+                return new PuzzleSpec(key, lit.Select(on => on ? 1 : 0).ToArray());
+            }
             case "braziers":
             {
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
@@ -715,31 +749,27 @@ public sealed class DungeonGenerator
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
                 if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
 
-                // Feste Geometrie, damit das Raetsel garantiert loesbar ist:
-                //   Leuchter (2) --> Spiegel (6, flach stellen) --> Spiegel (11, "/") --> hoch
-                //   --> fester Spiegel (11, oben) --> rechts --> fester Spiegel (21, oben) --> runter
-                //   --> Spiegel (21, "\") --> rechts --> Standbild (26)
-                // Die festen Spiegel haengen hoch an der Wand: der Spieler sieht den gedachten
-                // Weg, muss aber nur die drei am Boden drehen.
+                // Der gedachte Weg: Der Leuchter strahlt am Boden nach rechts, ZWEI benachbarte
+                // drehbare Spiegel heben ihn an die Wand und wieder herunter, der dritte liegt auf
+                // einem waagerechten Stueck und muss flach gestellt werden. Zwei feste Spiegel oben
+                // zeigen den Weg (ausserhalb der Sprungweite, damit niemand sie verdreht), und ein
+                // fester Sperrspiegel steht quer in genau dem Stueck Bodenreihe, das der Weg
+                // ueberspringt - ohne ihn koennte man alles flach stellen und der Strahl liefe
+                // einfach durch.
                 //
-                // Der feste Sperrspiegel in Spalte 16 steht quer ("|") und ist noetig: ohne ihn
-                // konnte man alle drei drehbaren flach stellen, der Strahl lief einfach am Boden
-                // durch und das Raetsel loeste sich von selbst. Er liegt genau in dem Stueck
-                // Bodenreihe, das der gedachte Weg ueberspringt - die Loesung ist damit eindeutig.
-                const int beamRow = FloorRow;          // Spiegel stehen auf dem Boden, Strahl in ihrer Reihe
-                const int upperStandRow = beamRow - 6; // hoch an der Wand, ausserhalb der Sprungweite
-
-                bool ok = PlacePropAt(puzzleRoom, "lamp", "beam_source", 0, 2, beamRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror", 0, 6, beamRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror", 1, 11, beamRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror", 2, 21, beamRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror_fixed", 0, 11, upperStandRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror_fixed", 1, 21, upperStandRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror_fixed", 2, 16, beamRow)
-                          & PlacePropAt(puzzleRoom, "statue", "beam_target", 0, 26, beamRow);
-                // Order = Stellungen der FESTEN Spiegel (0 = "|", 1 = "/", 2 = "–", 3 = "\\").
-                // Loesung fuer die drei drehbaren: Spalte 6 flach (2), Spalte 11 "/" (1), Spalte 21 "\\" (3).
-                return ok ? new PuzzleSpec(key, new[] { 1, 3, 0 }) : FallBackToLevers(plan, path, rooms, mark);
+                // NEU: Welches Paar hebt, und in welchen Spalten das steht, wird gewuerfelt. Vorher
+                // war jedes Spiegelraetsel im Spiel dasselbe - gleiche Spalten, gleiche Loesung,
+                // neunmal je Lauf. Ob die gewuerfelte Fassung GENAU EINE Loesung hat, rechnet der
+                // Generator selbst nach (BeamTracer), statt es zu behaupten; gelingt das in keinem
+                // Versuch, kommt die bewaehrte feste Fassung zum Zug.
+                for (int attempt = 0; attempt <= MirrorAttempts; attempt++)
+                {
+                    int before = _props.Count;
+                    PuzzleSpec? built = TryPlaceMirrors(puzzleRoom, useFixedFallback: attempt == MirrorAttempts);
+                    if (built is not null) return built;
+                    RollbackProps(before);
+                }
+                return FallBackToLevers(plan, path, rooms, mark);
             }
             default:
                 return null;
@@ -800,6 +830,81 @@ public sealed class DungeonGenerator
             if (DungeonReachability.IsSpotReached(reachable, _map, _props[^1].BottomCenter)) return;
             RollbackProps(before);   // unerreichbar -> naechsten Raum versuchen
         }
+    }
+
+    /// <summary>Wie oft eine gewuerfelte Spiegelstellung versucht wird, bevor die feste greift.</summary>
+    private const int MirrorAttempts = 12;
+
+    /// <summary>
+    /// Stellt eine Fassung des Spiegelraetsels auf und gibt sie nur zurueck, wenn genau EINE der
+    /// 4³ Stellungen der drehbaren Spiegel das Standbild trifft und die Ausgangsstellung es noch
+    /// nicht tut. Beides laesst sich sonst erst im Spiel bemerken - und ein Raetsel, das sich beim
+    /// Betreten von selbst loest, faellt nicht einmal dort auf.
+    /// </summary>
+    private PuzzleSpec? TryPlaceMirrors(RoomNode room, bool useFixedFallback)
+    {
+        const int beamRow = FloorRow;            // Spiegel stehen auf dem Boden, Strahl in ihrer Reihe
+        const int upperStandRow = beamRow - 6;   // hoch an der Wand, ausserhalb der Sprungweite
+
+        // Die bewaehrte Fassung: Hebepaar in der Mitte und rechts, Sperre dazwischen.
+        int sourceColumn = 2, targetColumn = 26;
+        int[] turnable = { 6, 11, 21 };
+        int liftFirst = 1;                       // Index in turnable: erster Spiegel des Hebepaars
+
+        if (!useFixedFallback)
+        {
+            sourceColumn = 2 + _random.Next(2);
+            targetColumn = 26 + _random.Next(2);
+            // Drei Spalten mit Luft dazwischen, damit die Sperre noch dazwischenpasst.
+            int first = sourceColumn + 3 + _random.Next(3);
+            int second = first + 4 + _random.Next(3);
+            int third = second + 5 + _random.Next(3);
+            if (third >= targetColumn - 2) return null;
+            turnable = new[] { first, second, third };
+            liftFirst = _random.Next(2);         // hebt das linke oder das rechte Paar
+        }
+
+        int liftLeft = turnable[liftFirst];
+        int liftRight = turnable[liftFirst + 1];
+        int blockerColumn = (liftLeft + liftRight) / 2;
+        if (blockerColumn <= liftLeft || blockerColumn >= liftRight) return null;
+
+        bool ok = PlacePropAt(room, "lamp", "beam_source", 0, sourceColumn, beamRow)
+                  & PlacePropAt(room, "mirror", "mirror", 0, turnable[0], beamRow)
+                  & PlacePropAt(room, "mirror", "mirror", 1, turnable[1], beamRow)
+                  & PlacePropAt(room, "mirror", "mirror", 2, turnable[2], beamRow)
+                  & PlacePropAt(room, "mirror", "mirror_fixed", 0, liftLeft, upperStandRow)
+                  & PlacePropAt(room, "mirror", "mirror_fixed", 1, liftRight, upperStandRow)
+                  & PlacePropAt(room, "mirror", "mirror_fixed", 2, blockerColumn, beamRow)
+                  & PlacePropAt(room, "statue", "beam_target", 0, targetColumn, beamRow);
+        if (!ok) return null;
+
+        // Order = Stellungen der FESTEN Spiegel (0 = "|", 1 = "/", 2 = "–", 3 = "\\"):
+        // oben links lenkt hinauf-nach-rechts, oben rechts nach unten, die Sperre steht quer.
+        var order = new[] { 1, 3, 0 };
+
+        // Nachrechnen statt hoffen. Die Kachelreihen entsprechen PlacePropAt: ein Prop steht auf
+        // der Bodenkachel, seine Mitte liegt eine Kachel darueber.
+        Rectangle bounds = room.TileBounds;
+        Point Tile(int column, int standRow, int height) =>
+            new(bounds.X + column, TileMap.ToTile((bounds.Y + standRow) * TileSize - height / 2f));
+
+        int mirrorHeight = _definitions.Props.Get("mirror").Height;
+        var fixedMirrors = new Dictionary<Point, int>
+        {
+            [Tile(liftLeft, upperStandRow, mirrorHeight)] = order[0],
+            [Tile(liftRight, upperStandRow, mirrorHeight)] = order[1],
+            [Tile(blockerColumn, beamRow, mirrorHeight)] = order[2],
+        };
+        var turnableTiles = turnable.Select(column => Tile(column, beamRow, mirrorHeight)).ToList();
+
+        (int solutions, _, bool startsSolved) = Puzzles.BeamTracer.CountSolutions(
+            _map, bounds,
+            Tile(sourceColumn, beamRow, _definitions.Props.Get("lamp").Height),
+            Tile(targetColumn, beamRow, _definitions.Props.Get("statue").Height),
+            turnableTiles, fixedMirrors, Array.Empty<int>());
+
+        return solutions == 1 && !startsSolved ? new PuzzleSpec("mirrors", order) : null;
     }
 
     private void PlaceChests(DungeonPlan plan, List<RoomNode> rooms)
