@@ -8,7 +8,7 @@ Die eigentlichen Generatoren liegen im Paket tools/assetgen/:
   world.py       Tilesets je Kreis, Hintergründe, Props, Items, Runen, Effekte, Logo
   media.py       Bitmap-Fonts und Sounds
   music.py       Loopender Soundtrack je Ort
-  icons.py       App-Icons (.icns/.ico) für die Auslieferung
+  icons.py       App-Icons (.icns/.ico) und das Fenster-/Dock-Symbol Icon.bmp
 
 Aufruf aus dem Repo-Root:  python tools/generate_placeholder_assets.py   (benötigt: pip install pillow)
 Jede Datei darf durch echte Art ersetzt werden, solange Größe/Raster zu Content/manifest.json passen.

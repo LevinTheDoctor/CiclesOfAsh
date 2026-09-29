@@ -39,3 +39,4 @@ jobs:
           test -f src/CirclesOfAsh/Content/Audio/music_hub.wav
           test -f build/icons/CirclesOfAsh.ico
           test -f build/icons/CirclesOfAsh.icns
+          test -f src/CirclesOfAsh/Icon.bmp

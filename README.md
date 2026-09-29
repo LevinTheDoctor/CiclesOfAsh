@@ -769,6 +769,20 @@ Ergebnis: `build/icons/CirclesOfAsh.ico` (Windows, in die .exe eingebettet über
 und `CirclesOfAsh.icns` (macOS, landet im `.app`). Wo `iconutil` verfügbar ist, wird es genutzt,
 sonst schreibt das Skript das icns-Format selbst – die CI unter Linux kommt damit ebenfalls klar.
 
+**Dazu kommt `src/CirclesOfAsh/Icon.bmp` – das Symbol der *laufenden* App.** Das `.icns` gilt nur,
+bis das Spiel sein Fenster öffnet. Dann ruft MonoGame `SDL_SetWindowIcon` auf, und SDL setzt unter
+macOS damit das Dock-Bild. Welches Bild das ist, sucht MonoGame als eingebettete Ressource
+`Icon.bmp` in der Programmdatei (`SdlGameWindow`, dekompiliert geprüft) – fehlt sie, nimmt es sein
+**eigenes Logo**. Genau das stand vorher im Dock, sobald das Spiel lief, auch im fertigen `.app`.
+Die Datei ist deshalb über `<EmbeddedResource … LogicalName="Icon.bmp">` eingebunden und liegt im
+Repository (nicht unter `build/icons/`), weil jeder Build sie braucht – auch `dotnet run`. Sie ist
+eine 32-Bit-BMP mit Alphakanal (256 px), die SDL direkt lesen kann; unter Windows und Linux ist sie
+zugleich das Fenstersymbol in Titelleiste und Taskleiste.
+
+Dock-Symbol und `.icns` folgen dem macOS-Raster: die Kachel mit abgerundeten Ecken auf 824 von
+1024 px, drumherum durchsichtig. Ohne den Rand zieht macOS das Bild bis an die Kachelkante, und es
+wirkt größer als alle Symbole daneben. Vor und nach dem Start zeigt das Dock so dasselbe Bild.
+
 <p align="center"><img src="docs/icon-preview.png" alt="App-Icon, 512 px" width="192"></p>
 
 ### macOS-Programmbündel
