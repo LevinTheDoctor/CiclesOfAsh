@@ -19,22 +19,24 @@ public static class DungeonReachability
     /// <param name="diagnostics">Optional: sammelt Detailzeilen je Befund (für den Seed-Sweep).</param>
     public static void Check(DungeonLayout layout, List<string>? diagnostics)
     {
-        TileMap map = layout.Map;
+        bool[] visited = Flood(layout.Map, layout.PlayerSpawn);
+        ReportUnreachableRooms(layout, layout.Map, visited, diagnostics);
+    }
+
+    /// <summary>
+    /// Flutfüllung vom Startpunkt aus. Getrennt von <see cref="Check"/>, weil auch der Generator
+    /// sie braucht: Er prüft damit, ob seine Rätselteile überhaupt erreichbar liegen, statt eine
+    /// zweite, leicht abweichende Kopie derselben Regeln zu führen.
+    /// </summary>
+    /// <returns>Je Kachel, ob sie vom Start aus begehbar erreichbar ist (Index Zeile * Breite + Spalte).</returns>
+    public static bool[] Flood(TileMap map, Vector2 spawn)
+    {
         bool[] visited = new bool[map.Width * map.Height];
         Queue<Point> frontier = new();
 
-        Point start = TileOf(layout.PlayerSpawn);
-        if (!IsWalkable(map, start))
-        {
-            // Spielerstart kann in der Luft liegen (Spawn ist die Fußhöhe) -> nächsten Boden suchen
-            for (int below = 0; below < MaxJumpTiles; below++)
-            {
-                Point probe = new(start.X, start.Y + below);
-                if (!map.IsInside(probe.X, probe.Y)) break;
-                if (IsWalkable(map, probe)) { start = probe; break; }
-            }
-        }
+        Point start = StandingTile(map, spawn);
         if (IsWalkable(map, start)) { visited[start.Y * map.Width + start.X] = true; frontier.Enqueue(start); }
+        else Log.Warn("ERREICHBARKEIT: Kein begehbarer Startpunkt gefunden - die Prüfung wird übersprungen.");
 
         while (frontier.Count > 0)
         {
@@ -72,7 +74,46 @@ public static class DungeonReachability
             }
         }
 
-        ReportUnreachableRooms(layout, map, visited, diagnostics);
+        return visited;
+    }
+
+    /// <summary>
+    /// Steht etwas, das auf dieser Fußhöhe abgestellt ist (Prop, Spielerstart), an einem Ort, den
+    /// die Füllung erreicht hat? Rätselteile werden auf der Bodenkachel verankert – gemeint ist
+    /// also der freie Raum darüber.
+    /// </summary>
+    public static bool IsSpotReached(bool[] visited, TileMap map, Vector2 bottomCenter)
+    {
+        Point tile = StandingTile(map, bottomCenter);
+        return map.IsInside(tile.X, tile.Y) && visited[tile.Y * map.Width + tile.X];
+    }
+
+    /// <summary>
+    /// Kachel, auf der die Füllung beginnt. <see cref="DungeonLayout.PlayerSpawn"/> ist die
+    /// FUSSHÖHE: die Oberkante der Bodenkachel. <see cref="TileMap.ToTile"/> rundet ab und trifft
+    /// damit die massive Bodenkachel selbst, nicht den Raum darüber, in dem die Figur steht.
+    /// Deshalb wird zuerst nach OBEN gesucht – früher ging die Suche nach unten, also tiefer ins
+    /// Gestein, und die Füllung startete auf 86 % der Verliese gar nicht erst. Dann galt jeder
+    /// Pflichtraum als unerreichbar, und die Prüfung meldete lauter Fehlalarme.
+    /// Erst danach wird nach unten gesucht: für Startpunkte, die über einem Absatz schweben.
+    /// </summary>
+    private static Point StandingTile(TileMap map, Vector2 footPixel)
+    {
+        Point foot = TileOf(footPixel);
+        for (int above = 1; above <= 2; above++)
+        {
+            Point probe = new(foot.X, foot.Y - above);
+            if (!map.IsInside(probe.X, probe.Y)) break;
+            if (IsWalkable(map, probe)) return probe;
+        }
+        if (IsWalkable(map, foot)) return foot;
+        for (int below = 1; below < MaxJumpTiles; below++)
+        {
+            Point probe = new(foot.X, foot.Y + below);
+            if (!map.IsInside(probe.X, probe.Y)) break;
+            if (IsWalkable(map, probe)) return probe;
+        }
+        return foot;
     }
 
     private static bool TryVisit(TileMap map, bool[] visited, Point tile)

@@ -58,6 +58,9 @@ public sealed class DungeonGenerator
         var rooms = new Dictionary<Point, RoomNode>();
         List<RoomNode> path = BuildCriticalPath(plan, gridWidth, rooms);
         AssignRoomTypes(plan, path);
+        // Vor den Abzweigen: einen Raum mit heilem Boden für das Rätsel vormerken (siehe
+        // RoomNode.KeepFloorIntact). Danach ist regelmässig keiner mehr übrig.
+        ReservePuzzleRoom(plan, path);
         if (!plan.IsBossDungeon)
         {
             AddDetours(plan, path, rooms, gridWidth);
@@ -184,14 +187,37 @@ public sealed class DungeonGenerator
         string key = plan.PuzzleKey;
         if (!NeedsPuzzleRoom.Contains(key)) return key;
 
-        RoomNode? puzzleRoom = path.Skip(1).Take(Math.Max(0, path.Count - 2))
-            .Where(room => room.Type == RoomType.Corridor && !room.Exits.ContainsKey(Direction.Down))
-            .OrderBy(_ => _random.Next())
+        RoomNode? puzzleRoom = PuzzleRoomCandidates(path)
+            .Where(room => !room.Exits.ContainsKey(Direction.Down))
+            .OrderByDescending(room => room.KeepFloorIntact)   // der vorgemerkte Raum zuerst
+            .ThenBy(_ => _random.Next())
             .FirstOrDefault();
         if (puzzleRoom is null) return "levers";   // kein freier Raum -> auf Hebel ausweichen
         puzzleRoom.Type = RoomType.Puzzle;
         return key;
     }
+
+    /// <summary>
+    /// Merkt einen Mittelraum als künftigen Rätselraum vor, BEVOR Umwege, Schatz- und
+    /// Kerkerabzweige Ausgänge anhängen. <see cref="AddDetours"/> und <see cref="TryAttachRoom"/>
+    /// hängen sich danach nicht mehr nach unten an ihn, sein Boden bleibt also heil.
+    /// </summary>
+    private void ReservePuzzleRoom(DungeonPlan plan, List<RoomNode> path)
+    {
+        if (plan.IsBossDungeon || !NeedsPuzzleRoom.Contains(plan.PuzzleKey)) return;
+        // Schon der kritische Pfad steigt ab: Wo er nach unten geht, hat der Raum bereits einen
+        // Schacht in der Bodenreihe. Vorgemerkt wird deshalb nur ein Raum, dessen Boden noch heil
+        // ist - sonst schuetzt die Vormerkung einen Boden, der ohnehin schon ein Loch hat.
+        RoomNode? reserved = PuzzleRoomCandidates(path)
+            .Where(room => !room.Exits.ContainsKey(Direction.Down))
+            .OrderBy(_ => _random.Next())
+            .FirstOrDefault();
+        if (reserved is not null) reserved.KeepFloorIntact = true;
+    }
+
+    /// <summary>Mittelräume, in denen ein Raumrätsel stehen könnte: Korridore zwischen Start und Ziel.</summary>
+    private static IEnumerable<RoomNode> PuzzleRoomCandidates(List<RoomNode> path) =>
+        path.Skip(1).Take(Math.Max(0, path.Count - 2)).Where(room => room.Type == RoomType.Corridor);
 
     /// <summary>
     /// Umwege: Wo der Pfad drei Räume geradeaus läuft, wird darüber oder darunter eine Parallelroute gebaut.
@@ -211,6 +237,9 @@ public sealed class DungeonGenerator
             int[] verticalOffsets = _random.Next(2) == 0 ? new[] { -1, 1 } : new[] { 1, -1 };
             foreach (int offsetY in verticalOffsets)
             {
+                // Ein Umweg nach unten reisst bei BEIDEN Anschlussräumen ein Loch in die Bodenreihe.
+                // Ist einer davon als Rätselraum vorgemerkt, wird diese Richtung übersprungen.
+                if (offsetY > 0 && (path[index].KeepFloorIntact || path[index + 2].KeepFloorIntact)) continue;
                 Point[] cells = { origin + new Point(0, offsetY), origin + new Point(1, offsetY), origin + new Point(2, offsetY) };
                 if (!cells.All(cell => IsInside(cell, gridWidth) && !rooms.ContainsKey(cell))) continue;
 
@@ -257,6 +286,8 @@ public sealed class DungeonGenerator
             {
                 // Nur freie Seiten: ein Raum darf pro Richtung höchstens einen Ausgang haben
                 if (anchor.Exits.ContainsKey(direction) || !IsFree(rooms, anchor.GridPosition, direction, gridWidth)) continue;
+                // Der vorgemerkte Rätselraum behält seinen Boden – nach oben oder zur Seite gern.
+                if (direction == Direction.Down && anchor.KeepFloorIntact) continue;
                 RoomNode room = AddRoom(rooms, anchor.GridPosition + Offsets[direction], type);
                 room.IsOptional = true;
                 Connect(anchor, room, direction, gated);
