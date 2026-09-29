@@ -1013,3 +1013,43 @@ Ausrüstungs-Ebene erlaubt.
 
 Nichts von dir nötig — die Kleidung läuft über die vorhandenen Slots. Wenn der Nutzer die Muster
 anders farblich will: `UNDERWEAR_PALETTES` ist der eine Ort.
+
+# Künstlerischer Durchgang: Flügel (`wings_frame`, geliefert)
+
+Auftrag: Flügel **detaillierter** und **animiert** — die drei Blätter `char_wings_{feathered,
+tattered,ember}.png`. Graustufen-Regel bleibt: Der Code färbt die Ebene in der Akzentfarbe ein,
+also weiterhin nur reine Grautöne.
+
+## Konstruktion (`_feather_stroke` + `wings_frame`)
+
+Statt drei bockiger Treppenklötze mit nur zwei Taktphasen (alt: `flap = frame % 2`) zeichnet jeder
+Flügel jetzt **fünf Federkiele** (Wurzel innen oben, Spitze außen unten), ein bis zwei Pixel dick,
+mit Lichtkante oben links, Schatten unter der Unterkante und gezackter oder heller Spitze. Die
+linke Hälfte wird weiterhin an x=12 gespiegelt.
+
+Animationsmodell pro Zeile/Wert:
+* **idle/hurt** (`open 0`) — langsame Welle: `flut = (0,1,1,0)[frame]` lässt die äußeren Kiele sichtbar atmen; `hurt` hängt die Flügel tiefer und zuckt mit (teilt sich die langsame Phase, wie die Unterwäsche)
+* **run** (`open 2`) — kurzes, schnelles Flattern: `flut = (1,-1,2,-1)[frame]`, Flügel heben sich leicht
+* **jump** (`open 5`) — weit aufspreizend: Spitzen wandern an den Blattrand (x→0/x→23) und oben hinauf, die Federfächer spreizen auffällig weiter als in allen anderen Zeilen
+
+Arten:
+* **feathered** — hell (Engel): Top-Stoßlicht + `TINT_LIGHT`, weiße Daunen am Ansatz
+* **tattered** — dunkel (gefallen): `TINT_MID`/`TINT_DARK`/`TINT_DEEP`, Risse über die Kiele
+  (`framekey % 4 == 0` ⇒ Loch), Kiele hängen 2 px durch
+* **ember** — Asche: `TINT_MID`/`TINT_DEEP`, Glutkern blitzt im Frametakt auf (`(s+frame) % 3`),
+  heiße Ader vom Kiefer nach außen tonlagenversetzt
+
+## Abnahme (gemessen an den fertigen PNGs, nicht am Code)
+
+| Blatt | Tonwerte vorher | Tonwerte nachher | Maske |
+|---|---|---|---|
+| `char_wings_feathered` | 26 | 34 | ändert sich (federige Spitzen, gewollt) |
+| `char_wings_tattered`  | 12 | 38 | ändert sich (Risse, gewollt) |
+| `char_wings_ember`     | 19 | 38 | ändert sich (Glutkern, gewollt) |
+
+* **Reproduzierbarkeit:** Alle erzeugten Dateien neu gehasht — **nur die 3 Ziel-PNGs** weichen vom
+  HEAD-Stand ab, alle übrigen (Texturen, Unterwäsche, Fonts, WAVs) sind **byte-genau**.
+* **`dotnet build` 0 Fehler / 0 Warnungen.**
+* **Spielstart 0 `WARN`** im `game.log`.
+* Sichtprüfung (ASCII-Render der Frames): idle atmet, run flattern sichtbar, jump spreizt weit auf,
+  hurt hängt und zuckt; Silhouette bleibt symmetrisch durch die Spieglung.
