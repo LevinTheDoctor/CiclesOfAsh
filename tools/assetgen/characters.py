@@ -351,11 +351,27 @@ def gear_frame(cls, p):
         # Rueckhandgriff: die Klinge zeigt nach unten aus der Faust heraus.
         weapon_shaft(draw, hx, hy + 3, 6, 2, STEEL, (210, 210, 225, 255), -lean, up=False)
         pixel(draw, hx - 1, hy + 1, (62, 52, 78, 255))       # Daumen
-    else:  # angel: waffenlos, aber die Hand bleibt gewickelt und ein Band flattert mit
-        band, band_l = (206, 198, 180, 255), (238, 233, 220, 255)
-        fist(draw, p, band, band_l, (150, 144, 132, 255))
-        for row in range(5):                                 # Band, das der Bewegung nachlaeuft
-            pixel(draw, hx + 1 + round(lean * (row + 1) / 5), hy + 2 + row, band if row % 2 else band_l)
+    else:  # angel: waffenlos, aber die Hand bleibt gewickelt und ein Gebetsband flattert mit
+        band, band_l = (214, 206, 188, 255), (246, 240, 226, 255)
+        band_d = (148, 142, 126, 255)
+        fist(draw, p, band, band_l, band_d)
+        # Goldring ums Handgelenk (Licht oben links), kippt mit der Bewegung
+        rect(draw, hx - 1, hy + 1, 4, 1, GOLD)
+        pixel(draw, hx - 1, hy + 1, shift(GOLD, 38))          # Glanz auf dem Ring
+        pixel(draw, hx + 2, hy + 1, shift(GOLD, -52))         # Ringrinne rechts
+        # Geflochtenes Gebetsband: zwei Straenge + Perlknoten, wellt sich mit dem Frame
+        for row in range(6):
+            wave = 1 if (p["frame"] + row) % 3 == 0 else 0
+            x = hx - 1 + round(lean * (row + 1) / 3) + wave
+            pixel(draw, x, hy + 2 + row, band_l if row % 2 else band)
+            pixel(draw, x + 1, hy + 2 + row, band if row % 2 else band_d)
+            if row in (1, 4):                                  # Perlknoten im Geflecht
+                pixel(draw, x, hy + 2 + row, GOLD)
+                pixel(draw, x + 1, hy + 3 + row, shift(GOLD, -52))
+        # Quaste am Ende mit heller Lichtkante
+        qx = hx - 2 + round(lean * 7 / 3) + (1 if p["frame"] % 3 == 0 else 0)
+        rect(draw, qx, hy + 8, 3, 2, band_d)
+        pixel(draw, qx, hy + 8, band_l)
     return polish(image)
 
 
