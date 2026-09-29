@@ -351,11 +351,27 @@ def gear_frame(cls, p):
         # Rueckhandgriff: die Klinge zeigt nach unten aus der Faust heraus.
         weapon_shaft(draw, hx, hy + 3, 6, 2, STEEL, (210, 210, 225, 255), -lean, up=False)
         pixel(draw, hx - 1, hy + 1, (62, 52, 78, 255))       # Daumen
-    else:  # angel: waffenlos, aber die Hand bleibt gewickelt und ein Band flattert mit
-        band, band_l = (206, 198, 180, 255), (238, 233, 220, 255)
-        fist(draw, p, band, band_l, (150, 144, 132, 255))
-        for row in range(5):                                 # Band, das der Bewegung nachlaeuft
-            pixel(draw, hx + 1 + round(lean * (row + 1) / 5), hy + 2 + row, band if row % 2 else band_l)
+    else:  # angel: waffenlos, aber die Hand bleibt gewickelt und ein Gebetsband flattert mit
+        band, band_l = (214, 206, 188, 255), (246, 240, 226, 255)
+        band_d = (148, 142, 126, 255)
+        fist(draw, p, band, band_l, band_d)
+        # Goldring ums Handgelenk (Licht oben links), kippt mit der Bewegung
+        rect(draw, hx - 1, hy + 1, 4, 1, GOLD)
+        pixel(draw, hx - 1, hy + 1, shift(GOLD, 38))          # Glanz auf dem Ring
+        pixel(draw, hx + 2, hy + 1, shift(GOLD, -52))         # Ringrinne rechts
+        # Geflochtenes Gebetsband: zwei Straenge + Perlknoten, wellt sich mit dem Frame
+        for row in range(6):
+            wave = 1 if (p["frame"] + row) % 3 == 0 else 0
+            x = hx - 1 + round(lean * (row + 1) / 3) + wave
+            pixel(draw, x, hy + 2 + row, band_l if row % 2 else band)
+            pixel(draw, x + 1, hy + 2 + row, band if row % 2 else band_d)
+            if row in (1, 4):                                  # Perlknoten im Geflecht
+                pixel(draw, x, hy + 2 + row, GOLD)
+                pixel(draw, x + 1, hy + 3 + row, shift(GOLD, -52))
+        # Quaste am Ende mit heller Lichtkante
+        qx = hx - 2 + round(lean * 7 / 3) + (1 if p["frame"] % 3 == 0 else 0)
+        rect(draw, qx, hy + 8, 3, 2, band_d)
+        pixel(draw, qx, hy + 8, band_l)
     return polish(image)
 
 
@@ -437,38 +453,77 @@ def makeup_frame(style, p):
 
 
 # ------------------------------------------------------------------ Flügel (Graustufen, hinter dem Körper)
+def _feather_stroke(hd, x0, y0, xi, yi, top, mid, dark, ragged, frame, hot=False):
+    """Ein Feder-Kiel als 1-2 px dicke Treppe von der Wurzel zur Spitze, mit Lichtkante oben links
+    und Schatten unten. `ragged` frisst Löcher in zerfetzte Flügel, `hot` lässt den Glut-Kern
+    aufleuchten. Alles Graustufen - der Code färbt die Ebene ein (Akzentfarbe)."""
+    dx, dy = xi - x0, yi - y0
+    steps = max(abs(dx), abs(dy))
+    if steps == 0:
+        return
+    for s in range(steps + 1):
+        px = x0 + round(dx * s / steps)
+        py = y0 + round(dy * s / steps)
+        framekey = px * 3 + py * 5 + frame
+        if ragged and s >= steps // 3 and framekey % 4 == 0:
+            continue                                   # Loch im zerfetzten Flügel
+        hd.point((px, py), fill=mid if (px + s) % 2 else dark)
+        if s < steps * 0.6:
+            hd.point((px, py + 1), fill=dark)          # Unterkante -> Volumen
+        if s < steps // 2 and s % 2 == 0:
+            hd.point((px - 1, py), fill=top)           # Lichtkante oben links
+        if hot and (s + frame) % 3 == 0:
+            hd.point((px, py), fill=top)               # Glutkern blitzt auf
+    hd.point((x0, y0), fill=top)                       # Wurzelreflex
+    hd.point((xi, yi), fill=dark if ragged else top)   # Spitze: gezackt oder hell
+
+
 def wings_frame(kind, p):
-    """Ragt links und rechts über die Figur hinaus, Fußlinie bleibt gleich. In jump weiter geöffnet.
-    Zeichnet nur die linke Flügelhälfte und spiegelt sie an x=12 auf die rechte Seite."""
+    """
+    Ragt links und rechts über die Figur hinaus, Fußlinie bleibt gleich. Die Federbüschel hängen
+    gefaltet am Rücken (idle), flattern im Lauf, spreizen im Sprung weit auf und zucken verletzt
+    (hurt teilt sich die langsame Phase). Fünf Feder-Kiele je Seite, 1-2 px dick mit Lichtkante
+    oben links und Schatten darunter - die linke Hälfte wird an x=12 gespiegelt.
+    """
     image = new_image(W, H)
     b = p["bob"]
-    spread = 3 if p["jump"] else 0             # Sprung = erkennbar weiter geöffnet
-    flap = p["frame"] % 2
-    top = 9 + b - flap + spread
+    if p["run"]:                                       # Flattern: kurze, schnelle Spreizung
+        open_, base_y, flut = 2, 5 + b, (1, -1, 2, -1)[p["frame"]]
+    elif p["jump"]:                                    # Sprung: weit auf, hebt und sinkt leicht
+        open_, base_y, flut = 5, 6 - (0 if p["frame"] < 2 else 1), (-1, 1, 1, 0)[p["frame"]]
+    else:                                              # idol/laufruh + hurt: langsame Welle
+        open_, base_y, flut = 0, 8 + b, (0, 1, 1, 0)[p["frame"]]
+
+    if kind == "feathered":                            # hell, Engel
+        top, mid, dark = (252, 252, 252, 255), TINT_LIGHT, TINT_DARK
+        ragged = False
+    elif kind == "tattered":                           # dunkel, zerfetzt, gefallen
+        top, mid, dark = TINT_MID, TINT_DARK, TINT_DEEP
+        ragged = True
+    else:                                              # ember: Asche, glühender Kern
+        top, mid, dark = (250, 250, 250, 255), TINT_MID, TINT_DEEP
+        ragged = False
+
     half = new_image(12, H)
     hd = ImageDraw.Draw(half)
-    if kind == "feathered":                    # gefiedert, hell (Engel)
-        for i in range(7):                     # federige Treppenstufen nach außen
-            x0 = 11 - min(9, i + 2)
-            hd.rectangle([x0, top + i * 2, 11, top + i * 2 + 1],
-                         fill=TINT_LIGHT if i < 3 else TINT_MID)
-            if i % 2 == 0:
-                hd.rectangle([x0, top + i * 2, x0 + 2, top + i * 2], fill=(250, 250, 250, 255))
-        hd.rectangle([10, top + 14, 11, top + 15], fill=TINT_MID)   # unterste Feder
-    elif kind == "tattered":                   # zerfetzt, dunkel (gefallen)
-        for i in range(6):
-            if (i + p["frame"]) % 3 != 2:      # Lücken = zerfetzter Look
-                x0 = 11 - (4 if i % 2 else 2)
-                hd.rectangle([x0, top + i * 2, 11, top + i * 2 + 1], fill=TINT_DARK)
-        pixel(hd, 9, top + 12, TINT_DEEP)
-        pixel(hd, 5, top + 14, TINT_DEEP)
-    else:                                      # ember: glühend, aus Asche
-        for i in range(6):
-            x0 = 11 - (5 if i % 2 else 2)
-            hd.rectangle([x0, top + i * 2, 11, top + i * 2 + 1],
-                         fill=TINT_LIGHT if i < 3 else TINT_DARK)
-        pixel(hd, 11, top, (250, 250, 250, 255))
-    mirror = half.transpose(Image.FLIP_LEFT_RIGHT)   # rechte Flügelhälfte = Spiegel
+    # fünf Feder-Kiele je Flügel: innen oben kurz, außen unten lang
+    roots = [(10, base_y), (10, base_y + 2), (9, base_y + 4), (8, base_y + 6), (7, base_y + 8)]
+    for i, (rx, ry) in enumerate(roots):
+        tx = max(0, (5 - i) - open_)                    # je weiter außen und je offener: weiter raus
+        ty = max(0, base_y + 6 + i * 2 - open_ * 2)     # offen hebt die Spitzen
+        if i >= 3:
+            ty += flut                                   # äußere Kiele flattern sichtbar
+        if kind == "tattered":
+            ty += 2                                      # zerfetzte hängen durch
+        _feather_stroke(hd, rx, ry, tx, ty, top, mid, dark, ragged,
+                        p["frame"], hot=(kind == "ember"))
+    if kind == "feathered":                              # weiße Daunen am Ansatz
+        hd.point((10, base_y + 1), fill=top)
+    elif kind == "ember":                                # heiße Ader vom Kiefer nach außen
+        for ring in range(3):
+            if (ring + p["frame"]) % 2 == 0:
+                hd.point((8 - ring, base_y + 3 + ring), fill=top)
+    mirror = half.transpose(Image.FLIP_LEFT_RIGHT)       # rechte Flügelhälfte = Spiegel
     image.paste(half, (0, 0), half)
     image.paste(mirror, (12, 0), mirror)
     return polish(image, outline=None, light=14, dark=-18, gradient=8)
@@ -478,48 +533,113 @@ def wings_frame(kind, p):
 # Die EINZIGE unzerstoerbare Kleidungsebene und reiner Gag: Das Muster wird pro Lauf gewuerfelt und
 # ist erst zu sehen, wenn alles andere zerfallen ist. Nur der Huefte (y 21-24, x 7-16) - diese
 # Flaeche ist bei ALLEN sechs Koerpertypen gedeckt, auch beim schmalsten Athleten-Rumpf.
+#
+# 16-Bit-Durchgang: Jedes Stueck hat jetzt fuenf bis sieben eigene Toene statt drei (Licht von oben
+# links) und eine Binnenzeichnung, die das Motiv im Stoff traegt. Die FUENF Grundflaechen bleiben
+# unveraendert, alle neuen Pixel liegen INNERHALB von ihnen - sonst wandert die Silhouette.
 UNDERWEAR_PALETTES = {
-    "plain":   ((238, 233, 220, 255), (206, 198, 180, 255), (166, 158, 142, 255), None),
-    "hearts":  ((246, 208, 216, 255), (226, 168, 184, 255), (176, 118, 136, 255), (198, 40, 66, 255)),
-    "stripes": ((240, 240, 246, 255), (208, 210, 226, 255), (160, 162, 182, 255), (70, 96, 186, 255)),
-    "polka":   ((244, 232, 200, 255), (214, 198, 158, 255), (168, 152, 114, 255), (126, 84, 48, 255)),
-    "flames":  ((72, 58, 62, 255), (48, 38, 44, 255), (30, 22, 28, 255), EMBER),
-    "bones":   ((126, 122, 134, 255), (94, 90, 104, 255), (62, 58, 72, 255), BONE),
+    "plain":   dict(light=(238, 233, 220, 255), mid=(206, 198, 180, 255), dark=(170, 162, 146, 255),
+                    deep=(122, 114, 100, 255), motif=(250, 247, 240, 255), hi=(250, 247, 240, 255),
+                    lo=(88, 80, 70, 255), hot=None),
+    "hearts":  dict(light=(246, 212, 220, 255), mid=(224, 170, 188, 255), dark=(170, 114, 134, 255),
+                    deep=(122, 74, 92, 255), motif=(198, 40, 66, 255), hi=(255, 194, 206, 255),
+                    lo=(134, 24, 46, 255), hot=None),
+    "stripes": dict(light=(242, 242, 248, 255), mid=(206, 208, 228, 255), dark=(154, 156, 180, 255),
+                    deep=(104, 106, 128, 255), motif=(70, 96, 186, 255), hi=(150, 180, 240, 255),
+                    lo=(38, 52, 112, 255), hot=None),
+    "polka":   dict(light=(246, 236, 204, 255), mid=(216, 200, 160, 255), dark=(164, 148, 110, 255),
+                    deep=(112, 96, 62, 255), motif=(126, 84, 48, 255), hi=(206, 162, 112, 255),
+                    lo=(72, 46, 26, 255), hot=None),
+    "flames":  dict(light=(100, 82, 90, 255), mid=(70, 56, 64, 255), dark=(46, 36, 44, 255),
+                    deep=(22, 16, 24, 255), motif=EMBER, hi=FLAME, lo=(150, 66, 26, 255),
+                    hot=(255, 240, 200, 255)),
+    "bones":   dict(light=(152, 148, 162, 255), mid=(114, 110, 128, 255), dark=(78, 74, 92, 255),
+                    deep=(44, 40, 58, 255), motif=BONE, hi=(250, 246, 232, 255), lo=(166, 156, 140, 255),
+                    hot=None),
 }
 
 
 def underwear_frame(pattern, p):
     """Slip auf der Huefte. Folgt bewusst NICHT den Beinen: Die Huefte schwingt beim Laufen nicht
-    mit, nur die Beine darunter."""
+    mit, nur die Beine darunter. Alle neuen Töne liegen auf den fünf Grundflächen, die Silhouette
+    bleibt dadurch byte-genau (Lampe oben links, Motiv aus dem Stoff selbst)."""
     image = new_image(W, H)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
-    light, mid, dark, motif = UNDERWEAR_PALETTES[pattern]
+    pal = UNDERWEAR_PALETTES[pattern]
+    light, mid, dark, deep = pal["light"], pal["mid"], pal["dark"], pal["deep"]
+    motif, hi, lo, hot = pal["motif"], pal["hi"], pal["lo"], pal["hot"]
+
     rect(draw, 7, 21 + b, 10, 3, mid)                        # Bund und Sitz
     rect(draw, 7, 21 + b, 10, 1, light)                      # Bundlicht oben
     rect(draw, 7, 21 + b, 2, 3, light)                       # Lichtseite links
     rect(draw, 7, 24 + b, 9, 1, mid)                         # Schritt zwischen den Beinen
     rect(draw, 15, 22 + b, 2, 2, dark)                       # Schattenkante rechts
-    if pattern == "hearts":
-        for x in (9, 13):                                    # zwei Herzchen, je 3x2
+    rect(draw, 9, 22 + b, 7, 1, shift(dark, 6))              # Nahtlinie unter dem Bund
+    rect(draw, 8, 23 + b, 6, 1, shift(mid, 8))               # weicher Sitzton
+
+    if pattern == "plain":                                   # feines Leinen: Korneinzelpunkte + Mittelnaht
+        for y in range(22 + b, 25 + b):
+            for x in range(8, 16):
+                if (x + y) % 3 == 0:
+                    pixel(draw, x, y, hi if (x * 2 + y) % 5 == 0 else lo)
+        rect(draw, 11, 22 + b, 1, 2, deep)                   # Mittelnaht vorn
+        pixel(draw, 10, 23 + b, light)
+        pixel(draw, 12, 22 + b, hi)
+    elif pattern == "hearts":                                # zwei Herzchen mit Glanz + Miniherz am Bund
+        for x in (9, 13):
             rect(draw, x, 22 + b, 3, 1, motif)
             pixel(draw, x + 1, 23 + b, motif)
-    elif pattern == "stripes":
+            pixel(draw, x, 22 + b, hi)                       # Glanz oben links
+            pixel(draw, x + 2, 22 + b, lo)                   # Schatten rechts
+            pixel(draw, x + 2, 23 + b, lo)                   # Kerb der Herzspitze
+        pixel(draw, 11, 21 + b, motif)                       # Miniherz auf dem Bund
+        pixel(draw, 12, 21 + b, hi)
+        pixel(draw, 14, 21 + b, lo)
+    elif pattern == "stripes":                               # Streifen mit Gewebekante, Webschuss + Saum
         for x in (8, 11, 14):
             rect(draw, x, 21 + b, 1, 4, motif)
-    elif pattern == "polka":
-        for x, y in ((9, 22), (12, 23), (15, 22), (10, 24)):
-            pixel(draw, x, y + b, motif)
-    elif pattern == "flames":
-        for x in (9, 12, 15):                                # Fluemmchen schlagen nach oben
+            pixel(draw, x, 21 + b, hi)                       # Oberkante hell (Licht von oben)
+            pixel(draw, x, 22 + b, hi)                       # Webschuss im Streifen
+            pixel(draw, x, 24 + b, lo)                       # Streifen laeuft in den Schatten
+        rect(draw, 7, 21 + b, 10, 1, hi)                     # helle Saumbiese oben
+        rect(draw, 7, 24 + b, 9, 1, lo)                      # dunkle Saumkante unten
+        pixel(draw, 12, 24 + b, deep)                        # Schatten zwischen zwei Streifen
+    elif pattern == "polka":                                 # versetzte Punkte als 2x2 mit Glanz
+        for x, y in ((8, 22), (11, 23), (14, 22)):           # drei grosse Punkte, 2x2
+            rect(draw, x, y + b, 2, 1, motif)
+            pixel(draw, x + 1, y + 1 + b, lo)
+            pixel(draw, x, y + b, hi)
+        pixel(draw, 13, 21 + b, motif)                       # Randpunkt auf dem Bund
+        pixel(draw, 13, 21 + b, hi)
+        pixel(draw, 10, 24 + b, motif)                       # kleiner Punkt am Schritt
+        pixel(draw, 11, 24 + b, lo)
+        pixel(draw, 9, 22 + b, lo)                           # Stofffalte zwischen den Punkten
+    elif pattern == "flames":                                # Fluemmchen mit Kern, Glut leckt den Bund
+        for x in (9, 12, 15):
             pixel(draw, x, 23 + b, motif)
-            pixel(draw, x, 22 + b, FLAME)
-    elif pattern == "bones":
+            pixel(draw, x, 22 + b, hi)
+            pixel(draw, x - 1, 22 + b, lo)                   # Flammensaum links
+        for x in (10, 13):
+            pixel(draw, x, 22 + b, hot)                      # weissheisser Kern
+            pixel(draw, x - 1, 23 + b, deep)
+        rect(draw, 9, 21 + b, 3, 1, lo)                      # Glutrand auf dem Bund
+        rect(draw, 13, 21 + b, 3, 1, lo)
+        pixel(draw, 11, 21 + b, hot)
+        pixel(draw, 16, 22 + b, motif)
+    else:  # bones: gekreuzte Knoechlein mit Gelenkkopf und Schatten
         rect(draw, 9, 22 + b, 6, 1, motif)                   # gekreuzte Knoechlein
         pixel(draw, 9, 23 + b, motif)
         pixel(draw, 14, 21 + b, motif)
         pixel(draw, 14, 23 + b, motif)
         pixel(draw, 9, 21 + b, motif)
+        for x, y in ((9, 21), (9, 22), (14, 21)):            # Gelenkknoepfe mit Glanz
+            pixel(draw, x, y + b, hi)
+        pixel(draw, 10, 23 + b, lo)                          # Schaftschatten
+        pixel(draw, 13, 21 + b, lo)
+        rect(draw, 11, 21 + b, 2, 1, lo)                     # Wirbel doppelt gesetzt
+        pixel(draw, 11, 21 + b, hi)
+        pixel(draw, 15, 24 + b, deep)                        # Saumschatten rechts unten
     return polish(image, outline=None, light=8, dark=-14, gradient=0)
 
 
