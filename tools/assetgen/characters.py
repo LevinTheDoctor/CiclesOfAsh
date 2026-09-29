@@ -453,38 +453,77 @@ def makeup_frame(style, p):
 
 
 # ------------------------------------------------------------------ Flügel (Graustufen, hinter dem Körper)
+def _feather_stroke(hd, x0, y0, xi, yi, top, mid, dark, ragged, frame, hot=False):
+    """Ein Feder-Kiel als 1-2 px dicke Treppe von der Wurzel zur Spitze, mit Lichtkante oben links
+    und Schatten unten. `ragged` frisst Löcher in zerfetzte Flügel, `hot` lässt den Glut-Kern
+    aufleuchten. Alles Graustufen - der Code färbt die Ebene ein (Akzentfarbe)."""
+    dx, dy = xi - x0, yi - y0
+    steps = max(abs(dx), abs(dy))
+    if steps == 0:
+        return
+    for s in range(steps + 1):
+        px = x0 + round(dx * s / steps)
+        py = y0 + round(dy * s / steps)
+        framekey = px * 3 + py * 5 + frame
+        if ragged and s >= steps // 3 and framekey % 4 == 0:
+            continue                                   # Loch im zerfetzten Flügel
+        hd.point((px, py), fill=mid if (px + s) % 2 else dark)
+        if s < steps * 0.6:
+            hd.point((px, py + 1), fill=dark)          # Unterkante -> Volumen
+        if s < steps // 2 and s % 2 == 0:
+            hd.point((px - 1, py), fill=top)           # Lichtkante oben links
+        if hot and (s + frame) % 3 == 0:
+            hd.point((px, py), fill=top)               # Glutkern blitzt auf
+    hd.point((x0, y0), fill=top)                       # Wurzelreflex
+    hd.point((xi, yi), fill=dark if ragged else top)   # Spitze: gezackt oder hell
+
+
 def wings_frame(kind, p):
-    """Ragt links und rechts über die Figur hinaus, Fußlinie bleibt gleich. In jump weiter geöffnet.
-    Zeichnet nur die linke Flügelhälfte und spiegelt sie an x=12 auf die rechte Seite."""
+    """
+    Ragt links und rechts über die Figur hinaus, Fußlinie bleibt gleich. Die Federbüschel hängen
+    gefaltet am Rücken (idle), flattern im Lauf, spreizen im Sprung weit auf und zucken verletzt
+    (hurt teilt sich die langsame Phase). Fünf Feder-Kiele je Seite, 1-2 px dick mit Lichtkante
+    oben links und Schatten darunter - die linke Hälfte wird an x=12 gespiegelt.
+    """
     image = new_image(W, H)
     b = p["bob"]
-    spread = 3 if p["jump"] else 0             # Sprung = erkennbar weiter geöffnet
-    flap = p["frame"] % 2
-    top = 9 + b - flap + spread
+    if p["run"]:                                       # Flattern: kurze, schnelle Spreizung
+        open_, base_y, flut = 2, 5 + b, (1, -1, 2, -1)[p["frame"]]
+    elif p["jump"]:                                    # Sprung: weit auf, hebt und sinkt leicht
+        open_, base_y, flut = 5, 6 - (0 if p["frame"] < 2 else 1), (-1, 1, 1, 0)[p["frame"]]
+    else:                                              # idol/laufruh + hurt: langsame Welle
+        open_, base_y, flut = 0, 8 + b, (0, 1, 1, 0)[p["frame"]]
+
+    if kind == "feathered":                            # hell, Engel
+        top, mid, dark = (252, 252, 252, 255), TINT_LIGHT, TINT_DARK
+        ragged = False
+    elif kind == "tattered":                           # dunkel, zerfetzt, gefallen
+        top, mid, dark = TINT_MID, TINT_DARK, TINT_DEEP
+        ragged = True
+    else:                                              # ember: Asche, glühender Kern
+        top, mid, dark = (250, 250, 250, 255), TINT_MID, TINT_DEEP
+        ragged = False
+
     half = new_image(12, H)
     hd = ImageDraw.Draw(half)
-    if kind == "feathered":                    # gefiedert, hell (Engel)
-        for i in range(7):                     # federige Treppenstufen nach außen
-            x0 = 11 - min(9, i + 2)
-            hd.rectangle([x0, top + i * 2, 11, top + i * 2 + 1],
-                         fill=TINT_LIGHT if i < 3 else TINT_MID)
-            if i % 2 == 0:
-                hd.rectangle([x0, top + i * 2, x0 + 2, top + i * 2], fill=(250, 250, 250, 255))
-        hd.rectangle([10, top + 14, 11, top + 15], fill=TINT_MID)   # unterste Feder
-    elif kind == "tattered":                   # zerfetzt, dunkel (gefallen)
-        for i in range(6):
-            if (i + p["frame"]) % 3 != 2:      # Lücken = zerfetzter Look
-                x0 = 11 - (4 if i % 2 else 2)
-                hd.rectangle([x0, top + i * 2, 11, top + i * 2 + 1], fill=TINT_DARK)
-        pixel(hd, 9, top + 12, TINT_DEEP)
-        pixel(hd, 5, top + 14, TINT_DEEP)
-    else:                                      # ember: glühend, aus Asche
-        for i in range(6):
-            x0 = 11 - (5 if i % 2 else 2)
-            hd.rectangle([x0, top + i * 2, 11, top + i * 2 + 1],
-                         fill=TINT_LIGHT if i < 3 else TINT_DARK)
-        pixel(hd, 11, top, (250, 250, 250, 255))
-    mirror = half.transpose(Image.FLIP_LEFT_RIGHT)   # rechte Flügelhälfte = Spiegel
+    # fünf Feder-Kiele je Flügel: innen oben kurz, außen unten lang
+    roots = [(10, base_y), (10, base_y + 2), (9, base_y + 4), (8, base_y + 6), (7, base_y + 8)]
+    for i, (rx, ry) in enumerate(roots):
+        tx = max(0, (5 - i) - open_)                    # je weiter außen und je offener: weiter raus
+        ty = max(0, base_y + 6 + i * 2 - open_ * 2)     # offen hebt die Spitzen
+        if i >= 3:
+            ty += flut                                   # äußere Kiele flattern sichtbar
+        if kind == "tattered":
+            ty += 2                                      # zerfetzte hängen durch
+        _feather_stroke(hd, rx, ry, tx, ty, top, mid, dark, ragged,
+                        p["frame"], hot=(kind == "ember"))
+    if kind == "feathered":                              # weiße Daunen am Ansatz
+        hd.point((10, base_y + 1), fill=top)
+    elif kind == "ember":                                # heiße Ader vom Kiefer nach außen
+        for ring in range(3):
+            if (ring + p["frame"]) % 2 == 0:
+                hd.point((8 - ring, base_y + 3 + ring), fill=top)
+    mirror = half.transpose(Image.FLIP_LEFT_RIGHT)       # rechte Flügelhälfte = Spiegel
     image.paste(half, (0, 0), half)
     image.paste(mirror, (12, 0), mirror)
     return polish(image, outline=None, light=14, dark=-18, gradient=8)
