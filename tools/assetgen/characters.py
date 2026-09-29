@@ -478,48 +478,113 @@ def wings_frame(kind, p):
 # Die EINZIGE unzerstoerbare Kleidungsebene und reiner Gag: Das Muster wird pro Lauf gewuerfelt und
 # ist erst zu sehen, wenn alles andere zerfallen ist. Nur der Huefte (y 21-24, x 7-16) - diese
 # Flaeche ist bei ALLEN sechs Koerpertypen gedeckt, auch beim schmalsten Athleten-Rumpf.
+#
+# 16-Bit-Durchgang: Jedes Stueck hat jetzt fuenf bis sieben eigene Toene statt drei (Licht von oben
+# links) und eine Binnenzeichnung, die das Motiv im Stoff traegt. Die FUENF Grundflaechen bleiben
+# unveraendert, alle neuen Pixel liegen INNERHALB von ihnen - sonst wandert die Silhouette.
 UNDERWEAR_PALETTES = {
-    "plain":   ((238, 233, 220, 255), (206, 198, 180, 255), (166, 158, 142, 255), None),
-    "hearts":  ((246, 208, 216, 255), (226, 168, 184, 255), (176, 118, 136, 255), (198, 40, 66, 255)),
-    "stripes": ((240, 240, 246, 255), (208, 210, 226, 255), (160, 162, 182, 255), (70, 96, 186, 255)),
-    "polka":   ((244, 232, 200, 255), (214, 198, 158, 255), (168, 152, 114, 255), (126, 84, 48, 255)),
-    "flames":  ((72, 58, 62, 255), (48, 38, 44, 255), (30, 22, 28, 255), EMBER),
-    "bones":   ((126, 122, 134, 255), (94, 90, 104, 255), (62, 58, 72, 255), BONE),
+    "plain":   dict(light=(238, 233, 220, 255), mid=(206, 198, 180, 255), dark=(170, 162, 146, 255),
+                    deep=(122, 114, 100, 255), motif=(250, 247, 240, 255), hi=(250, 247, 240, 255),
+                    lo=(88, 80, 70, 255), hot=None),
+    "hearts":  dict(light=(246, 212, 220, 255), mid=(224, 170, 188, 255), dark=(170, 114, 134, 255),
+                    deep=(122, 74, 92, 255), motif=(198, 40, 66, 255), hi=(255, 194, 206, 255),
+                    lo=(134, 24, 46, 255), hot=None),
+    "stripes": dict(light=(242, 242, 248, 255), mid=(206, 208, 228, 255), dark=(154, 156, 180, 255),
+                    deep=(104, 106, 128, 255), motif=(70, 96, 186, 255), hi=(150, 180, 240, 255),
+                    lo=(38, 52, 112, 255), hot=None),
+    "polka":   dict(light=(246, 236, 204, 255), mid=(216, 200, 160, 255), dark=(164, 148, 110, 255),
+                    deep=(112, 96, 62, 255), motif=(126, 84, 48, 255), hi=(206, 162, 112, 255),
+                    lo=(72, 46, 26, 255), hot=None),
+    "flames":  dict(light=(100, 82, 90, 255), mid=(70, 56, 64, 255), dark=(46, 36, 44, 255),
+                    deep=(22, 16, 24, 255), motif=EMBER, hi=FLAME, lo=(150, 66, 26, 255),
+                    hot=(255, 240, 200, 255)),
+    "bones":   dict(light=(152, 148, 162, 255), mid=(114, 110, 128, 255), dark=(78, 74, 92, 255),
+                    deep=(44, 40, 58, 255), motif=BONE, hi=(250, 246, 232, 255), lo=(166, 156, 140, 255),
+                    hot=None),
 }
 
 
 def underwear_frame(pattern, p):
     """Slip auf der Huefte. Folgt bewusst NICHT den Beinen: Die Huefte schwingt beim Laufen nicht
-    mit, nur die Beine darunter."""
+    mit, nur die Beine darunter. Alle neuen Töne liegen auf den fünf Grundflächen, die Silhouette
+    bleibt dadurch byte-genau (Lampe oben links, Motiv aus dem Stoff selbst)."""
     image = new_image(W, H)
     draw = ImageDraw.Draw(image)
     b = p["bob"]
-    light, mid, dark, motif = UNDERWEAR_PALETTES[pattern]
+    pal = UNDERWEAR_PALETTES[pattern]
+    light, mid, dark, deep = pal["light"], pal["mid"], pal["dark"], pal["deep"]
+    motif, hi, lo, hot = pal["motif"], pal["hi"], pal["lo"], pal["hot"]
+
     rect(draw, 7, 21 + b, 10, 3, mid)                        # Bund und Sitz
     rect(draw, 7, 21 + b, 10, 1, light)                      # Bundlicht oben
     rect(draw, 7, 21 + b, 2, 3, light)                       # Lichtseite links
     rect(draw, 7, 24 + b, 9, 1, mid)                         # Schritt zwischen den Beinen
     rect(draw, 15, 22 + b, 2, 2, dark)                       # Schattenkante rechts
-    if pattern == "hearts":
-        for x in (9, 13):                                    # zwei Herzchen, je 3x2
+    rect(draw, 9, 22 + b, 7, 1, shift(dark, 6))              # Nahtlinie unter dem Bund
+    rect(draw, 8, 23 + b, 6, 1, shift(mid, 8))               # weicher Sitzton
+
+    if pattern == "plain":                                   # feines Leinen: Korneinzelpunkte + Mittelnaht
+        for y in range(22 + b, 25 + b):
+            for x in range(8, 16):
+                if (x + y) % 3 == 0:
+                    pixel(draw, x, y, hi if (x * 2 + y) % 5 == 0 else lo)
+        rect(draw, 11, 22 + b, 1, 2, deep)                   # Mittelnaht vorn
+        pixel(draw, 10, 23 + b, light)
+        pixel(draw, 12, 22 + b, hi)
+    elif pattern == "hearts":                                # zwei Herzchen mit Glanz + Miniherz am Bund
+        for x in (9, 13):
             rect(draw, x, 22 + b, 3, 1, motif)
             pixel(draw, x + 1, 23 + b, motif)
-    elif pattern == "stripes":
+            pixel(draw, x, 22 + b, hi)                       # Glanz oben links
+            pixel(draw, x + 2, 22 + b, lo)                   # Schatten rechts
+            pixel(draw, x + 2, 23 + b, lo)                   # Kerb der Herzspitze
+        pixel(draw, 11, 21 + b, motif)                       # Miniherz auf dem Bund
+        pixel(draw, 12, 21 + b, hi)
+        pixel(draw, 14, 21 + b, lo)
+    elif pattern == "stripes":                               # Streifen mit Gewebekante, Webschuss + Saum
         for x in (8, 11, 14):
             rect(draw, x, 21 + b, 1, 4, motif)
-    elif pattern == "polka":
-        for x, y in ((9, 22), (12, 23), (15, 22), (10, 24)):
-            pixel(draw, x, y + b, motif)
-    elif pattern == "flames":
-        for x in (9, 12, 15):                                # Fluemmchen schlagen nach oben
+            pixel(draw, x, 21 + b, hi)                       # Oberkante hell (Licht von oben)
+            pixel(draw, x, 22 + b, hi)                       # Webschuss im Streifen
+            pixel(draw, x, 24 + b, lo)                       # Streifen laeuft in den Schatten
+        rect(draw, 7, 21 + b, 10, 1, hi)                     # helle Saumbiese oben
+        rect(draw, 7, 24 + b, 9, 1, lo)                      # dunkle Saumkante unten
+        pixel(draw, 12, 24 + b, deep)                        # Schatten zwischen zwei Streifen
+    elif pattern == "polka":                                 # versetzte Punkte als 2x2 mit Glanz
+        for x, y in ((8, 22), (11, 23), (14, 22)):           # drei grosse Punkte, 2x2
+            rect(draw, x, y + b, 2, 1, motif)
+            pixel(draw, x + 1, y + 1 + b, lo)
+            pixel(draw, x, y + b, hi)
+        pixel(draw, 13, 21 + b, motif)                       # Randpunkt auf dem Bund
+        pixel(draw, 13, 21 + b, hi)
+        pixel(draw, 10, 24 + b, motif)                       # kleiner Punkt am Schritt
+        pixel(draw, 11, 24 + b, lo)
+        pixel(draw, 9, 22 + b, lo)                           # Stofffalte zwischen den Punkten
+    elif pattern == "flames":                                # Fluemmchen mit Kern, Glut leckt den Bund
+        for x in (9, 12, 15):
             pixel(draw, x, 23 + b, motif)
-            pixel(draw, x, 22 + b, FLAME)
-    elif pattern == "bones":
+            pixel(draw, x, 22 + b, hi)
+            pixel(draw, x - 1, 22 + b, lo)                   # Flammensaum links
+        for x in (10, 13):
+            pixel(draw, x, 22 + b, hot)                      # weissheisser Kern
+            pixel(draw, x - 1, 23 + b, deep)
+        rect(draw, 9, 21 + b, 3, 1, lo)                      # Glutrand auf dem Bund
+        rect(draw, 13, 21 + b, 3, 1, lo)
+        pixel(draw, 11, 21 + b, hot)
+        pixel(draw, 16, 22 + b, motif)
+    else:  # bones: gekreuzte Knoechlein mit Gelenkkopf und Schatten
         rect(draw, 9, 22 + b, 6, 1, motif)                   # gekreuzte Knoechlein
         pixel(draw, 9, 23 + b, motif)
         pixel(draw, 14, 21 + b, motif)
         pixel(draw, 14, 23 + b, motif)
         pixel(draw, 9, 21 + b, motif)
+        for x, y in ((9, 21), (9, 22), (14, 21)):            # Gelenkknoepfe mit Glanz
+            pixel(draw, x, y + b, hi)
+        pixel(draw, 10, 23 + b, lo)                          # Schaftschatten
+        pixel(draw, 13, 21 + b, lo)
+        rect(draw, 11, 21 + b, 2, 1, lo)                     # Wirbel doppelt gesetzt
+        pixel(draw, 11, 21 + b, hi)
+        pixel(draw, 15, 24 + b, deep)                        # Saumschatten rechts unten
     return polish(image, outline=None, light=8, dark=-14, gradient=0)
 
 
