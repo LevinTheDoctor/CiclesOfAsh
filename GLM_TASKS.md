@@ -213,6 +213,13 @@ Meine Schuld, das stand beim ersten Auftrag noch nicht drin: Der Code kennt inzw
 abfängt, bevor es zerspringt; **0 oder fehlend heißt unzerstörbar**, und genau das sind die vier
 Einträge gerade.
 
+> **Nachträglich richtiggestellt (v1.3.0):** Der Satz „0 oder fehlend heißt unzerstörbar" stimmt
+> nicht mehr. Seit `EquipmentService.MinArmorHits` kommt **jedes** Stück auf mindestens drei
+> Treffer, auch eines ganz ohne Angabe — unzerstörbare Rüstung gibt es nicht mehr, das ist der Kern
+> der Mechanik. Maßgeblich ist heute `armorHits`; `durability` dient nur noch als Rückfall, aus dem
+> der Wert abgeleitet wird. An deinen Zahlen ändert das nichts, ich wollte den Satz nur nicht so
+> stehen lassen.
+
 Bitte ergänze es, Vorschlag passend zur Seltenheit:
 
 ```json
@@ -954,3 +961,56 @@ Zwei Dinge, die dabei aufgefallen sind und für die Zukunft gelten:
 Damit ist die Liste von oben abgearbeitet; offen bleibt nur noch der künstlerische Durchgang über
 die vier Startkleidungen, die sechs Unterwäsche-Muster und `gear_angel` — kein Auftrag, nur die
 ehrliche Reihenfolge, falls der Nutzer ihn will.
+
+
+---
+
+# Fünfter Stapel — zwei kleine Aufträge aus v1.3.0
+
+Beides ist **nicht dringend**: Der Code läuft ohne dich weiter, er behilft sich solange. Ich
+schreibe es auf, damit es nicht vergessen geht.
+
+## G18 — Eigenes Blatt für den Trauernden Engel
+
+**Ziel:** Ein Motiv für die Flickstelle im Verlies.
+
+Neu im Spiel: Einmal je Verlies darf man bei einem **Trauernden Engel** seine Kleidung flicken —
+eine Stufe zurück, und wenn gar nichts mehr da ist, webt er die Startkleidung neu. Er steht gern
+abseits des Hauptwegs, damit der Umweg sich lohnt.
+
+Er benutzt derzeit `prop.statue`, also dasselbe Blatt wie die Deko-Statue und das Standbild des
+Spiegelrätsels. Motivisch passt das, aber man sieht ihm nicht an, dass er etwas kann.
+
+| Sprite-Id | Datei | Motiv |
+|---|---|---|
+| `prop.mending_angel` | `prop_mending_angel.png` | Engel über eine Nadel gebeugt, Faden oder Tuch in den Händen; **zwei Zustände nebeneinander**: bereit (schwach leuchtend) und verbraucht (Kopf gesenkt, dunkel) |
+
+Maße wie `prop.statue` (16 × 28), Anker `Floor`, zwei Einzelbilder einer Zeile wie bei `prop.lever`.
+Wenn es fertig ist, trag es in `manifest.json` ein und **sag mir Bescheid** — den Wechsel in
+`props.json` mache ich, das ist meine Datei. Der Code liest die Zustände schon heute über
+`prop.State` (0 = bereit, 1 = verbraucht).
+
+## G19 — Mehr Runensymbole
+
+**Ziel:** `Textures/runes.png` von vier auf sechs Symbole erweitern.
+
+`runes.png` hat genau vier Zellen à 8 × 8 (`ui.runes`). Daran hängen zwei Rätsel:
+
+* Die **Runenfolge** (`rune_order`) hat deshalb genau vier Säulen und kann mit der Tiefe nicht
+  länger werden — eine fünfte Säule hätte kein eigenes Symbol und sähe aus wie eine der anderen.
+* Der neue **Lichtkranz** (`rune_circle`) steht aus demselben Grund bei vier Säulen.
+
+Zwei weitere Symbole im Stil der vorhandenen (schlicht, hoher Kontrast, lesbar auf 8 × 8 sowohl in
+Schwarz auf der leuchtenden Säule als auch in Seelenfarbe auf der Inschrift), also ein Blatt
+48 × 8. Mehr ist nicht nötig; sechs Säulen sind schon reichlich für einen Raum.
+
+Danach hebe ich `puzzleScaling.runeOrderLength` in `balance.json` an — **eine Zahl, kein Code**.
+Der Generator verteilt die Spalten selbst (`SpreadColumns`), und der Seed-Sweep leitet seine
+Erwartung aus derselben Zahl ab.
+
+## Was ihr noch fehlt, aber nicht von dir kommen muss
+
+Ein Rätseltyp, der auf **Gehör** setzt (Glockenreihe: eine Tonfolge nachspielen), wäre der einzige
+Sinn, den die fünf vorhandenen nicht ansprechen. Das bräuchte eigene Props **und** Töne und ist
+deshalb bewusst kein Auftrag — es steht als offener Punkt in der Roadmap, nicht hier.
+

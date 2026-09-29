@@ -239,7 +239,9 @@ public sealed class MendShrineProp : IPropBehavior
         prop.LightRadius = 0f;
         EquipmentService.Apply(world.Context.Definitions, world.Run, world.Player);
         world.Player.RefreshAppearance(world.Context, world.Run);
-        world.Context.Progression.SaveRun(world.Run);
+        // Bewusst KEIN SaveRun: Das Verlies arbeitet auf einer Kopie des Laufs (DungeonScene),
+        // die erst beim Abschluss übernommen wird. Der Flick gehört zum Verlies wie Beute und
+        // Erfahrung - wer mittendrin aufgibt, fängt es mit dem alten Stand neu an.
 
         world.Effects.Burst(prop.Center, Palette.Faith, 22, 60f, 1.1f, gravity: -70f);
         world.Context.Audio.Play("unseal", 0.7f);
