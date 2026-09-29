@@ -54,6 +54,11 @@ public sealed class HubScene : SceneBase
     /// <summary>Die Truhe mit der Ausrüstung des laufenden Abstiegs, links der Tempelmitte.</summary>
     private static Vector2 ChestSpot => new(10 * TileMap.TileSize, (HubHeightTiles - 2) * TileMap.TileSize + 8);
     /// <summary>
+    /// Die Glutschmiede: Hier wird zerfallene Kleidung gegen Gläubige geflickt oder neu gewoben.
+    /// Steht neben der Truhe – wer seine Ausrüstung ansieht, sieht auch, was sich daran retten lässt.
+    /// </summary>
+    private static Vector2 ForgeSpot => new(6 * TileMap.TileSize, (HubHeightTiles - 2) * TileMap.TileSize + 8);
+    /// <summary>
     /// Wo der Spieler den Tempel betritt (Mitte der Füße): auf dem Tempelboden zwischen Truhe
     /// und Tempelwärtin, mit dem Höllentor in Blickrichtung rechts.
     /// </summary>
@@ -218,7 +223,7 @@ public sealed class HubScene : SceneBase
     }
 
     // ------------------------------------------------------------------ Interaktion
-    private enum Hotspot { None, MissionBoard, Shrine, Gate, Inventory, Keeper, Companion, Deco }
+    private enum Hotspot { None, MissionBoard, Shrine, Gate, Inventory, Forge, Keeper, Companion, Deco }
     private Hotspot _hotspot = Hotspot.None;
     private Npc? _hotspotNpc;
     private Companion? _hotspotCompanion;
@@ -226,6 +231,7 @@ public sealed class HubScene : SceneBase
     public override void Update(float deltaSeconds)
     {
         _time += deltaSeconds;
+        RefreshPlayerLook();
         InputState input = Context.Input;
 
         // Ankündigungs-Timer (auch im Deko-Modus weiterlaufen lassen)
@@ -301,6 +307,7 @@ public sealed class HubScene : SceneBase
         if (Context.Progression.CurrentRun is not null)
         {
             Consider(ChestSpot, Hotspot.Inventory);
+            Consider(ForgeSpot, Hotspot.Forge);
             Consider(GateSpot, Hotspot.Gate);
         }
 
@@ -329,6 +336,24 @@ public sealed class HubScene : SceneBase
         }
     }
 
+    /// <summary>
+    /// Zieht die Tempelfigur um, wenn sich die Kleidung geaendert hat. Es gibt keinen Rueckruf,
+    /// wenn eine aufgesetzte Szene wieder verschwindet, also wird der Zustand verglichen: Wer in
+    /// der Glutschmiede flickt oder im Inventar etwas anlegt, stand sonst weiter in dem, was er
+    /// vorher trug - im schlimmsten Fall in Unterwaesche, direkt nach dem Neuweben.
+    /// </summary>
+    private void RefreshPlayerLook()
+    {
+        if (Context.Progression.CurrentRun is not { } run) return;
+        string armorId = run.Equipped.TryGetValue(ItemSlot.Armor, out string? worn) ? worn : "";
+        var look = (armorId, run.ArmorDurability, run.Underwear);
+        if (look == _lastLook) return;
+        _lastLook = look;
+        _player.RefreshAppearance(Context, run);
+    }
+
+    private (string ArmorId, int Durability, int Underwear) _lastLook = ("", -1, -1);
+
     private void TriggerHotspot()
     {
         switch (_hotspot)
@@ -341,6 +366,9 @@ public sealed class HubScene : SceneBase
                 break;
             case Hotspot.Inventory when Context.Progression.CurrentRun is { } inventoryRun:
                 Context.Scenes.Push(new InventoryScene(Context, inventoryRun, player: null));
+                break;
+            case Hotspot.Forge when Context.Progression.CurrentRun is { } forgeRun:
+                Context.Scenes.Push(new ForgeScene(Context, forgeRun));
                 break;
             case Hotspot.Gate when Context.Progression.CurrentRun is not null:
                 // Das Tor führt zur Kreisübersicht; von dort geht es hinab oder zurück in den Tempel.
@@ -504,6 +532,7 @@ public sealed class HubScene : SceneBase
         DrawShrine(spriteBatch, pixel);
         DrawGate(spriteBatch, pixel);
         DrawChest(spriteBatch, pixel);
+        DrawForge(spriteBatch, pixel);
         foreach (Prop prop in _deco) prop.Draw(spriteBatch);
         foreach (Npc npc in _npcs) npc.Draw(spriteBatch);
         foreach (Companion companion in _companions) companion.Draw(spriteBatch);
@@ -582,6 +611,18 @@ public sealed class HubScene : SceneBase
         UiDraw.Rect(spriteBatch, pixel, new Rectangle(left + 6, bottom - 8, 2, 4), Palette.Gold);
     }
 
+    /// <summary>Glutschmiede: Amboss auf einem Sockel, darüber die Esse mit atmender Glut.</summary>
+    private void DrawForge(SpriteBatch spriteBatch, Texture2D pixel)
+    {
+        int left = (int)ForgeSpot.X - 9, bottom = (int)ForgeSpot.Y + 8;
+        UiDraw.Rect(spriteBatch, pixel, new Rectangle(left + 2, bottom - 7, 14, 7), new Color(72, 60, 62));      // Sockel
+        UiDraw.Rect(spriteBatch, pixel, new Rectangle(left, bottom - 12, 18, 5), new Color(104, 92, 94));        // Amboss
+        UiDraw.Rect(spriteBatch, pixel, new Rectangle(left + 4, bottom - 22, 10, 10), new Color(58, 46, 44));    // Esse
+        // Die Glut atmet, damit die Schmiede zwischen Truhe und Podest nicht wie Deko wirkt.
+        float pulse = 0.5f + 0.5f * MathF.Sin(_time * 2.3f);
+        UiDraw.Rect(spriteBatch, pixel, new Rectangle(left + 6, bottom - 19, 6, 6), new Color(255, 140, 70) * (0.4f + 0.45f * pulse));
+    }
+
     private void DrawHotspotPrompt(SpriteBatch spriteBatch)
     {
         string use = Context.Input.Prompt(GameAction.Interact);
@@ -590,6 +631,7 @@ public sealed class HubScene : SceneBase
             Hotspot.MissionBoard => $"{use} Bitten der Gläubigen",
             Hotspot.Shrine => $"{use} Schrein der Reliquien",
             Hotspot.Inventory => $"{use} Ausrüstung",
+            Hotspot.Forge => $"{use} Glutschmiede – Kleidung flicken",
             Hotspot.Gate => $"{use} Höllentor – hinabsteigen",
             Hotspot.Keeper when _hotspotNpc is not null =>
                 $"{use} Mit {_hotspotNpc.Definition.Name} sprechen",

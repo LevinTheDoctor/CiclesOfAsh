@@ -29,8 +29,29 @@
   "crumbleDelay": 0.45,
   "crumbleRespawnSeconds": 4,
   "brazierTimeLimit": 14,
+  // Wie die Raetsel mit der Tiefe anziehen. Jeder Wert ist "Startwert + Zuwachs * Kreisindex",
+  // geklemmt auf das Maximum bzw. Minimum. Kreis 0 = Limbus, Kreis 8 = Verrat.
+  // Die Schiebebloecke ergeben sich aus den Platten: immer genau einer weniger.
+  "puzzleScaling": {
+    // runeOrderLength waechst nicht mit: runes.png hat genau vier Symbole.
+    "runeOrderLength": 4,
+    "brazierTimeLossPerCircle": 0.5,
+    "brazierTimeLimitMin": 9,
+    "leverCountPerCircle": 0,
+    "leverCountMax": 5,
+    "weightPlates": 3,
+    "weightPlatesMax": 4,
+    "weightPlatesPerCircle": 0.2
+  },
   "ambientLift": 0.32,
   "defaultScreenScale": 3,
   // Deko-Regler: 1 = Mengen wie in themes.json, kleiner = leerere Räume.
-  "decorDensity": 0.6
+  "decorDensity": 0.6,
+  // Glutschmiede im Tempel. Flicken kostet forgeMendCost + forgeCostPerUse * bisherige Nutzungen
+  // im selben Lauf - Reparieren soll eine Entscheidung bleiben, keine Gewohnheit. Neu weben gibt
+  // es nur, wenn gar nichts mehr getragen wird, und kommt zerfetzt heraus.
+  "forgeMendCost": 8,
+  "forgeCostPerUse": 6,
+  "forgeWeaveCost": 25,
+  "forgeMendHits": 1
 }

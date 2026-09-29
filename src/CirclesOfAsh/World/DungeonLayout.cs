@@ -19,6 +19,15 @@ public sealed class RoomNode
     public RoomType Type { get; set; }
     /// <summary>Optional = nicht nötig zum Abschließen (Umwege, Kerker, Schatzräume).</summary>
     public bool IsOptional { get; set; }
+
+    /// <summary>
+    /// Dieser Raum ist als Rätselraum vorgemerkt: Sein Boden muss durchgehend bleiben. Umwege und
+    /// Abzweige hängen sich deshalb nicht nach UNTEN an ihn – ein Ausgang nach unten reißt vier
+    /// Kacheln aus der Bodenreihe (<c>CarveExit</c>), und genau dort stellen die Raumrätsel ihre
+    /// Teile in fester Geometrie auf. Ohne diese Vormerkung war am Ende fast nie ein Raum mit
+    /// heilem Boden übrig und 28 % der Verliese fielen still auf die Hebelsuche zurück.
+    /// </summary>
+    public bool KeepFloorIntact { get; set; }
     /// <summary>"Persönlichkeit" des Raums (Form + Deko). null = schlichter Raum.</summary>
     public RoomThemeDefinition? Theme { get; set; }
 

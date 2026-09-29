@@ -41,6 +41,15 @@ public sealed class RunState
     /// <summary>Verbleibende Treffer der getragenen Kleidung. 0 = keine oder zerfallen.</summary>
     public int ArmorDurability { get; set; }
     /// <summary>
+    /// Zustand abgelegter Kleidung (Item-Id -> verbleibende Treffer). Ohne dieses Gedächtnis war
+    /// jedes Anlegen eine Gratis-Reparatur: Im Inventar ab- und wieder anlegen setzte die
+    /// Haltbarkeit auf voll, beliebig oft. Ein neu GEFUNDENES Stück ist weiter ganz – nur das
+    /// eigene, schon getragene behält seinen Zustand.
+    /// </summary>
+    public Dictionary<string, int> ArmorWear { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Wie oft in diesem Lauf schon in der Glutschmiede geflickt wurde (Preis steigt).</summary>
+    public int ForgeUses { get; set; }
+    /// <summary>
     /// Muster der Unterwäsche (Index in appearance.json). Bewusst am Lauf und nicht am Charakter:
     /// Es wird bei jedem neuen Lauf gewürfelt und ist reine Zierde – die Unterwäsche geht nie kaputt.
     /// </summary>
@@ -66,6 +75,8 @@ public sealed class RunState
         Items = new List<string>(Items),
         Equipped = new Dictionary<ItemSlot, string>(Equipped),
         ArmorDurability = ArmorDurability,
+        ArmorWear = new Dictionary<string, int>(ArmorWear, StringComparer.OrdinalIgnoreCase),
+        ForgeUses = ForgeUses,
         Underwear = Underwear,
     };
 }

@@ -221,6 +221,11 @@ public sealed class BalanceDefinition
     public float CrumbleDelay { get; init; } = 0.45f;
     public float CrumbleRespawnSeconds { get; init; } = 4f;
     public float BrazierTimeLimit { get; init; } = 14f;
+    /// <summary>
+    /// Wie die Rätsel mit der Tiefe anziehen. Alle Werte gelten je Kreis (0 = Limbus), geklemmt auf
+    /// die Höchstwerte. Vorher standen die Zahlen fest im Code und Kreis 1 war so schwer wie Kreis 9.
+    /// </summary>
+    public PuzzleScalingDefinition PuzzleScaling { get; init; } = new();
     /// <summary>Hebt die Grundhelligkeit aller Kreise an (0 = wie definiert, 1 = ganz hell). Gegen "zu dunkel".</summary>
     public float AmbientLift { get; init; } = 0.32f;
     /// <summary>Standard-Bildschirmgröße (Skalierungsfaktor der virtuellen 480x270-Auflösung).</summary>
@@ -230,6 +235,58 @@ public sealed class BalanceDefinition
     /// leerere Räume. Ein Regler statt zehn Themen einzeln anzufassen.
     /// </summary>
     public float DecorDensity { get; init; } = 1f;
+
+    /// <summary>
+    /// Glutschmiede im Tempel: Kleidung gegen Gläubige flicken. Der Preis steigt mit jeder Nutzung
+    /// im selben Lauf, damit Reparieren eine Entscheidung bleibt und keine Gewohnheit wird.
+    /// </summary>
+    public int ForgeMendCost { get; init; } = 8;
+    /// <summary>Aufschlag je bereits genutzter Reparatur im selben Lauf.</summary>
+    public int ForgeCostPerUse { get; init; } = 6;
+    /// <summary>Neu weben, wenn gar nichts mehr da ist. Deutlich teurer als Flicken.</summary>
+    public int ForgeWeaveCost { get; init; } = 25;
+    /// <summary>Wie viele Treffer ein Besuch zurückgibt. Eine Stufe, nicht das ganze Stück.</summary>
+    public int ForgeMendHits { get; init; } = 1;
+}
+
+/// <summary>
+/// Wie stark die Rätsel je Kreis anziehen (Content/Data/balance.json, Block "puzzleScaling").
+/// Jeder Wert ist "Startwert + Zuwachs * Kreisindex", geklemmt auf das Maximum. Ohne diesen Block
+/// bleibt alles auf den Startwerten, das Verhalten entspricht also dem vorherigen Stand.
+/// </summary>
+public sealed class PuzzleScalingDefinition
+{
+    /// <summary>
+    /// Länge der Runenfolge = Zahl der Säulen. Wächst NICHT mit der Tiefe: Das Runenblatt
+    /// (Textures/runes.png, "ui.runes") hat genau vier Zellen, eine fünfte Säule hätte kein
+    /// eigenes Symbol. Der Wert steht hier trotzdem, damit er ohne Code steigen kann, sobald das
+    /// Blatt mehr Runen hat (siehe GLM_TASKS.md).
+    /// </summary>
+    public int RuneOrderLength { get; init; } = 4;
+
+    /// <summary>Wie viele Sekunden weniger je Kreis, bis die Feuerbecken wieder erlöschen.</summary>
+    public float BrazierTimeLossPerCircle { get; init; } = 0.5f;
+    public float BrazierTimeLimitMin { get; init; } = 9f;
+
+    public int LeverCountPerCircle { get; init; }
+    public int LeverCountMax { get; init; } = 5;
+
+    /// <summary>
+    /// Druckplatten. Schiebeblöcke gibt es immer genau einen weniger – auf der letzten Platte muss
+    /// der Spieler selbst stehen bleiben, das ist der Kern des Rätsels.
+    /// </summary>
+    public int WeightPlates { get; init; } = 3;
+    public int WeightPlatesMax { get; init; } = 4;
+    public float WeightPlatesPerCircle { get; init; } = 0.2f;
+
+    public float BrazierTimeLimitAt(float baseLimit, int circleIndex) =>
+        MathF.Max(BrazierTimeLimitMin, baseLimit - BrazierTimeLossPerCircle * circleIndex);
+
+    public int LeverCountAt(int baseCount, int circleIndex) =>
+        Math.Clamp(baseCount + LeverCountPerCircle * circleIndex, 2, LeverCountMax);
+
+    public int WeightPlatesAt(int circleIndex) =>
+        Math.Clamp(WeightPlates + (int)(WeightPlatesPerCircle * circleIndex), 2, WeightPlatesMax);
 }
 
 // ================================================================= Neu in v2

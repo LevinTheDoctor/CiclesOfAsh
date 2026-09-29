@@ -22,18 +22,34 @@ public static class EquipmentService
         return true;
     }
 
-    /// <summary>Anlegen oder – wenn schon angelegt – ablegen.</summary>
+    /// <summary>
+    /// Anlegen oder – wenn schon angelegt – ablegen.
+    ///
+    /// Kleidung MERKT SICH ihren Zustand über das Ablegen hinweg (<see cref="RunState.ArmorWear"/>).
+    /// Vorher wurde sie beim Anlegen auf voll gesetzt, und weil das Inventar jederzeit offensteht,
+    /// war Ab- und Anlegen eine beliebig oft wiederholbare Gratis-Reparatur – der ganze Verfall
+    /// liess sich damit umgehen. Geflickt wird jetzt nur noch absichtlich: an der Glutschmiede im
+    /// Tempel oder am Trauernden Engel im Verlies.
+    /// </summary>
     public static void Toggle(RunState run, ItemDefinition item)
     {
         if (item.Slot == ItemSlot.Collectible) return;
-        if (run.Equipped.TryGetValue(item.Slot, out string? current) && current == item.Id) run.Equipped.Remove(item.Slot);
-        else
+        if (run.Equipped.TryGetValue(item.Slot, out string? current) && current == item.Id)
         {
-            run.Equipped[item.Slot] = item.Id;
-            // Frisch angelegte Rüstung ist wieder ganz. Abgelegte behält ihren Zustand nicht –
-            // das ist Absicht: Sonst könnte man Schaden durch Ab- und Anlegen zurücksetzen.
-            if (item.Slot == ItemSlot.Armor) run.ArmorDurability = ArmorHitsOf(item);
+            if (item.Slot == ItemSlot.Armor) run.ArmorWear[item.Id] = run.ArmorDurability;
+            run.Equipped.Remove(item.Slot);
+            return;
         }
+
+        // Beim Wechseln zuerst den Zustand des bisher getragenen Stücks sichern.
+        if (item.Slot == ItemSlot.Armor && current is not null) run.ArmorWear[current] = run.ArmorDurability;
+        run.Equipped[item.Slot] = item.Id;
+        if (item.Slot != ItemSlot.Armor) return;
+        // Ein schon einmal getragenes Stück kommt so zurück, wie es abgelegt wurde; ein Stück ohne
+        // Eintrag wurde noch nie getragen und ist ganz.
+        run.ArmorDurability = run.ArmorWear.TryGetValue(item.Id, out int remembered)
+            ? Math.Clamp(remembered, 0, ArmorHitsOf(item))
+            : ArmorHitsOf(item);
     }
 
     /// <summary>
@@ -96,7 +112,71 @@ public static class EquipmentService
 
         run.Equipped.Remove(ItemSlot.Armor);
         run.Items.Remove(armorId);
+        // Das Gedächtnis mit weglöschen: Ein spätere Fund desselben Stücks ist ein neues Stück und
+        // soll ganz sein, nicht als Andenken an das zerfallene zurückkommen.
+        run.ArmorWear.Remove(armorId);
         return new ArmorHit(ArmorResult.Shattered, item.Name, Stages - 1, true);
+    }
+
+    /// <summary>
+    /// Ergebnis eines Flickversuchs. Getrennt von <see cref="ArmorResult"/>, weil die Gründe für ein
+    /// Nein verschieden sind und der Spieler wissen soll, welcher zutrifft.
+    /// </summary>
+    public enum MendResult
+    {
+        /// <summary>Geflickt; das Stück hat wieder Treffer im Vorrat.</summary>
+        Mended,
+        /// <summary>Neu gewoben: Es war nichts mehr da, jetzt steht wieder die Startkleidung.</summary>
+        Reweaved,
+        /// <summary>Getragene Kleidung ist schon heil – hier gibt es nichts zu tun.</summary>
+        AlreadyWhole,
+        /// <summary>Nichts getragen, und die Klasse hat keine Startkleidung zum Neuweben.</summary>
+        Nothing,
+    }
+
+    /// <param name="Stage">Verfallsstufe NACH dem Flicken.</param>
+    public readonly record struct MendOutcome(MendResult Result, string ItemName, int Stage)
+    {
+        public bool Changed => Result is MendResult.Mended or MendResult.Reweaved;
+    }
+
+    /// <summary>
+    /// Flickt die getragene Kleidung um <paramref name="hits"/> Treffer, höchstens bis zum Maximum
+    /// des Stücks. Über dieses Maximum hinaus geht nichts: Geflickt wird zurück zu dem, was das
+    /// Stück kann, nie darüber.
+    ///
+    /// Ist nichts mehr da, wird die Startkleidung der Klasse neu gewoben – das ist der einzige Weg
+    /// zurück, denn beim Zerfallen verschwindet das Stück aus <see cref="RunState.Equipped"/> UND
+    /// aus <see cref="RunState.Items"/>. Neu gewoben kommt sie bewusst zerfetzt heraus, nicht heil:
+    /// Man steht wieder in Lumpen, aber nicht mehr in Unterwäsche.
+    ///
+    /// Ruft der Aufrufer das im Spiel auf, gehören danach <see cref="Apply"/>, ein
+    /// <c>Player.RefreshAppearance</c> und ein Speichern des Laufs dazu – sonst stimmen Werte oder
+    /// Sprite-Ebenen nicht.
+    /// </summary>
+    public static MendOutcome Mend(DefinitionRegistry definitions, RunState run, ClassDefinition? playerClass, int hits)
+    {
+        if (run.Equipped.TryGetValue(ItemSlot.Armor, out string? armorId) && definitions.Items.Contains(armorId))
+        {
+            ItemDefinition worn = definitions.Items.Get(armorId);
+            int maxHits = ArmorHitsOf(worn);
+            int before = Math.Clamp(run.ArmorDurability, 0, maxHits);
+            if (before >= maxHits) return new MendOutcome(MendResult.AlreadyWhole, worn.Name, 0);
+
+            run.ArmorDurability = Math.Clamp(before + Math.Max(1, hits), 0, maxHits);
+            run.ArmorWear[armorId] = run.ArmorDurability;
+            return new MendOutcome(MendResult.Mended, worn.Name, ArmorStage(worn, run));
+        }
+
+        string startingArmor = playerClass?.StartingArmor ?? "";
+        if (string.IsNullOrEmpty(startingArmor) || !definitions.Items.Contains(startingArmor))
+            return new MendOutcome(MendResult.Nothing, "", Stages - 1);
+
+        ItemDefinition fresh = definitions.Items.Get(startingArmor);
+        AddItem(run, fresh);                       // setzt volle Haltbarkeit
+        run.ArmorDurability = Math.Max(1, Math.Min(ArmorHitsOf(fresh), hits));   // ... die hier wieder sinkt
+        run.ArmorWear[fresh.Id] = run.ArmorDurability;
+        return new MendOutcome(MendResult.Reweaved, fresh.Name, ArmorStage(fresh, run));
     }
 
     /// <summary>

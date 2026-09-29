@@ -1,11 +1,23 @@
-// Seed-Sweep: Erzeugt Dungeons für viele Seeds und prüft Erreichbarkeit (AGENT_PROGRESS 1.8).
+// Seed-Sweep: Erzeugt Dungeons für viele Seeds und prüft sie (AGENT_PROGRESS 1.8).
 // Aufruf: dotnet run --project tools/SeedSweep [-- <anzahl>]
-// Lädt nur JSON-Definitionen, keine Spiel-Assets.
+// Lädt nur JSON-Definitionen, keine Spiel-Assets. Rückgabewert 0 = sauber, 1 = Befunde.
+//
+// Zwei Prüfungen je Verlies:
+//   1. Erreichbarkeit  – kommt man vom Start aus in jeden Pflichtraum?
+//   2. Rätsel          – stehen die Teile vollständig, ohne Reste eines verworfenen Rätsels,
+//                        und sind sie erreichbar? Ein Hebel hinter einer Sperre versiegelt den
+//                        Ausgang für immer, weil LeverPuzzle ALLE Hebel verlangt.
+//
+// Davor läuft eine Gegenprobe: Ein absichtlich zugemauerter Raum MUSS anschlagen. Ohne sie ginge
+// ein Fehler in der Prüfung selbst als "alles in Ordnung" durch – genau das war hier schon einmal
+// der Fall (die Flutfüllung startete auf der massiven Bodenkachel und lief nie los).
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Persistence;
 using CirclesOfAsh.Progression;
+using CirclesOfAsh.Puzzles;
 using CirclesOfAsh.World;
+using Microsoft.Xna.Framework;
 
 int count = args.Length > 0 && int.TryParse(args[0], out int parsed) ? parsed : 200;
 
@@ -18,23 +30,223 @@ Log.Initialize(logPath);
 var saves = new InMemorySaveRepository();
 var progression = new ProgressionService(definitions, saves);
 
+if (!SelfTestDetectsWalledRoom(definitions, progression))
+{
+    Console.WriteLine("ABBRUCH: Die Gegenprobe schlägt nicht an – die Erreichbarkeitsprüfung misst nichts mehr.");
+    return 1;
+}
+
 int dungeonsChecked = 0;
-List<string> diagnostics = new();
+int reachabilityFindings = 0;
+int puzzleFindings = 0;
+// Wie oft musste der Generator sein gewürfeltes Rätsel verwerfen? Das ist der Pfad, auf dem
+// verwaiste Rätselteile entstehen können – ohne die Zahl weiss man nicht, ob er überhaupt läuft.
+var rolled = new Dictionary<string, int>();
+var placed = new Dictionary<string, int>();
+int fallbacks = 0;
+var diagnostics = new List<string>();
+// Über ALLE Kreise, nicht nur den ersten: Jeder Kreis hat in worlds.json seine eigene
+// Rätselauswahl. Kreis 1 kennt weder "braziers" noch "mirrors" – die blieben sonst ungeprüft.
+int circles = definitions.Worlds.Get("inferno").Circles.Count;
+int dungeonsPerCircle = definitions.Balance.DungeonsPerCircle;
 for (int runSeed = 1; runSeed <= count; runSeed++)
 {
     var run = new RunState { Seed = runSeed * 17, WorldId = "inferno", CircleIndex = 0, DungeonIndex = 0 };
-    for (int dungeon = 0; dungeon < 4; dungeon++)
+    for (int slot = 0; slot < circles * dungeonsPerCircle; slot++)
     {
-        run.DungeonIndex = dungeon;
+        run.CircleIndex = slot / dungeonsPerCircle;
+        run.DungeonIndex = slot % dungeonsPerCircle;
         DungeonPlan plan = progression.CreateDungeonPlan(run);
         DungeonLayout layout = new DungeonGenerator(definitions).Generate(plan);
-        int before = diagnostics.Count;
+
+        string rolledKey = string.IsNullOrEmpty(plan.PuzzleKey) ? "(keines)" : plan.PuzzleKey;
+        string placedKey = layout.Puzzle?.Key ?? "(keines)";
+        rolled[rolledKey] = rolled.GetValueOrDefault(rolledKey) + 1;
+        placed[placedKey] = placed.GetValueOrDefault(placedKey) + 1;
+        if (rolledKey != placedKey) fallbacks++;
+
+        diagnostics.Clear();
         DungeonReachability.Check(layout, diagnostics);
-        foreach (string line in diagnostics.Skip(before)) Console.WriteLine($"  [{runSeed}/{dungeon}] {line}");
+        reachabilityFindings += diagnostics.Count;
+
+        int puzzleStart = diagnostics.Count;
+        CheckPuzzle(layout, definitions.Balance.PuzzleScaling, run.CircleIndex, diagnostics);
+        CheckMendShrine(layout, plan, diagnostics);
+        CheckMirrorSolvable(layout, diagnostics);
+        puzzleFindings += diagnostics.Count - puzzleStart;
+
+        foreach (string line in diagnostics) Console.WriteLine($"  [{runSeed}/K{run.CircleIndex}/V{run.DungeonIndex}] {line}");
         dungeonsChecked++;
     }
 }
-Console.WriteLine($"{dungeonsChecked} Dungeons geprüft. Details: {logPath}");
+Console.WriteLine($"Rätsel gewürfelt -> gesetzt ({fallbacks} Rückfälle auf ein anderes Rätsel):");
+foreach (string key in rolled.Keys.Union(placed.Keys).OrderBy(key => key))
+    Console.WriteLine($"  {key,-12} gewürfelt {rolled.GetValueOrDefault(key),5}   gesetzt {placed.GetValueOrDefault(key),5}");
+Console.WriteLine($"{dungeonsChecked} Dungeons geprüft. "
+                + $"Erreichbarkeit: {reachabilityFindings} Befunde, Rätsel: {puzzleFindings} Befunde. "
+                + $"Details: {logPath}");
+return reachabilityFindings + puzzleFindings == 0 ? 0 : 1;
+
+/// <summary>
+/// Welche Teile ein Rätsel aufstellen muss. Ein negativer Wert ist eine Mindestzahl statt einer
+/// genauen: Die Hebel verteilen sich über das ganze Verlies, ihre Zahl hängt am Kreis.
+/// </summary>
+static Dictionary<string, int> ExpectedParts(string key, PuzzleScalingDefinition scaling, int circleIndex) => key switch
+{
+    "levers" => new Dictionary<string, int> { ["lever"] = -2 },
+    "rune_order" => new Dictionary<string, int> { ["rune"] = Math.Clamp(scaling.RuneOrderLength, 2, 4), ["mural"] = 1 },
+    // Der Lichtkranz braucht keine Inschrift: Die Regel steht im HUD, es gibt nichts zu merken.
+    "rune_circle" => new Dictionary<string, int> { ["rune"] = 4 },
+    "braziers" => new Dictionary<string, int> { ["brazier"] = 3 },
+    "weights" => new Dictionary<string, int>
+    {
+        ["plate"] = scaling.WeightPlatesAt(circleIndex),
+        ["block"] = scaling.WeightPlatesAt(circleIndex) - 1,   // immer genau einer weniger
+    },
+    "mirrors" => new Dictionary<string, int>
+    {
+        ["beam_source"] = 1, ["mirror"] = 3, ["mirror_fixed"] = 3, ["beam_target"] = 1,
+    },
+    _ => new Dictionary<string, int>(),
+};
+
+/// <summary>Alle Tags, die überhaupt zu einem Rätsel gehören – für die Suche nach Resten.</summary>
+static string[] AllPuzzleTags() => new[]
+{
+    "lever", "rune", "mural", "brazier", "plate", "block", "beam_source", "mirror", "mirror_fixed", "beam_target",
+};
+
+static void CheckPuzzle(DungeonLayout layout, PuzzleScalingDefinition scaling, int circleIndex, List<string> diagnostics)
+{
+    var counts = new Dictionary<string, int>();
+    foreach (PropPlacement prop in layout.Props) counts[prop.Tag] = counts.GetValueOrDefault(prop.Tag) + 1;
+
+    if (layout.Puzzle is not { } spec)
+    {
+        // Kein Rätsel gesetzt: Dann darf auch kein Rätselteil herumstehen.
+        foreach (string tag in AllPuzzleTags())
+            if (counts.GetValueOrDefault(tag) > 0)
+                diagnostics.Add($"RÄTSEL: keines gesetzt, aber {counts[tag]}x '{tag}' im Verlies (Rest eines verworfenen Rätsels).");
+        return;
+    }
+
+    Dictionary<string, int> expected = ExpectedParts(spec.Key, scaling, circleIndex);
+    if (expected.Count == 0)
+    {
+        diagnostics.Add($"RÄTSEL: unbekannter Schlüssel '{spec.Key}' – der Sweep kennt seine Teile nicht.");
+        return;
+    }
+
+    foreach ((string tag, int want) in expected)
+    {
+        int have = counts.GetValueOrDefault(tag);
+        if (want < 0 && have < -want) diagnostics.Add($"RÄTSEL '{spec.Key}': nur {have}x '{tag}', mindestens {-want} nötig.");
+        else if (want > 0 && have != want) diagnostics.Add($"RÄTSEL '{spec.Key}': {have}x '{tag}', erwartet {want}.");
+    }
+    foreach (string tag in AllPuzzleTags())
+        if (!expected.ContainsKey(tag) && counts.GetValueOrDefault(tag) > 0)
+            diagnostics.Add($"RÄTSEL '{spec.Key}': {counts[tag]}x '{tag}' übrig – gehört zu einem anderen Rätsel.");
+
+    // Erreichbarkeit jedes einzelnen Teils.
+    bool[] visited = DungeonReachability.Flood(layout.Map, layout.PlayerSpawn);
+    foreach (PropPlacement prop in layout.Props)
+    {
+        if (!expected.ContainsKey(prop.Tag)) continue;
+        if (prop.Tag == "mirror_fixed") continue;   // hängt bewusst ausser Sprungweite an der Wand
+        if (!DungeonReachability.IsSpotReached(visited, layout.Map, prop.BottomCenter))
+            diagnostics.Add($"RÄTSEL '{spec.Key}': Teil '{prop.Tag}' #{prop.Index} in {prop.Room.OwnerKey} ist nicht erreichbar.");
+    }
+}
+
+/// <summary>
+/// Spiegelraetsel: Probiert alle 4^3 Stellungen der drehbaren Spiegel durch. Zwei Dinge koennen
+/// schiefgehen, und beide sind unsichtbar, solange man nur davorsteht: Es gibt GAR KEINE Loesung,
+/// oder es ist schon von Anfang an geloest und das Siegeltor springt ungefragt auf. Der Kommentar
+/// im Generator berichtet, dass genau der zweite Fall schon einmal eingebaut war.
+/// </summary>
+static void CheckMirrorSolvable(DungeonLayout layout, List<string> diagnostics)
+{
+    if (layout.Puzzle is not { Key: "mirrors" } spec) return;
+    PropPlacement? source = layout.Props.FirstOrDefault(prop => prop.Tag == "beam_source");
+    PropPlacement? target = layout.Props.FirstOrDefault(prop => prop.Tag == "beam_target");
+    if (source is null || target is null) { diagnostics.Add("SPIEGEL: Leuchter oder Standbild fehlt."); return; }
+
+    List<Point> turnable = layout.Props.Where(prop => prop.Tag == "mirror")
+        .OrderBy(prop => prop.Index).Select(TileOfProp).ToList();
+    var fixedMirrors = new Dictionary<Point, int>();
+    foreach (PropPlacement prop in layout.Props.Where(prop => prop.Tag == "mirror_fixed"))
+        fixedMirrors[TileOfProp(prop)] = prop.Index < spec.Order.Count ? spec.Order[prop.Index] & 3 : 1;
+
+    (int solutions, int total, bool startsSolved) = BeamTracer.CountSolutions(
+        layout.Map, source.Room.TileBounds, TileOfProp(source), TileOfProp(target),
+        turnable, fixedMirrors, Array.Empty<int>());
+
+    if (solutions == 0) diagnostics.Add($"SPIEGEL: keine der {total} Stellungen trifft das Standbild – unloesbar.");
+    if (startsSolved) diagnostics.Add("SPIEGEL: schon in der Ausgangsstellung geloest – das Tor springt ungefragt auf.");
+}
+
+/// <summary>Kachel eines Props aus seiner Fusshoehe – dieselbe Rechnung wie MirrorPuzzle.TileOf.</summary>
+static Point TileOfProp(PropPlacement prop)
+{
+    float centerX = prop.BottomCenter.X;
+    float centerY = prop.BottomCenter.Y - prop.Definition.Height / 2f;
+    return new Point(TileMap.ToTile(centerX), TileMap.ToTile(centerY));
+}
+
+/// <summary>
+/// Der Trauernde Engel ist der Weg zurueck zu einer Ruestung. Steht keiner im Verlies, gibt es
+/// ihn faktisch nicht; stehen mehrere, ist der Verfall entwertet; steht er unerreichbar, ist er
+/// eine Verhoehnung. Alle drei Faelle sind hier ein Befund.
+/// </summary>
+static void CheckMendShrine(DungeonLayout layout, DungeonPlan plan, List<string> diagnostics)
+{
+    int shrines = layout.Props.Count(prop => prop.Tag == "mend_shrine");
+    if (plan.IsBossDungeon)
+    {
+        if (shrines > 0) diagnostics.Add($"ENGEL: {shrines} im Thronsaal – dort soll keiner stehen.");
+        return;
+    }
+    if (shrines != 1)
+    {
+        diagnostics.Add($"ENGEL: {shrines} im Verlies, erwartet genau 1.");
+        return;
+    }
+    bool[] visited = DungeonReachability.Flood(layout.Map, layout.PlayerSpawn);
+    PropPlacement shrine = layout.Props.First(prop => prop.Tag == "mend_shrine");
+    if (!DungeonReachability.IsSpotReached(visited, layout.Map, shrine.BottomCenter))
+        diagnostics.Add($"ENGEL: steht in {shrine.Room.OwnerKey} und ist nicht erreichbar.");
+}
+
+/// <summary>
+/// Gegenprobe: Ein Verlies, dessen Ausgangsraum zugemauert wurde, MUSS als Befund auftauchen.
+/// Schlägt das nicht an, misst die Prüfung nichts mehr und der ganze Sweep ist wertlos.
+/// </summary>
+static bool SelfTestDetectsWalledRoom(DefinitionRegistry definitions, ProgressionService progression)
+{
+    var run = new RunState { Seed = 4711, WorldId = "inferno", CircleIndex = 0, DungeonIndex = 0 };
+    DungeonPlan plan = progression.CreateDungeonPlan(run);
+    DungeonLayout layout = new DungeonGenerator(definitions).Generate(plan);
+
+    var clean = new List<string>();
+    DungeonReachability.Check(layout, clean);
+    if (clean.Count != 0)
+    {
+        Console.WriteLine($"  Gegenprobe: Seed 4711 hat schon unverändert {clean.Count} Befund(e) – nicht aussagekräftig.");
+        return false;
+    }
+
+    RoomNode? exit = layout.Rooms.FirstOrDefault(room => room.Type == RoomType.Exit);
+    if (exit is null) return false;
+    for (int y = exit.TileBounds.Top; y < exit.TileBounds.Bottom; y++)
+        for (int x = exit.TileBounds.Left; x < exit.TileBounds.Right; x++)
+            layout.Map[x, y] = TileType.Solid;
+
+    var walled = new List<string>();
+    DungeonReachability.Check(layout, walled);
+    if (walled.Count == 0) return false;
+    Console.WriteLine($"  Gegenprobe bestanden: zugemauerter Ausgangsraum wird gemeldet ({walled.Count} Befund(e)).");
+    return true;
+}
 
 static string FindGameRoot()
 {

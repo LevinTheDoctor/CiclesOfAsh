@@ -60,9 +60,9 @@ Welt "Das Inferno"
 | 8 | Betrug | Geryon, das ehrliche Gesicht | violett |
 | 9 | Verrat | Luzifer im Eis | eisblau |
 
-**Stand v1.2.0 in Zahlen:** 9 Kreise · 27 Verliese (3 je Kreis, `balance.json`) · 9 Bosse und
+**Stand v1.3.0 in Zahlen:** 9 Kreise · 27 Verliese (3 je Kreis, `balance.json`) · 9 Bosse und
 3 Kerkermeister, jeder mit eigener Arena und eigenem Musikstück · 25 Gegnerarten · 4 Klassen ·
-7 Begleitseelen · 13 Fähigkeiten · 20 Items · 20 Bitten der Gläubigen · 24 Musikstücke.
+7 Begleitseelen · 13 Fähigkeiten · 20 Items · 6 Rätseltypen · 20 Bitten der Gläubigen · 24 Musikstücke.
 
 **Nach jedem Verlies entscheidest du selbst:** sofort weiter hinab, oder zurück in den Tempel.
 Der Tempel ist die sichere Wahl – der Lauf ist gespeichert, beim nächsten Aufbruch steigst du an
@@ -93,16 +93,29 @@ Viertel der Gläubigen.
 | **Bitten der Gläubigen** | Missionen annehmen (sammeln, töten, befreien, Kreis abschließen) → Gläubige als Lohn. Fortschritt bleibt nach dem Tod | `Progression/MissionService.cs`, `Scenes/MissionBoardScene.cs`, `missions.json` |
 | **Räume mit Persönlichkeit** | Krypta, Tropfsteinhöhle (zerklüftet, **Fledermäuse flattern davon**), Kathedrale, überfluteter Kreuzgang (**Teich** zum Schwimmen), Schatzgewölbe, Glutschmiede … | `themes.json`, `props.json`, `Props/PropBehaviors.cs` |
 | **Mehrere Wege** | Der Generator baut Parallelrouten (Umwege) neben dem Hauptpfad | `DungeonGenerator.AddDetours` |
-| **Rätsel & Siegeltor** | Das Siegel steht hinter einem Gittertor. Öffnen durch: verteilte **Hebel**, **Runenfolge** (Hinweis-Inschrift in einem anderen Raum) oder **Feuerbecken** auf Zeit | `Puzzles/Puzzles.cs`, `worlds.json` (`puzzles`) |
+| **Rätsel & Siegeltor** | Das Siegel steht hinter einem Gittertor. Sechs Typen öffnen es: verteilte **Hebel**, **Runenfolge** (Hinweis-Inschrift in einem anderen Raum), **Feuerbecken** auf Zeit, **Gewichte**, **Spiegel** und der **Lichtkranz**. Welche ein Kreis würfeln darf, steht in `worlds.json` | `Puzzles/Puzzles.cs`, `worlds.json` (`puzzles`) |
 | **Kerker & Mini-Boss** | Drei Kreise (Limbus, Gier, Zorn) haben ein Verlies mit optionalem Kerker. Besiege den Kerkermeister → Gefangene frei → **neue Begleitseele** | `WaveDirector`, `worlds.json` (`prison`), `companions.json` (`unlockAtBelievers: -1`) |
 | **Logo & Ladebildschirm** | Animierter Höllentrichter, Asche, Tipps, echter Fortschritt (Assets werden vorgeladen) | `Scenes/LoadingScene.cs`, `UI/InfernoFunnel.cs`, `tips.json` |
+
+### Neu in v1.3.0
+
+| Feature | Was passiert im Spiel | Wo im Code / in den Daten |
+|---|---|---|
+| **Kleidung flicken statt nur verlieren** | Kleidung ist weiter Rüstung und zerfällt in drei Stufen – aber es gibt jetzt zwei Wege zurück. Die **Glutschmiede** im Tempel flickt gegen Gläubige eine Stufe, und wenn gar nichts mehr da ist, webt sie deine Startkleidung neu: **zerfetzt, nicht heil**. Der Preis steigt mit jeder Reparatur im selben Lauf | `Scenes/ForgeScene.cs`, `EquipmentService.Mend`, `balance.json` (`forge*`) |
+| **Der Trauernde Engel** | Genau **einer je Wellenverlies**, gefunden statt gekauft: eine Stufe zurück, danach ist er verbraucht. Steht bevorzugt abseits des Hauptwegs – nie im Thronsaal und nie hinter einer Dash-Sperre | `Props/PropBehaviors.cs` (`MendShrineProp`), `props.json` (`mending_angel`), `DungeonGenerator.PlaceMendShrine` |
+| **Ab- und Anlegen repariert nicht mehr** | Kleidung merkt sich ihren Zustand über das Ablegen hinweg. Vorher setzte jedes Anlegen die Haltbarkeit auf voll – im Inventar beliebig oft, der ganze Verfall war damit umgehbar | `RunState.ArmorWear`, `EquipmentService.Toggle` |
+| **Lichtkranz** | Sechster Rätseltyp: vier Runensäulen im Kreis, eine zu berühren kippt **sie und ihre beiden Nachbarn**, die äußeren gelten als benachbart. Alle vier zum Leuchten bringen. Kein Zeitdruck, keine Reihenfolge, kein Fehlschlag | `Puzzles/Puzzles.cs` (`RuneCirclePuzzle`), `worlds.json` (`puzzles`) |
+| **Spiegel sind nicht mehr jedes Mal dieselben** | Welches Spiegelpaar den Strahl hebt und in welchen Spalten alles steht, wird gewürfelt. Der Generator **rechnet nach**, dass genau eine Stellung löst, und würfelt sonst neu | `Puzzles/BeamTracer.cs`, `DungeonGenerator.TryPlaceMirrors` |
+| **Rätsel ziehen mit der Tiefe an** | Feuerbecken-Zeitlimit sinkt von 14 s auf 9 s, tiefere Kreise bekommen vier Druckplatten statt drei. Alles in `balance.json`, ohne Neukompilieren | `balance.json` (`puzzleScaling`), `PuzzleScalingDefinition` |
+| **Die Erreichbarkeitsprüfung misst wieder** | Sie schlug auf **86 %** aller Verliese an – ein Fehler in ihr selbst: Die Flutfüllung startete auf der massiven Bodenkachel und lief nie los. Jetzt 0 Befunde, und der Seed-Sweep prüft vorab mit einer Gegenprobe, dass sie überhaupt noch anschlägt | `DungeonReachability`, `tools/SeedSweep` |
+| **Gewürfelte Rätsel kommen auch vor** | 28 % der Rätselverliese verwarfen ihr Rätsel still und wurden zur Hebelsuche, weil kein Raum mit heilem Boden übrig war. Jetzt wird einer vorgemerkt, bevor Umwege und Abzweige Schächte hineinschneiden: **1,2 %** | `RoomNode.KeepFloorIntact`, `DungeonGenerator.ReservePuzzleRoom` |
 
 ### Neu in v1.2.0
 
 | Feature | Was passiert im Spiel | Wo im Code / in den Daten |
 |---|---|---|
 | **Figur statt Klasse zuerst** | Der Editor fragt Name → Geschlecht → Statur (Kräftig/Normal/Trainiert) → Klasse → Aussehen. Geschlecht und Statur sind zwei Zeilen, liegen in den Daten aber weiter in **einer** Liste – ein Katalog rechnet hin und her, deshalb ohne Migration | `Scenes/CharacterCreatorScene.cs`, `Progression/BodyTypeCatalog.cs`, `appearance.json` |
-| **Alles geht kaputt, wie in Ghosts 'n Goblins** | Jede Klasse startet in ihrer **eigenen** Kleidung, und Kleidung **ist** Rüstung: Sie fängt Treffer **ganz** ab und zerfällt dabei in **drei sichtbaren Stufen** – heil, angeschlagen, zerfetzt –, bis nur die Unterwäsche bleibt. Unzerstörbare Rüstung gibt es nicht | `Progression/EquipmentService.cs` (`Stages`, `ArmorStage`), `Entities/Player.cs`, `items.json` (`armorHits`), `classes.json` (`startingArmor`) |
+| **Alles geht kaputt, wie in Ghosts 'n Goblins** | Jede Klasse startet in ihrer **eigenen** Kleidung, und Kleidung **ist** Rüstung: Sie fängt Treffer **ganz** ab und zerfällt dabei in **drei sichtbaren Stufen** – heil, angeschlagen, zerfetzt –, bis nur die Unterwäsche bleibt. Unzerstörbare Rüstung gibt es nicht – aber seit v1.3.0 einen Weg zurück (siehe unten) | `Progression/EquipmentService.cs` (`Stages`, `ArmorStage`), `Entities/Player.cs`, `items.json` (`armorHits`), `classes.json` (`startingArmor`) |
 | **Unterwäsche mit Muster** | Die einzige unzerstörbare Ebene, und reiner Gag: schlicht, Herzchen, Streifen, Punkte, Flämmchen, Knöchlein – sechs Muster. Gewürfelt wird **pro Lauf**, nicht im Editor gewählt | `appearance.json` (`underwearStyles`), `RunState.Underwear`, `tools/assetgen/characters.py` (`underwear_frame`) |
 | **Waffen liegen in der Hand** | Alle sechs Körpertypen laufen mit dem Unterarm auf **eine** gemeinsame Faustzelle zu; Faust und Waffe hängen an demselben Anker und schwingen mit Lauf und Sprung mit. Die Waffe liegt in einer eigenen, unzerstörbaren Ebene – sie bleibt also auch dann in der Hand, wenn die Kleidung zerfallen ist | `tools/assetgen/characters.py` (`hand_anchor`, `gear_frame`), `classes.json` (`gearSprite`) |
 | **Selbst kämpfen** | Kombo aus drei Schlägen, Block mit Parade-Fenster, Drehsprung auf `W`. Im Optionsmenü wählbar, ob im Bosskampf die Automatik mithilft oder schweigt | `Entities/Player.cs`, `Scenes/SettingsScene.cs` |
@@ -110,7 +123,7 @@ Viertel der Gläubigen.
 | **Sprechende Begleitseelen** | Sie melden sich von selbst: beim Abstieg, bei wenig Leben, wenn die Kleidung zerfällt, im Tempel. Als Sprechblase, die das Spiel **nicht** anhält | `Companions/CompanionChatter.cs`, `chatter.json` |
 | **Begleiter-Fassungen** | Jede der sieben Seelen in drei Farbfassungen – im Tempel über „Gestalt wechseln", haltbar über Läufe | `Companions/CompanionSkins.cs`, Migration V4 (`pets.skin`) |
 | **Optionales Tutorial** | Zehn Schritte, jeder wartet auf **eine** Handlung. Kein Zwang, `F5` bricht ab. Nutzt dieselben Ereignisse wie die Zwischenrufe – eine Meldestelle für beide | `Tutorial/TutorialDirector.cs`, `tutorial.json` |
-| **Zwei neue Rätseltypen** | **Gewichte**: drei Druckplatten gleichzeitig beschweren, aber nur zwei Schiebeblöcke – auf der dritten stehst du selbst. **Spiegel**: einen Lichtstrahl umlenken, flach gestellte Spiegel lassen ihn durch | `Puzzles/Puzzles.cs`, `props.json`, `worlds.json` (`puzzles`) |
+| **Zwei neue Rätseltypen** | **Gewichte**: Druckplatten gleichzeitig beschweren, aber es gibt immer einen Schiebeblock zu wenig – auf der letzten Platte stehst du selbst. **Spiegel**: einen Lichtstrahl umlenken, flach gestellte Spiegel lassen ihn durch | `Puzzles/Puzzles.cs`, `props.json`, `worlds.json` (`puzzles`) |
 | **Eigene Arena je Boss** | Alle zwölf Kämpfe – neun Kreis-Bosse und drei Kerkermeister – haben eigene Geometrie, Deko, Lichtstimmung und ein eigenes Musikstück. Beim Kerkermeister wechselt es mitten im Verlies und danach zurück | `arenas.json`, `DungeonGenerator.BuildArena` |
 | **Drachen** | Als Gegner (Drachenjunges ab Limbus, Aschdrache ab Gier) und als Begleiter | `enemies.json`, `companions.json`, `worlds.json` |
 | **Flügel, Make-up, Körpertypen** | Eigene Sprite-Ebenen im Editor; Flügel tragen zugleich die Gleitfunktion | `Progression/CharacterVisuals.cs`, `appearance.json` |
@@ -226,6 +239,7 @@ Man läuft hin und benutzt, was man braucht:
 |---|---|
 | **Höllentor** (rechts, glühender Schlund) | Öffnet die Kreis-Übersicht – von dort geht es hinab |
 | **Truhe** (links) | Ausrüstung des laufenden Abstiegs |
+| **Glutschmiede** (links neben der Truhe) | Kleidung gegen Gläubige flicken – oder, wenn nichts mehr da ist, die Startkleidung neu weben (zerfetzt). Der Preis steigt mit jeder Reparatur im Lauf |
 | **Missionsbrett** (linkes Podest) | Bitten der Gläubigen annehmen und aufgeben |
 | **Schrein** (rechtes Podest) | Gesammelte Reliquien über alle Läufe |
 | **Tempelwärtin** (Mitte) | Dialog: Hinweise, Erklärungen zu den Haustieren |
@@ -233,8 +247,10 @@ Man läuft hin und benutzt, was man braucht:
 | **Deko-Modus** (F5) | Deko frei platzieren, kostet Gläubige, bleibt gespeichert |
 
 Der Tempel ist in `Scenes/HubScene.cs`; sein Grundriss entsteht in `BuildHubMap()`. Die festen
-Standorte stehen als Properties (`GateSpot`, `ChestSpot`, `BoardSpot`, `ShrineSpot`) an einer Stelle,
-damit Erkennung und Darstellung nicht auseinanderlaufen.
+Standorte stehen als Properties (`GateSpot`, `ChestSpot`, `ForgeSpot`, `BoardSpot`, `ShrineSpot`) an
+einer Stelle, damit Erkennung und Darstellung nicht auseinanderlaufen. Die Tempelfigur zieht sich um,
+sobald sich die Kleidung geändert hat – es gibt keinen Rückruf beim Schließen einer aufgesetzten
+Szene, also vergleicht `RefreshPlayerLook()` den Zustand.
 
 ---
 
@@ -288,7 +304,7 @@ CirclesOfAsh/
 │  ├─ World/         Kachelkarte, Physik, Generator, Wellen, Licht, Bröckeln, Laufzeitwelt
 │  ├─ Entities/      Spieler, Gegner, Projektile, Pickups, Props, Begleiter, Effekte
 │  ├─ Props/         Verhalten der Weltobjekte (Fledermäuse, Hebel, Truhen, Käfige …)
-│  ├─ Puzzles/       Rätsel vor dem Siegeltor (Hebel, Runenfolge, Feuerbecken)
+│  ├─ Puzzles/       Rätsel vor dem Siegeltor (Hebel, Runenfolge, Feuerbecken, Gewichte, Spiegel, Lichtkranz)
 │  ├─ Abilities/     Fähigkeits-Verhalten (Projektil, Nova, Orbit, Dash …)
 │  ├─ Enemies/       Gegner-KI (Brains) und Boss-Angriffe
 │  ├─ Companions/    Begleiter-Verhalten
@@ -300,7 +316,7 @@ CirclesOfAsh/
 │  └─ UI/            HUD, Minikarte, Menüs, Panels
 ├─ tools/generate_placeholder_assets.py   ← erzeugt alle Platzhalter-Assets (CC0)
 ├─ tools/assetgen/                         ← Generator-Module: Charaktere, Kreaturen, Welt, Medien, Musik, Icons
-├─ tools/SeedSweep/                        ← Kommandozeilen-Prüfer: viele Seeds erzeugen, Erreichbarkeit messen
+├─ tools/SeedSweep/                        ← Kommandozeilen-Prüfer: Seeds erzeugen, Erreichbarkeit und Rätsel messen
 ├─ build/build.sh                          ← ein Befehl, Paket für das laufende System
 ├─ build/publish.sh, macos-app.sh          ← Cross-Builds, macOS-Programmbündel
 ├─ build/icons/                            ← erzeugte App-Icons (.icns/.ico)
@@ -430,17 +446,23 @@ Die Prüfung **bricht nichts ab**: ein unerreichbarer Schatzraum ist ärgerlich,
 schlimmer. Über viele Seeds hinweg lässt sie sich ohne Spielstart und ohne Grafik-Assets auslösen:
 
 ```bash
-dotnet run --project tools/SeedSweep -- 200    # Standard sind 200 Seeds, je vier Verliese
+dotnet run --project tools/SeedSweep -- 200    # 200 Seeds x 9 Kreise x 3 Verliese = 5400 Verliese
 ```
 
-Ausgegeben wird eine Zeile je Befund und am Ende die Zahl der geprüften Dungeons; Einzelheiten
-stehen in `seed-sweep.log` im temporären Verzeichnis.
+Der Sweep geht über **alle neun Kreise**, nicht nur den ersten – sonst blieben `braziers` und
+`mirrors` ungeprüft, die es im Limbus gar nicht gibt. Je Verlies prüft er dreierlei: Erreichbarkeit
+der Pflichträume, Vollständigkeit und Erreichbarkeit der Rätselteile (samt Lösbarkeit des
+Spiegelrätsels), und dass genau ein erreichbarer Trauernder Engel im Verlies steht. Ausgegeben wird
+eine Zeile je Befund, dazu die Verteilung „Rätsel gewürfelt → gesetzt"; Einzelheiten stehen in
+`seed-sweep.log` im temporären Verzeichnis. Der Rückgabewert ist 0, wenn nichts gefunden wurde.
 
-**Offener Punkt, Stand v1.2.0:** Der Sweep meldet reichlich – 50 Seeds (= 200 Verliese) ergaben 622
-Befunde, darunter Räume, die als Start **und** als unerreichbar gelten. Das ist kein Beleg dafür,
-dass 622 Verliese unspielbar sind, sondern zuerst ein Hinweis auf die Prüfung selbst: die Flutfüllung
-läuft nur über begehbare Kacheln und kennt weder Türen noch Schächte, wie sie der Generator öffnet.
-Erst Messen, dann Urteilen – ob Prüfung oder Generator nachgezogen wird, ist offen (siehe Roadmap).
+**Vorweg läuft eine Gegenprobe:** Ein absichtlich zugemauerter Ausgangsraum **muss** gemeldet werden,
+sonst bricht der Sweep ab. Das ist kein Zierrat – der frühere Befundberg von 6222 (86 % aller
+Verliese) kam nicht vom Generator, sondern von der Prüfung selbst: `PlayerSpawn` ist die Fußhöhe,
+also die Oberkante der Bodenkachel, und die Suche nach einem begehbaren Startpunkt ging von dort
+nach **unten**, tiefer ins Gestein. Die Flutfüllung lief nie los, und ohne besuchte Kacheln galt
+jeder Pflichtraum als unerreichbar. Eine Prüfung, die nichts mehr misst, meldet eben auch nichts –
+deshalb misst der Sweep jetzt zuerst sich selbst.
 
 ---
 
@@ -563,6 +585,12 @@ Für den Slot `Armor` kommt dazu:
 - `armorHits` – wie viele Treffer das Stück **vollständig** abfängt, bevor es zerfällt. Ohne Angabe
   aus `durability` abgeleitet, **mindestens** aber `EquipmentService.Stages` (3). Unzerstörbare
   Rüstung gibt es nicht.
+
+Wieder heil wird Kleidung nur absichtlich: an der **Glutschmiede** im Tempel gegen Gläubige oder am
+**Trauernden Engel** im Verlies. Beide gehen durch `EquipmentService.Mend` – wer einen dritten Weg
+einbaut, ruft dieselbe Methode auf, statt `ArmorDurability` von Hand zu setzen. Ab- und Anlegen
+repariert **nicht**: Der Zustand steht in `RunState.ArmorWear` und überlebt das Ablegen. Nur ein neu
+gefundenes Stück ist ganz.
 - `sprite` – die Kleidungs-Ebene. Erwartet werden **drei** Blätter: `<sprite>` (heil),
   `<sprite>.worn` (angeschlagen) und `<sprite>.broken` (zerfetzt). Fehlt eine Stufe, fällt die
   Anzeige auf die nächstniedrigere zurück (nur ein `INFO` im Log, kein Fehler).
@@ -583,6 +611,19 @@ zumalen.
 `worlds.json` bei `puzzles` eintragen. Props melden sich über `world.NotifyPuzzle(prop)`, das Rätsel
 antwortet per `prop.Behavior.OnSignal(...)` und öffnet am Ende mit `world.OpenGate()`.
 Braucht es eigene Props, müssen sie im Generator (`PlacePuzzle`) platziert werden.
+
+**Dazu gehört ein Eintrag in `tools/SeedSweep` (`ExpectedParts`)**: welche Teile mit welchem Tag in
+welcher Zahl stehen müssen. Der Sweep meldet sonst „unbekannter Schlüssel" und prüft dein Rätsel
+nicht. Er prüft dann bei jedem Lauf, dass die Teile vollständig und erreichbar sind und keine Reste
+eines verworfenen Rätsels herumstehen.
+
+**Lösbarkeit gehört nachgerechnet, nicht behauptet.** Beide Fehler eines Rätsels sind im Spiel
+unsichtbar: Es gibt gar keine Lösung, oder es ist beim Betreten schon gelöst und das Tor springt
+ungefragt auf. Der Lichtkranz würfelt seine Startstellung deshalb **rückwärts** aus der gelösten,
+und das Spiegelrätsel probiert im Generator alle Stellungen durch (`Puzzles/BeamTracer.cs`,
+`DungeonGenerator.TryPlaceMirrors`) und würfelt neu, bis genau eine löst. Die Strahlenregel liegt
+bewusst in einer eigenen, weltfreien Klasse – so prüfen Spiel, Generator und Sweep dieselbe Regel
+statt drei leicht abweichender Kopien.
 
 Braucht das Rätsel einen **eigenen Raum** mit fester Geometrie, gehört sein Schlüssel zusätzlich in
 `DungeonGenerator.NeedsPuzzleRoom`. Zum Setzen dann `PlacePropAt` statt `PlaceProp` verwenden:
@@ -685,7 +726,7 @@ Pfad: `%APPDATA%\CirclesOfAsh\save.db` (Windows), `~/.config/CirclesOfAsh/save.d
 | `unlocks` | Dauerhafte Freischaltungen (`ability`, `companion`, `world`) mit Zeitstempel |
 | `run` | Genau **eine** Zeile (`CHECK (id = 1)`): aktueller Lauf – Klasse, Kreis, Verlies, Stufe, Seed |
 | `run_items` | Fähigkeitsstufen, Upgrades, Begleiter, Items (Anzahl) und angelegte Items (`equipped`, Slot als Zahl) |
-| `run_profile` *(v2)* | Schlüssel/Wert: Name und Aussehen aus dem Charakter-Editor |
+| `run_profile` *(v2)* | Schlüssel/Wert: Name und Aussehen aus dem Charakter-Editor, Haltbarkeit und Zustand der Kleidung (`armor_durability`, `armor_wear`), genutzte Reparaturen (`forge_uses`) |
 | `missions` *(v2)* | Bitten der Gläubigen: Status (`Active`/`Completed`) und Fortschritt |
 | `settings` *(v3)* | Optionsmenü: Bildschirm, Lautstärken, Helligkeit, Vibration, Schwierigkeit |
 | `hub_deco` *(v3)* | Im Tempel platzierte Deko (Prop-Id + Kachelkoordinate) |
@@ -702,6 +743,11 @@ Spiel beim ersten Start stumm).
 **Schema ändern:** In `SqliteSaveRepository.Migrations` einen **neuen** SQL-Block anhängen
 (z. B. `ALTER TABLE run ADD COLUMN ...`). Beim Start wird `PRAGMA user_version` gelesen und jede
 fehlende Migration in einer Transaktion ausgeführt. Bestehende Einträge niemals ändern.
+
+**Oft geht es auch ohne Migration:** `run_profile`, `meta` und `settings` sind Schlüssel/Wert-Tabellen,
+ein fehlender Schlüssel liest sich als leer. Neue Werte am Lauf gehören deshalb dorthin – so kamen
+`armor_wear` und `forge_uses` dazu, ohne dass das Schema über **v4** hinausgehen musste und ohne
+dass ein alter Spielstand etwas merkt.
 
 Anschauen lässt sich die Datei z. B. mit `sqlite3 save.db ".tables"` oder DB Browser for SQLite.
 
@@ -770,12 +816,21 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
 - [x] Alle neun Kreise nach Dante, je mit eigenem Tileset, Boss und Musikstück
 - [x] Nach jedem Verlies selbst entscheiden: tiefer hinab oder zurück in den Tempel
 - [x] Erreichbarkeitsprüfung nach jeder Erzeugung, dazu `tools/SeedSweep` für viele Seeds auf einmal
-- [ ] Der Sweep schlägt derzeit auf den meisten Verliesen an: klären, ob die Flutfüllung Türen und
-      Schächte mitzählen muss oder der Generator tatsächlich einmauert
+- [x] Geklärt, warum der Sweep auf den meisten Verliesen anschlug: Es lag an der Prüfung selbst,
+      nicht am Generator – die Flutfüllung startete auf der massiven Bodenkachel und lief nie los.
+      6222 → 0 Befunde. Eine Gegenprobe im Sweep (zugemauerter Raum **muss** gemeldet werden)
+      verhindert, dass so ein Fehler noch einmal als „alles in Ordnung" durchgeht
+- [x] Kleidung flicken: Glutschmiede im Tempel und Trauernder Engel im Verlies
+- [x] Sechster Rätseltyp (Lichtkranz); Spiegelrätsel würfelt seine Anordnung und prüft sie nach
+- [ ] Der Lichtkranz hat nur vier Säulen, weil `runes.png` vier Symbole hat – mit mehr Runen könnte
+      sowohl er als auch die Runenfolge länger werden (`balance.json`: `puzzleScaling.runeOrderLength`)
+- [ ] Ein Rätseltyp, der eigene Bilder braucht (Glockenreihe nach Gehör) – steht als Aufgabe in
+      `GLM_TASKS.md`
 - [ ] Tastenbelegung frei belegbar aus `Content/Data/input.json` (Profile und der Reiter „Steuerung"
       gibt es, das Umbelegen fehlt)
 - [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus) und `ProgressionService` – gemessen wird
-      die Erreichbarkeit bisher nur im Log und per Seed-Sweep, nicht in einer Testsuite
+      bisher nur per Seed-Sweep, nicht in einer Testsuite. Der Sweep liefert inzwischen einen
+      Rückgabewert (0 = sauber), lässt sich also schon in CI hängen
 - [ ] Mehr Welten (Purgatorio, Paradiso) und Kreise
 - [ ] Handgezeichnete Raumvorlagen (Room Templates) als JSON statt reiner Prozedur
 - [ ] Echte Musik statt der prozeduralen Platzhalter; signiertes und notarisiertes macOS-Bündel

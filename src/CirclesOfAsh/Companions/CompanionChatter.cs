@@ -24,6 +24,7 @@ public sealed class CompanionChatter
     public const string BossStart = "boss_start";
     public const string BossDefeated = "boss_defeated";
     public const string ArmorShattered = "armor_shattered";
+    public const string ArmorMended = "armor_mended";
     public const string CollectibleFound = "collectible_found";
     public const string Crouch = "crouch";
     public const string Block = "block";

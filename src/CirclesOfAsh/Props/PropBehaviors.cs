@@ -1,6 +1,9 @@
 using CirclesOfAsh.Assets;
+using CirclesOfAsh.Companions;
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Progression;
 using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Props;
@@ -77,12 +80,18 @@ public sealed class LeverProp : IPropBehavior
 public sealed class RunePillarProp : IPropBehavior
 {
     private SpriteSheet? _runes;
+    /// <summary>
+    /// Kranz-Modus: Eine leuchtende Säule bleibt berührbar. Die Runenfolge braucht das Gegenteil –
+    /// dort ist eine gesetzte Säule ein erledigter Schritt und darf nicht noch einmal angefasst
+    /// werden. Welcher Modus gilt, sagt das Rätsel beim Start ("ring_on"/"ring_off").
+    /// </summary>
+    private bool _ringMode;
 
     public void Initialize(Prop prop, DungeonWorld world) => _runes = world.Context.Assets.GetSpriteSheet("ui.runes");
 
     public bool Interact(Prop prop, DungeonWorld world)
     {
-        if (prop.State == 1) return false;
+        if (prop.State == 1 && !_ringMode) return false;
         world.Context.Audio.Play("lever", 0.5f, 0.4f);
         world.NotifyPuzzle(prop);
         return true;
@@ -90,9 +99,15 @@ public sealed class RunePillarProp : IPropBehavior
 
     public void OnSignal(Prop prop, DungeonWorld world, string signal)
     {
+        if (signal is "ring_on" or "ring_off")
+        {
+            _ringMode = signal == "ring_on";
+            prop.CanInteract = true;
+            return;
+        }
         prop.State = signal switch { "activate" => 1, "error" => 2, _ => 0 };
         prop.Animation.Play(prop.State switch { 1 => "active", 2 => "error", _ => "idle" });
-        prop.CanInteract = prop.State != 1;
+        prop.CanInteract = _ringMode || prop.State != 1;
         prop.LightRadius = prop.State == 1 ? 34f : 0f;
     }
 
@@ -142,6 +157,17 @@ public sealed class BrazierProp : IPropBehavior
 
     public void OnSignal(Prop prop, DungeonWorld world, string signal)
     {
+        // "flicker" ist die Vorwarnung kurz vor dem Erlöschen: Funken, und das Licht sinkt sichtbar
+        // auf die Hälfte. Der Zustand bleibt unangetastet – über das Erlöschen entscheidet weiter
+        // allein das Rätsel, und beim Entzünden steht der volle Schein wieder.
+        if (signal == "flicker")
+        {
+            if (prop.State != 1) return;
+            world.Effects.Burst(prop.Center, Palette.Ash, 6, 34f, gravity: -40f);
+            prop.LightRadius = 34f;
+            return;
+        }
+
         bool lit = signal == "light";
         bool wasLit = prop.State == 1;
         prop.State = lit ? 1 : 0;
@@ -164,6 +190,65 @@ public sealed class ChestProp : IPropBehavior
         prop.CanInteract = false;
         prop.Animation.Play("open");
         world.OpenChest(prop, isTreasure: prop.Tag == "chest_treasure");
+        return true;
+    }
+}
+
+/// <summary>
+/// "mend_shrine": Der Trauernde Engel. Einmal je Verlies darf man hier seine Kleidung flicken –
+/// der einzige Weg zurück, der nichts kostet ausser dem Umweg, ihn zu finden.
+///
+/// Ist die Kleidung schon ganz zerfallen, webt der Engel die Startkleidung der Klasse neu, und
+/// zwar zerfetzt: Man steht wieder in Lumpen, aber nicht mehr in Unterwäsche. Danach ist er
+/// verbraucht (<see cref="Prop.CanInteract"/> = false) – deshalb bleibt der Verfall spürbar.
+/// </summary>
+public sealed class MendShrineProp : IPropBehavior
+{
+    /// <summary>Wie viele Treffer der Engel zurückgibt. Eine Stufe, nicht das ganze Stück.</summary>
+    private const int MendHits = 1;
+
+    public void Initialize(Prop prop, DungeonWorld world)
+    {
+        prop.Animation.Play("idle");
+        prop.LightRadius = 30f;
+    }
+
+    public bool Interact(Prop prop, DungeonWorld world)
+    {
+        if (prop.State != 0) return false;
+
+        ClassDefinition? playerClass = world.Context.Definitions.Classes.Contains(world.Run.ClassId)
+            ? world.Context.Definitions.Classes.Get(world.Run.ClassId)
+            : null;
+        EquipmentService.MendOutcome outcome =
+            EquipmentService.Mend(world.Context.Definitions, world.Run, playerClass, MendHits);
+
+        if (!outcome.Changed)
+        {
+            // Nicht verbrauchen, wenn nichts passiert ist: Wer heil hier vorbeikommt, soll
+            // auf dem Rückweg noch flicken können.
+            world.Announce(outcome.Result == EquipmentService.MendResult.AlreadyWhole
+                ? "Deine Kleidung ist heil – der Engel schweigt."
+                : "Der Engel findet nichts, was er weben könnte.");
+            world.Context.Audio.Play("error", 0.4f);
+            return false;
+        }
+
+        prop.State = 1;
+        prop.CanInteract = false;
+        prop.LightRadius = 0f;
+        EquipmentService.Apply(world.Context.Definitions, world.Run, world.Player);
+        world.Player.RefreshAppearance(world.Context, world.Run);
+        // Bewusst KEIN SaveRun: Das Verlies arbeitet auf einer Kopie des Laufs (DungeonScene),
+        // die erst beim Abschluss übernommen wird. Der Flick gehört zum Verlies wie Beute und
+        // Erfahrung - wer mittendrin aufgibt, fängt es mit dem alten Stand neu an.
+
+        world.Effects.Burst(prop.Center, Palette.Faith, 22, 60f, 1.1f, gravity: -70f);
+        world.Context.Audio.Play("unseal", 0.7f);
+        world.Announce(outcome.Result == EquipmentService.MendResult.Reweaved
+            ? $"Der Engel webt {outcome.ItemName} aus Asche – zerfetzt, aber Kleidung."
+            : $"{outcome.ItemName} geflickt ({EquipmentService.StageNames[outcome.Stage]}).");
+        world.Say(CompanionChatter.ArmorMended);
         return true;
     }
 }

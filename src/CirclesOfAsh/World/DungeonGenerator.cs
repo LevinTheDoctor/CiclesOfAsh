@@ -58,6 +58,9 @@ public sealed class DungeonGenerator
         var rooms = new Dictionary<Point, RoomNode>();
         List<RoomNode> path = BuildCriticalPath(plan, gridWidth, rooms);
         AssignRoomTypes(plan, path);
+        // Vor den Abzweigen: einen Raum mit heilem Boden für das Rätsel vormerken (siehe
+        // RoomNode.KeepFloorIntact). Danach ist regelmässig keiner mehr übrig.
+        ReservePuzzleRoom(plan, path);
         if (!plan.IsBossDungeon)
         {
             AddDetours(plan, path, rooms, gridWidth);
@@ -79,13 +82,14 @@ public sealed class DungeonGenerator
 
         // ---------- 4. Inhalt (Reihenfolge wichtig: Pflicht-Props zuerst, Deko füllt den Rest)
         List<RoomNode> allRooms = rooms.Values.ToList();
-        PuzzleSpec? puzzle = gateTiles.Count > 0 ? PlacePuzzle(puzzleKey, path, allRooms, plan.LeverCount) : null;
+        PuzzleSpec? puzzle = gateTiles.Count > 0 ? PlacePuzzle(puzzleKey, plan, path, allRooms) : null;
         if (gateTiles.Count > 0 && puzzle is null)
         {
             foreach (Point tile in gateTiles) _map[tile.X, tile.Y] = TileType.Empty;   // kein Rätsel platzierbar -> Tor offen
             gateTiles.Clear();
         }
         PlaceChests(plan, allRooms);
+        PlaceMendShrine(plan, allRooms);
         PlaceCages(allRooms);
         PlaceArenaProps(plan, allRooms);
         foreach (RoomNode room in allRooms) Decorate(room);
@@ -98,7 +102,7 @@ public sealed class DungeonGenerator
             GridSize = new Point(gridWidth, GridHeight),
             // Mitte der Fuesse, nicht die linke obere Ecke: Die Figurhoehe haengt an der
             // Sprite-Groesse, der Generator kennt sie nicht.
-            PlayerSpawn = new Vector2((start.TileBounds.X + 3) * TileSize + TileSize / 2f, FloorPixelY(start)),
+            PlayerSpawn = PlayerSpawnOf(start),
             GoalRoom = goal,
             GoalBottomCenter = FloorCenter(goal),
             Props = _props.ToList(),
@@ -109,6 +113,13 @@ public sealed class DungeonGenerator
     }
 
     public static float FloorPixelY(RoomNode room) => (room.TileBounds.Y + FloorRow) * TileSize;
+
+    /// <summary>Wo der Spieler startet. Eine Formel, zwei Nutzer: das Layout und die Engelsprobe.</summary>
+    private static Vector2 PlayerSpawnOf(RoomNode start) =>
+        new((start.TileBounds.X + 3) * TileSize + TileSize / 2f, FloorPixelY(start));
+
+    private static Vector2 PlayerSpawnOf(List<RoomNode> rooms) =>
+        PlayerSpawnOf(rooms.First(room => room.Type == RoomType.Start));
 
     private static Vector2 FloorCenter(RoomNode room) =>
         new((room.TileBounds.X + RoomWidthTiles / 2f) * TileSize, FloorPixelY(room));
@@ -149,7 +160,7 @@ public sealed class DungeonGenerator
     private static readonly int[] NearbyOffsets = { 0, -1, 1, -2, 2, -3, 3 };
 
     private static readonly HashSet<string> NeedsPuzzleRoom =
-        new(StringComparer.OrdinalIgnoreCase) { "rune_order", "braziers", "weights", "mirrors" };
+        new(StringComparer.OrdinalIgnoreCase) { "rune_order", "rune_circle", "braziers", "weights", "mirrors" };
 
     /// <summary>Setzt Start, Ziel und Arenen. Der Rätselraum kommt später (siehe <see cref="AssignPuzzleRoom"/>).</summary>
     private void AssignRoomTypes(DungeonPlan plan, List<RoomNode> path)
@@ -184,14 +195,37 @@ public sealed class DungeonGenerator
         string key = plan.PuzzleKey;
         if (!NeedsPuzzleRoom.Contains(key)) return key;
 
-        RoomNode? puzzleRoom = path.Skip(1).Take(Math.Max(0, path.Count - 2))
-            .Where(room => room.Type == RoomType.Corridor && !room.Exits.ContainsKey(Direction.Down))
-            .OrderBy(_ => _random.Next())
+        RoomNode? puzzleRoom = PuzzleRoomCandidates(path)
+            .Where(room => !room.Exits.ContainsKey(Direction.Down))
+            .OrderByDescending(room => room.KeepFloorIntact)   // der vorgemerkte Raum zuerst
+            .ThenBy(_ => _random.Next())
             .FirstOrDefault();
         if (puzzleRoom is null) return "levers";   // kein freier Raum -> auf Hebel ausweichen
         puzzleRoom.Type = RoomType.Puzzle;
         return key;
     }
+
+    /// <summary>
+    /// Merkt einen Mittelraum als künftigen Rätselraum vor, BEVOR Umwege, Schatz- und
+    /// Kerkerabzweige Ausgänge anhängen. <see cref="AddDetours"/> und <see cref="TryAttachRoom"/>
+    /// hängen sich danach nicht mehr nach unten an ihn, sein Boden bleibt also heil.
+    /// </summary>
+    private void ReservePuzzleRoom(DungeonPlan plan, List<RoomNode> path)
+    {
+        if (plan.IsBossDungeon || !NeedsPuzzleRoom.Contains(plan.PuzzleKey)) return;
+        // Schon der kritische Pfad steigt ab: Wo er nach unten geht, hat der Raum bereits einen
+        // Schacht in der Bodenreihe. Vorgemerkt wird deshalb nur ein Raum, dessen Boden noch heil
+        // ist - sonst schuetzt die Vormerkung einen Boden, der ohnehin schon ein Loch hat.
+        RoomNode? reserved = PuzzleRoomCandidates(path)
+            .Where(room => !room.Exits.ContainsKey(Direction.Down))
+            .OrderBy(_ => _random.Next())
+            .FirstOrDefault();
+        if (reserved is not null) reserved.KeepFloorIntact = true;
+    }
+
+    /// <summary>Mittelräume, in denen ein Raumrätsel stehen könnte: Korridore zwischen Start und Ziel.</summary>
+    private static IEnumerable<RoomNode> PuzzleRoomCandidates(List<RoomNode> path) =>
+        path.Skip(1).Take(Math.Max(0, path.Count - 2)).Where(room => room.Type == RoomType.Corridor);
 
     /// <summary>
     /// Umwege: Wo der Pfad drei Räume geradeaus läuft, wird darüber oder darunter eine Parallelroute gebaut.
@@ -211,6 +245,9 @@ public sealed class DungeonGenerator
             int[] verticalOffsets = _random.Next(2) == 0 ? new[] { -1, 1 } : new[] { 1, -1 };
             foreach (int offsetY in verticalOffsets)
             {
+                // Ein Umweg nach unten reisst bei BEIDEN Anschlussräumen ein Loch in die Bodenreihe.
+                // Ist einer davon als Rätselraum vorgemerkt, wird diese Richtung übersprungen.
+                if (offsetY > 0 && (path[index].KeepFloorIntact || path[index + 2].KeepFloorIntact)) continue;
                 Point[] cells = { origin + new Point(0, offsetY), origin + new Point(1, offsetY), origin + new Point(2, offsetY) };
                 if (!cells.All(cell => IsInside(cell, gridWidth) && !rooms.ContainsKey(cell))) continue;
 
@@ -257,6 +294,8 @@ public sealed class DungeonGenerator
             {
                 // Nur freie Seiten: ein Raum darf pro Richtung höchstens einen Ausgang haben
                 if (anchor.Exits.ContainsKey(direction) || !IsFree(rooms, anchor.GridPosition, direction, gridWidth)) continue;
+                // Der vorgemerkte Rätselraum behält seinen Boden – nach oben oder zur Seite gern.
+                if (direction == Direction.Down && anchor.KeepFloorIntact) continue;
                 RoomNode room = AddRoom(rooms, anchor.GridPosition + Offsets[direction], type);
                 room.IsOptional = true;
                 Connect(anchor, room, direction, gated);
@@ -559,8 +598,42 @@ public sealed class DungeonGenerator
     }
 
     // =================================================================== 4. Inhalt
-    private PuzzleSpec? PlacePuzzle(string key, List<RoomNode> path, List<RoomNode> rooms, int leverCount)
+    /// <summary>
+    /// Stellt die Teile eines Raetsels auf. Schlaegt das fehl, weicht der Generator auf "levers"
+    /// aus - und dabei muss ALLES verschwinden, was das verworfene Raetsel schon gesetzt hat.
+    /// Sonst bleiben Spiegel stehen, an denen man drehen kann, ohne dass etwas passiert, und
+    /// Druckplatten, die nie zaehlen. Deshalb laeuft jeder Versuch ueber diesen Wrapper: Er merkt
+    /// sich den Stand von _props und schneidet bei Misserfolg darauf zurueck.
+    /// </summary>
+    private PuzzleSpec? PlacePuzzle(string key, DungeonPlan plan, List<RoomNode> path, List<RoomNode> rooms)
     {
+        int mark = _props.Count;
+        PuzzleSpec? placed = PlacePuzzleCore(key, plan, path, rooms, mark);
+        if (placed is null) RollbackProps(mark);
+        return placed;
+    }
+
+    /// <summary>Nimmt alle Props zurueck, die seit <paramref name="mark"/> gesetzt wurden.</summary>
+    private void RollbackProps(int mark)
+    {
+        for (int index = _props.Count - 1; index >= mark; index--)
+        {
+            PropPlacement placement = _props[index];
+            // Die Spalte wieder freigeben, sonst meidet die Deko spaeter einen Platz ohne Grund.
+            // Ueber alle Anker, weil PropPlacement den Anker nicht mitfuehrt - eine Inschrift haengt
+            // an der Wand, Platten und Spiegel stehen auf dem Boden.
+            int column = (int)(placement.BottomCenter.X / TileSize) - placement.Room.TileBounds.X;
+            foreach (PropAnchor anchor in Enum.GetValues<PropAnchor>()) UsedColumns(placement.Room, anchor).Remove(column);
+            _props.RemoveAt(index);
+        }
+    }
+
+    private PuzzleSpec? PlacePuzzleCore(string key, DungeonPlan plan, List<RoomNode> path, List<RoomNode> rooms, int mark)
+    {
+        // Wie stark das Rätsel in diesem Kreis anzieht (balance.json, "puzzleScaling").
+        PuzzleScalingDefinition scaling = _definitions.Balance.PuzzleScaling;
+        int circle = plan.CircleIndex;
+
         // Rätselteile nur in Räumen, die ohne Dash erreichbar und nicht der Ausgang sind
         List<RoomNode> candidates = rooms
             .Where(room => room.Type is not (RoomType.Treasure or RoomType.Exit or RoomType.Prison or RoomType.Boss))
@@ -571,6 +644,7 @@ public sealed class DungeonGenerator
             case "levers":
             {
                 // Optionale Räume (Umwege) bevorzugen -> Erkundung wird belohnt
+                int leverCount = scaling.LeverCountAt(plan.LeverCount, circle);
                 int placed = 0;
                 foreach (RoomNode room in candidates.OrderBy(room => room.IsOptional ? 0 : 1).ThenBy(_ => _random.Next()))
                 {
@@ -582,26 +656,61 @@ public sealed class DungeonGenerator
             case "rune_order":
             {
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
-                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
-                int[] symbols = Enumerable.Range(0, 4).OrderBy(_ => _random.Next()).ToArray();
-                int[] columns = { 5, 11, 17, 23 };
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
+                int steps = Math.Clamp(scaling.RuneOrderLength, 2, 4);   // 4 = Zellen in runes.png
+                int[] symbols = Enumerable.Range(0, steps).OrderBy(_ => _random.Next()).ToArray();
+                int[] columns = SpreadColumns(steps, 5, 23);
                 int pillars = 0;
                 for (int index = 0; index < symbols.Length; index++)
                     if (PlaceProp(puzzleRoom, "rune_pillar", PropAnchor.Floor, "rune", symbols[index], columns[index])) pillars++;
-                if (pillars < symbols.Length) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (pillars < symbols.Length) return FallBackToLevers(plan, path, rooms, mark);
 
                 // Die Inschrift hängt in einem ANDEREN Raum -> man muss sie erst finden.
                 // Any() bricht beim ersten erfolgreichen Platzieren ab.
                 bool muralPlaced = candidates.Where(room => room != puzzleRoom).OrderBy(_ => _random.Next())
                     .Any(room => PlaceProp(room, "mural", PropAnchor.Wall, "mural", 0));
                 if (!muralPlaced) PlaceProp(puzzleRoom, "mural", PropAnchor.Wall, "mural", 0);
-                int[] order = Enumerable.Range(0, 4).OrderBy(_ => _random.Next()).ToArray();
+                int[] order = Enumerable.Range(0, steps).OrderBy(_ => _random.Next()).ToArray();
                 return new PuzzleSpec(key, order);
+            }
+            case "rune_circle":
+            {
+                RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
+
+                // Vier Saeulen, jede mit eigenem Symbol - mehr Runen hat runes.png nicht.
+                const int ringSize = 4;
+                int[] ringColumns = SpreadColumns(ringSize, 5, 23);
+                int pillars = 0;
+                for (int index = 0; index < ringSize; index++)
+                    if (PlaceProp(puzzleRoom, "rune_pillar", PropAnchor.Floor, "rune", index, ringColumns[index])) pillars++;
+                if (pillars < ringSize) return FallBackToLevers(plan, path, rooms, mark);
+
+                // Die Startstellung entsteht RUECKWAERTS aus der geloesten: Von "alle leuchten" aus
+                // werden ein paar zufaellige Zuege angewandt. Damit ist sie garantiert loesbar, und
+                // zwar in hoechstens so vielen Zuegen, wie hier gewuerfelt wurden.
+                var lit = new bool[ringSize];
+                Array.Fill(lit, true);
+                int shuffles = 2 + _random.Next(ringSize);
+                for (int move = 0; move < shuffles; move++)
+                {
+                    int touched = _random.Next(ringSize);
+                    for (int offset = -1; offset <= 1; offset++)
+                    {
+                        int at = (touched + offset + ringSize) % ringSize;
+                        lit[at] = !lit[at];
+                    }
+                }
+                // Alles-leuchtet waere schon geloest - dann einmal von Hand verdrehen.
+                if (lit.All(on => on))
+                    for (int offset = -1; offset <= 1; offset++) lit[(offset + ringSize) % ringSize] = false;
+
+                return new PuzzleSpec(key, lit.Select(on => on ? 1 : 0).ToArray());
             }
             case "braziers":
             {
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
-                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
                 int[] columns = { 4, 14, 24 };
                 int placed = 0;
                 for (int index = 0; index < columns.Length; index++)
@@ -611,60 +720,191 @@ public sealed class DungeonGenerator
             case "weights":
             {
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
-                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
 
-                // Drei Platten, zwei Bloecke: Auf der letzten Platte muss der Spieler selbst
-                // stehen bleiben – sonst waere es nur Hin- und Herlaufen.
-                int[] plateColumns = { 6, 14, 22 };
+                // Eine Platte mehr als Bloecke: Auf der letzten muss der Spieler selbst stehen
+                // bleiben – sonst waere es nur Hin- und Herlaufen. Wie viele es sind, haengt am
+                // Kreis (balance.json, "weightPlates").
+                int plateCount = scaling.WeightPlatesAt(circle);
+                int[] plateColumns = SpreadColumns(plateCount, 6, 22);
                 int plates = 0;
                 for (int index = 0; index < plateColumns.Length; index++)
                     if (PlacePropAt(puzzleRoom, "pressure_plate", "plate", index, plateColumns[index], FloorRow)) plates++;
-                if (plates < plateColumns.Length) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (plates < plateColumns.Length) return FallBackToLevers(plan, path, rooms, mark);
 
-                // Bloecke bewusst NICHT auf den Platten: sie stehen dazwischen und muessen
-                // geschoben werden. Eine Kachel Abstand reicht, der Block rutscht je Druck eine weiter.
-                int[] blockColumns = { 10, 18 };
+                // Bloecke bewusst NICHT auf den Platten: sie stehen genau dazwischen und muessen
+                // geschoben werden. Der Block rutscht je Druck eine Kachel weiter.
+                int[] blockColumns = new int[plateCount - 1];
+                for (int index = 0; index < blockColumns.Length; index++)
+                    blockColumns[index] = (plateColumns[index] + plateColumns[index + 1]) / 2;
                 int blocks = 0;
                 for (int index = 0; index < blockColumns.Length; index++)
                     if (PlacePropAt(puzzleRoom, "push_block", "block", index, blockColumns[index], FloorRow)) blocks++;
                 // Ohne beide Bloecke ist eine Platte zu viel und das Raetsel unloesbar.
-                if (blocks < blockColumns.Length) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (blocks < blockColumns.Length) return FallBackToLevers(plan, path, rooms, mark);
                 return new PuzzleSpec(key, Array.Empty<int>());
             }
             case "mirrors":
             {
                 RoomNode? puzzleRoom = path.FirstOrDefault(room => room.Type == RoomType.Puzzle);
-                if (puzzleRoom is null) return PlacePuzzle("levers", path, rooms, leverCount);
+                if (puzzleRoom is null) return FallBackToLevers(plan, path, rooms, mark);
 
-                // Feste Geometrie, damit das Raetsel garantiert loesbar ist:
-                //   Leuchter (2) --> Spiegel (6, flach stellen) --> Spiegel (11, "/") --> hoch
-                //   --> fester Spiegel (11, oben) --> rechts --> fester Spiegel (21, oben) --> runter
-                //   --> Spiegel (21, "\") --> rechts --> Standbild (26)
-                // Die festen Spiegel haengen hoch an der Wand: der Spieler sieht den gedachten
-                // Weg, muss aber nur die drei am Boden drehen.
+                // Der gedachte Weg: Der Leuchter strahlt am Boden nach rechts, ZWEI benachbarte
+                // drehbare Spiegel heben ihn an die Wand und wieder herunter, der dritte liegt auf
+                // einem waagerechten Stueck und muss flach gestellt werden. Zwei feste Spiegel oben
+                // zeigen den Weg (ausserhalb der Sprungweite, damit niemand sie verdreht), und ein
+                // fester Sperrspiegel steht quer in genau dem Stueck Bodenreihe, das der Weg
+                // ueberspringt - ohne ihn koennte man alles flach stellen und der Strahl liefe
+                // einfach durch.
                 //
-                // Der feste Sperrspiegel in Spalte 16 steht quer ("|") und ist noetig: ohne ihn
-                // konnte man alle drei drehbaren flach stellen, der Strahl lief einfach am Boden
-                // durch und das Raetsel loeste sich von selbst. Er liegt genau in dem Stueck
-                // Bodenreihe, das der gedachte Weg ueberspringt - die Loesung ist damit eindeutig.
-                const int beamRow = FloorRow;          // Spiegel stehen auf dem Boden, Strahl in ihrer Reihe
-                const int upperStandRow = beamRow - 6; // hoch an der Wand, ausserhalb der Sprungweite
-
-                bool ok = PlacePropAt(puzzleRoom, "lamp", "beam_source", 0, 2, beamRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror", 0, 6, beamRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror", 1, 11, beamRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror", 2, 21, beamRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror_fixed", 0, 11, upperStandRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror_fixed", 1, 21, upperStandRow)
-                          & PlacePropAt(puzzleRoom, "mirror", "mirror_fixed", 2, 16, beamRow)
-                          & PlacePropAt(puzzleRoom, "statue", "beam_target", 0, 26, beamRow);
-                // Order = Stellungen der FESTEN Spiegel (0 = "|", 1 = "/", 2 = "–", 3 = "\\").
-                // Loesung fuer die drei drehbaren: Spalte 6 flach (2), Spalte 11 "/" (1), Spalte 21 "\\" (3).
-                return ok ? new PuzzleSpec(key, new[] { 1, 3, 0 }) : PlacePuzzle("levers", path, rooms, leverCount);
+                // NEU: Welches Paar hebt, und in welchen Spalten das steht, wird gewuerfelt. Vorher
+                // war jedes Spiegelraetsel im Spiel dasselbe - gleiche Spalten, gleiche Loesung,
+                // neunmal je Lauf. Ob die gewuerfelte Fassung GENAU EINE Loesung hat, rechnet der
+                // Generator selbst nach (BeamTracer), statt es zu behaupten; gelingt das in keinem
+                // Versuch, kommt die bewaehrte feste Fassung zum Zug.
+                for (int attempt = 0; attempt <= MirrorAttempts; attempt++)
+                {
+                    int before = _props.Count;
+                    PuzzleSpec? built = TryPlaceMirrors(puzzleRoom, useFixedFallback: attempt == MirrorAttempts);
+                    if (built is not null) return built;
+                    RollbackProps(before);
+                }
+                return FallBackToLevers(plan, path, rooms, mark);
             }
             default:
                 return null;
         }
+    }
+
+    /// <summary>
+    /// Rueckfall auf die Hebelsuche. Nimmt die Teile des verworfenen Raetsels zurueck und macht den
+    /// vorgemerkten Raetselraum wieder zum gewoehnlichen Korridor: Sonst verlangt die
+    /// Erreichbarkeitspruefung einen Pflichtraum, in dem nichts steht, und die Minikarte faerbt ihn
+    /// als Raetselraum ein.
+    /// </summary>
+    private PuzzleSpec? FallBackToLevers(DungeonPlan plan, List<RoomNode> path, List<RoomNode> rooms, int mark)
+    {
+        RollbackProps(mark);
+        foreach (RoomNode room in path.Where(room => room.Type == RoomType.Puzzle)) room.Type = RoomType.Corridor;
+        return PlacePuzzleCore("levers", plan, path, rooms, _props.Count);
+    }
+
+    /// <summary>
+    /// Verteilt <paramref name="count"/> Spalten gleichmaessig zwischen zwei Raendern. Ersetzt die
+    /// fest eingetragenen Spaltenlisten, damit die Teilezahl mit der Tiefe wachsen kann, ohne dass
+    /// jemand eine zweite Liste nachpflegen muss.
+    /// </summary>
+    private static int[] SpreadColumns(int count, int first, int last)
+    {
+        if (count <= 1) return new[] { (first + last) / 2 };
+        var columns = new int[count];
+        for (int index = 0; index < count; index++)
+            columns[index] = first + (int)MathF.Round((last - first) * index / (float)(count - 1));
+        return columns;
+    }
+
+    /// <summary>
+    /// Der Trauernde Engel: genau EINER je Verlies, und nur in den Wellenverliesen - im Thronsaal
+    /// waere er eine Rettung mitten im Bosskampf. Bevorzugt in einem optionalen Raum, damit der
+    /// Umweg sich lohnt; findet sich dort keiner, geht auch ein Raum am Weg.
+    /// Mehr als einer waere zu viel: Der Verfall soll spuerbar bleiben.
+    ///
+    /// SCHATZRAEUME sind ausgenommen. Sie liegen hinter rissigen Waenden, die erst der Dash oeffnet
+    /// - eine Flickstelle, die man nur mit einer Bossgabe erreicht, hilft genau dann nicht, wenn man
+    /// sie braucht. Und weil auch ein Umweg mal hinter einer Sperre enden kann, wird der Platz
+    /// gegen dieselbe Flutfuellung geprueft, die auch die Erreichbarkeitspruefung benutzt: Ein Engel,
+    /// den man sieht und nicht erreicht, waere schlimmer als gar keiner.
+    /// </summary>
+    private void PlaceMendShrine(DungeonPlan plan, List<RoomNode> rooms)
+    {
+        if (plan.IsBossDungeon) return;
+        bool[] reachable = DungeonReachability.Flood(_map, PlayerSpawnOf(rooms));
+        IEnumerable<RoomNode> candidates = rooms
+            .Where(room => room.Type is RoomType.Corridor or RoomType.Puzzle or RoomType.Start)
+            .OrderBy(room => room.IsOptional ? 0 : 1)
+            .ThenBy(_ => _random.Next());
+        foreach (RoomNode room in candidates)
+        {
+            int before = _props.Count;
+            if (!PlaceProp(room, "mending_angel", PropAnchor.Floor, "mend_shrine", 0)) continue;
+            if (DungeonReachability.IsSpotReached(reachable, _map, _props[^1].BottomCenter)) return;
+            RollbackProps(before);   // unerreichbar -> naechsten Raum versuchen
+        }
+    }
+
+    /// <summary>Wie oft eine gewuerfelte Spiegelstellung versucht wird, bevor die feste greift.</summary>
+    private const int MirrorAttempts = 12;
+
+    /// <summary>
+    /// Stellt eine Fassung des Spiegelraetsels auf und gibt sie nur zurueck, wenn genau EINE der
+    /// 4³ Stellungen der drehbaren Spiegel das Standbild trifft und die Ausgangsstellung es noch
+    /// nicht tut. Beides laesst sich sonst erst im Spiel bemerken - und ein Raetsel, das sich beim
+    /// Betreten von selbst loest, faellt nicht einmal dort auf.
+    /// </summary>
+    private PuzzleSpec? TryPlaceMirrors(RoomNode room, bool useFixedFallback)
+    {
+        const int beamRow = FloorRow;            // Spiegel stehen auf dem Boden, Strahl in ihrer Reihe
+        const int upperStandRow = beamRow - 6;   // hoch an der Wand, ausserhalb der Sprungweite
+
+        // Die bewaehrte Fassung: Hebepaar in der Mitte und rechts, Sperre dazwischen.
+        int sourceColumn = 2, targetColumn = 26;
+        int[] turnable = { 6, 11, 21 };
+        int liftFirst = 1;                       // Index in turnable: erster Spiegel des Hebepaars
+
+        if (!useFixedFallback)
+        {
+            sourceColumn = 2 + _random.Next(2);
+            targetColumn = 26 + _random.Next(2);
+            // Drei Spalten mit Luft dazwischen, damit die Sperre noch dazwischenpasst.
+            int first = sourceColumn + 3 + _random.Next(3);
+            int second = first + 4 + _random.Next(3);
+            int third = second + 5 + _random.Next(3);
+            if (third >= targetColumn - 2) return null;
+            turnable = new[] { first, second, third };
+            liftFirst = _random.Next(2);         // hebt das linke oder das rechte Paar
+        }
+
+        int liftLeft = turnable[liftFirst];
+        int liftRight = turnable[liftFirst + 1];
+        int blockerColumn = (liftLeft + liftRight) / 2;
+        if (blockerColumn <= liftLeft || blockerColumn >= liftRight) return null;
+
+        bool ok = PlacePropAt(room, "lamp", "beam_source", 0, sourceColumn, beamRow)
+                  & PlacePropAt(room, "mirror", "mirror", 0, turnable[0], beamRow)
+                  & PlacePropAt(room, "mirror", "mirror", 1, turnable[1], beamRow)
+                  & PlacePropAt(room, "mirror", "mirror", 2, turnable[2], beamRow)
+                  & PlacePropAt(room, "mirror", "mirror_fixed", 0, liftLeft, upperStandRow)
+                  & PlacePropAt(room, "mirror", "mirror_fixed", 1, liftRight, upperStandRow)
+                  & PlacePropAt(room, "mirror", "mirror_fixed", 2, blockerColumn, beamRow)
+                  & PlacePropAt(room, "statue", "beam_target", 0, targetColumn, beamRow);
+        if (!ok) return null;
+
+        // Order = Stellungen der FESTEN Spiegel (0 = "|", 1 = "/", 2 = "–", 3 = "\\"):
+        // oben links lenkt hinauf-nach-rechts, oben rechts nach unten, die Sperre steht quer.
+        var order = new[] { 1, 3, 0 };
+
+        // Nachrechnen statt hoffen. Die Kachelreihen entsprechen PlacePropAt: ein Prop steht auf
+        // der Bodenkachel, seine Mitte liegt eine Kachel darueber.
+        Rectangle bounds = room.TileBounds;
+        Point Tile(int column, int standRow, int height) =>
+            new(bounds.X + column, TileMap.ToTile((bounds.Y + standRow) * TileSize - height / 2f));
+
+        int mirrorHeight = _definitions.Props.Get("mirror").Height;
+        var fixedMirrors = new Dictionary<Point, int>
+        {
+            [Tile(liftLeft, upperStandRow, mirrorHeight)] = order[0],
+            [Tile(liftRight, upperStandRow, mirrorHeight)] = order[1],
+            [Tile(blockerColumn, beamRow, mirrorHeight)] = order[2],
+        };
+        var turnableTiles = turnable.Select(column => Tile(column, beamRow, mirrorHeight)).ToList();
+
+        (int solutions, _, bool startsSolved) = Puzzles.BeamTracer.CountSolutions(
+            _map, bounds,
+            Tile(sourceColumn, beamRow, _definitions.Props.Get("lamp").Height),
+            Tile(targetColumn, beamRow, _definitions.Props.Get("statue").Height),
+            turnableTiles, fixedMirrors, Array.Empty<int>());
+
+        return solutions == 1 && !startsSolved ? new PuzzleSpec("mirrors", order) : null;
     }
 
     private void PlaceChests(DungeonPlan plan, List<RoomNode> rooms)

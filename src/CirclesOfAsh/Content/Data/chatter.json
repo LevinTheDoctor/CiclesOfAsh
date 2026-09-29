@@ -59,6 +59,16 @@
     ]
   },
   {
+    "id": "armor_mended",
+    "repeat": 20,
+    "lines": [
+      { "text": "Naht fuer Naht. Halt still." },
+      { "text": "Wieder Stoff zwischen dir und der Hoelle." },
+      { "text": "Das haelt. Vielleicht. Eine Weile." },
+      { "text": "Ein Gott, der flickt. Dante haette das aufgeschrieben." }
+    ]
+  },
+  {
     "id": "armor_shattered",
     "repeat": 30,
     "lines": [
