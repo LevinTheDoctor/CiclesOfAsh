@@ -291,6 +291,9 @@ public sealed class DefinitionRegistry
 
         Require(Difficulties.Contains("devout"), "difficulties.json: die Standard-Stufe 'devout' fehlt.");
 
+        foreach (ControllerProfileDefinition profile in ControllerProfiles.All)
+            WarnIfSpriteMissing($"glyphs.{profile.Glyphs}", $"Controller-Profil '{profile.Id}' (Tastenbilder)");
+
         // Genau ein Auffangprofil (leeres "match") – sonst hinge die Wahl von der Dateireihenfolge ab.
         Require(ControllerProfiles.All.Count(profile => profile.Match.Count == 0) == 1,
             "controllers.json: es muss genau ein Profil ohne \"match\" geben (Auffangprofil).");

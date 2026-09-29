@@ -11,6 +11,13 @@ public enum GameAction { Left, Right, Up, Down, Jump, Dash, AbilityOne, AbilityT
 public enum InputDevice { Keyboard, Gamepad, Mouse }
 
 /// <summary>
+/// Was ein Controller-Profil (Content/Data/controllers.json) der Eingabe mitgibt: Anzeigename,
+/// Familie der Tastenbilder ("xbox", "playstation" …, siehe UI/ButtonGlyphs) und die Beschriftung
+/// je Aktion. "sealed record" = unveränderlicher Datenträger mit Wertgleichheit.
+/// </summary>
+public sealed record ControllerProfile(string Name, string GlyphFamily, IReadOnlyDictionary<GameAction, string> Labels);
+
+/// <summary>
 /// Kapselt Tastatur, Gamepad und Texteingabe. Speichert den Zustand des aktuellen UND vorherigen Frames,
 /// damit "gerade gedrückt" (Flanke) von "wird gehalten" unterschieden werden kann.
 /// </summary>
@@ -68,8 +75,11 @@ public sealed class InputState
         [GameAction.Attack] = "J", [GameAction.Block] = "K",
     };
 
-    private IReadOnlyDictionary<GameAction, string>? _padLabels;
+    private ControllerProfile? _padProfile;
     private string _padName = "";
+
+    /// <summary>Familie der Tastenbilder für die Tastatur (Blatt "glyphs.keyboard").</summary>
+    public const string KeyboardGlyphFamily = "keyboard";
 
     private MouseState _currentMouse, _previousMouse;
     private bool _hasMouseBaseline;   // erster Frame: noch keine Vorher-Position, sonst "Maus bewegt"-Fehlalarm
@@ -94,10 +104,19 @@ public sealed class InputState
     public int ScrollDelta => _currentMouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
 
     /// <summary>
-    /// Liefert zu einem Gerätenamen die passenden Tastenbeschriftungen (Content/Data/controllers.json).
+    /// Liefert zu einem Gerätenamen das passende Profil (Content/Data/controllers.json).
     /// Wird von GameContext gesetzt; so kommt InputState ohne Kenntnis der Definitionen aus.
     /// </summary>
-    public Func<string, IReadOnlyDictionary<GameAction, string>?>? ControllerProfileResolver { get; set; }
+    public Func<string, ControllerProfile?>? ControllerProfileResolver { get; set; }
+
+    /// <summary>Profil des angeschlossenen Controllers, oder null ohne Controller.</summary>
+    public ControllerProfile? PadProfile => HasGamePad ? _padProfile : null;
+
+    /// <summary>true, wenn Hinweise gerade Controller-Tasten zeigen: Controller erkannt UND zuletzt benutzt.</summary>
+    public bool ShowsPadPrompts => HasGamePad && LastDevice == InputDevice.Gamepad && _padProfile is not null;
+
+    /// <summary>Familie der Tastenbilder für die aktuellen Hinweise: die des Controllers oder die Tastatur.</summary>
+    public string GlyphFamily => ShowsPadPrompts ? _padProfile!.GlyphFamily : KeyboardGlyphFamily;
 
     /// <summary>true, sobald ein Gamepad angeschlossen ist. Steuert, ob Glyphen oder Tasten angezeigt werden.</summary>
     public bool HasGamePad { get; private set; }
@@ -161,15 +180,22 @@ public sealed class InputState
     /// <summary>
     /// Beschriftung einer Aktion für die Anzeige: bei angeschlossenem Controller die Taste des
     /// erkannten Profils ("A", "○", "L1"), sonst die Tastatur ("F", "Leer").
+    /// Loc.T auch für Controller: "Menü"/"Ansicht" (Xbox) heißen im Englischen "Menu"/"View";
+    /// Buchstaben wie "A" oder "R1" haben keinen Eintrag und bleiben, wie sie sind.
     /// </summary>
-    public string Glyph(GameAction action)
+    public string Glyph(GameAction action) => Loc.T(GlyphLabel(action));
+
+    /// <summary>
+    /// Dieselbe Beschriftung UNübersetzt – sie ist zugleich der Name des Tastenbilds im Manifest
+    /// ("Menü", nicht "Menu"). Für UI/ButtonGlyphs.
+    /// </summary>
+    public string GlyphLabel(GameAction action) => LabelFor(action, ShowsPadPrompts ? _padProfile : null);
+
+    /// <summary>Beschriftung einer Aktion für ein bestimmtes Profil; null = Tastatur. Auch für Vorschauen.</summary>
+    public static string LabelFor(GameAction action, ControllerProfile? profile)
     {
-        // Loc.T auch für Controller-Beschriftungen: "Menü"/"Ansicht" (Xbox) heißen im Englischen
-        // "Menu"/"View". Buchstaben wie "A" oder "R1" haben keinen Eintrag und bleiben, wie sie sind.
-        if (HasGamePad && LastDevice == InputDevice.Gamepad
-            && _padLabels is not null && _padLabels.TryGetValue(action, out string? label))
-            return Loc.T(label);
-        return KeyboardLabels.TryGetValue(action, out string? key) ? Loc.T(key) : action.ToString();
+        if (profile is not null && profile.Labels.TryGetValue(action, out string? label)) return label;
+        return KeyboardLabels.TryGetValue(action, out string? key) ? key : action.ToString();
     }
 
     /// <summary>Beschriftung in eckigen Klammern, wie sie über Interaktionspunkten steht: "[F]".</summary>
@@ -184,7 +210,7 @@ public sealed class InputState
         if (name == _padName) return;   // nichts geändert -> kein Nachschlagen
 
         _padName = name;
-        _padLabels = HasGamePad ? ControllerProfileResolver?.Invoke(name) : null;
+        _padProfile = HasGamePad ? ControllerProfileResolver?.Invoke(name) : null;
     }
 
     /// <summary>

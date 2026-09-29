@@ -10,8 +10,9 @@ namespace CirclesOfAsh.Scenes;
 /// <summary>
 /// Optionsmenü mit fünf Reitern: Bildschirm · Audio · Steuerung · Gameplay · Sprache.
 /// Q/E (Gamepad X/Y) wechselt den Reiter, Hoch/Runter die Zeile, Links/Rechts den Wert.
-/// Der Reiter „Steuerung" zeigt den erkannten Controller samt Profil und ist der spätere Ort für
-/// frei belegbare Tasten (Content/Data/input.json, Roadmap). Alles wirkt sofort und wird gespeichert.
+/// Der Reiter „Steuerung" zeigt den erkannten Controller samt Profil und seine Tastenbilder (mit
+/// Vorschau aller Familien) und ist der spätere Ort für frei belegbare Tasten (Roadmap).
+/// Alles wirkt sofort und wird gespeichert.
 /// Steuerung komplett per GameAction -> Tastatur UND Controller.
 /// </summary>
 public sealed class SettingsScene : SceneBase
@@ -19,7 +20,7 @@ public sealed class SettingsScene : SceneBase
     private enum Tab { Screen, Audio, Control, Gameplay, Language }
     private enum ScreenRow { Scale, Fullscreen, VSync }
     private enum AudioRow { Master, Music, Sfx }
-    private enum ControlRow { Controller, Profile, Bindings }
+    private enum ControlRow { Controller, Profile, Bindings, Glyphs }
     private enum GameplayRow { AmbientLift, Rumble, DamageNumbers, Tutorial, BossFights, Difficulty }
 
     private const Tab LastTab = Tab.Language;
@@ -31,6 +32,21 @@ public sealed class SettingsScene : SceneBase
     private Tab _tab;
     private int _rowIndex;
 
+    /// <summary>Familien für die Tastenbild-Vorschau. Index 0 der Auswahl = "automatisch" (erkannter Controller).</summary>
+    private static readonly string[] PreviewFamilies = { "xbox", "playstation", "switch", InputState.KeyboardGlyphFamily };
+    private int _glyphPreview;
+
+    /// <summary>Aktionen der Legende im Reiter „Steuerung", in Anzeigereihenfolge (Quelltext der Namen).</summary>
+    private static readonly (GameAction Action, string Name)[] LegendActions =
+    {
+        (GameAction.Jump, Loc.N("Springen")), (GameAction.Attack, Loc.N("Angriff")),
+        (GameAction.Block, Loc.N("Block")), (GameAction.Dash, Loc.N("Dash")),
+        (GameAction.AbilityOne, Loc.N("Gabe 1")), (GameAction.AbilityTwo, Loc.N("Gabe 2")),
+        (GameAction.Interact, Loc.N("Benutzen")), (GameAction.Confirm, Loc.N("Bestätigen")),
+        (GameAction.Cancel, Loc.N("Zurück")), (GameAction.Pause, Loc.N("Pause")),
+        (GameAction.Randomize, Loc.N("Zufall")),
+    };
+
     /// <summary>Überschrift (deutscher Quelltext, übersetzt beim Zeichnen) und Zeilenzahl eines Reiters.</summary>
     private readonly record struct TabLayout(string Title, int RowCount);
 
@@ -38,7 +54,7 @@ public sealed class SettingsScene : SceneBase
     {
         Tab.Screen => new TabLayout(Loc.N("Bildschirm"), 3),
         Tab.Audio => new TabLayout(Loc.N("Audio"), 3),
-        Tab.Control => new TabLayout(Loc.N("Steuerung"), 3),
+        Tab.Control => new TabLayout(Loc.N("Steuerung"), 4),
         Tab.Gameplay => new TabLayout(Loc.N("Gameplay"), 6),
         _ => new TabLayout(Loc.N("Sprache"), Math.Max(1, _languages.Count)),
     };
@@ -256,7 +272,10 @@ public sealed class SettingsScene : SceneBase
                 SelectLanguage(RowIndex);
                 return;   // SelectLanguage speichert und spielt selbst den Ton
             case Tab.Control:
-                break;   // Reiter ist rein informell, bis input.json umsetzbar ist
+                // Nur die Vorschau lässt sich blättern; die Belegung selbst ist (noch) fest.
+                if ((ControlRow)RowIndex != ControlRow.Glyphs) return;
+                _glyphPreview = (_glyphPreview + step + PreviewFamilies.Length + 1) % (PreviewFamilies.Length + 1);
+                break;
         }
         Context.SaveSettings();
         Context.Audio.Play("pickup", 0.25f, 0.2f);
@@ -306,6 +325,7 @@ public sealed class SettingsScene : SceneBase
         _barBoxes.Clear();
         if (_tab == Tab.Language) DrawLanguages(spriteBatch, font, pixel, panel);
         else DrawRows(spriteBatch, font, pixel, panel);
+        if (_tab == Tab.Control) DrawGlyphLegend(spriteBatch, font, pixel, panel);
 
         DrawTabHint(spriteBatch, font, centerX, panel);
         InputState hintInput = Context.Input;
@@ -481,8 +501,9 @@ public sealed class SettingsScene : SceneBase
         Tab.Control => (ControlRow)row switch
         {
             ControlRow.Controller => (Loc.T("Controller"), Context.Input.HasGamePad ? ControllerName() : Loc.T("keiner")),
-            ControlRow.Profile => (Loc.T("Profil"), Context.Input.HasGamePad ? ControllerProfile() : "–"),
+            ControlRow.Profile => (Loc.T("Profil"), Context.Input.PadProfile?.Name ?? "–"),
             ControlRow.Bindings => (Loc.T("Belegung"), Loc.T("fest (Roadmap: frei)")),
+            ControlRow.Glyphs => (Loc.T("Tastenbilder"), PreviewName()),
             _ => ("", ""),
         },
         _ => (GameplayRow)row switch
@@ -511,12 +532,71 @@ public sealed class SettingsScene : SceneBase
         return name.Length > 26 ? name[..23] + "…" : name;
     }
 
-    private string ControllerProfile()
+    // ------------------------------------------------------------------ Tastenbilder
+    /// <summary>Familie, deren Bilder die Legende gerade zeigt: gewählt, oder die des erkannten Controllers.</summary>
+    private string PreviewFamily => _glyphPreview > 0
+        ? PreviewFamilies[_glyphPreview - 1]
+        : Context.Input.PadProfile?.GlyphFamily ?? InputState.KeyboardGlyphFamily;
+
+    /// <summary>Beschriftungen zur Vorschau-Familie. null = Tastatur (InputState.LabelFor kennt deren Namen).</summary>
+    private ControllerProfile? PreviewProfile =>
+        PreviewFamily == InputState.KeyboardGlyphFamily ? null
+        : _glyphPreview == 0 ? Context.Input.PadProfile
+        : Context.ControllerProfileOfFamily(PreviewFamily);
+
+    private string PreviewName()
     {
-        string? name = Context.Input.CurrentPadName;
-        if (string.IsNullOrEmpty(name)) return "–";
-        IReadOnlyDictionary<GameAction, string>? labels = Context.ResolveControllerLabels(name);
-        return labels is not null ? Loc.T("erkannt") : Loc.T("Standard");
+        string family = FamilyName(PreviewFamily);
+        return _glyphPreview == 0 ? Loc.T("Automatisch ({0})", family) : family;
+    }
+
+    private static string FamilyName(string family) => family switch
+    {
+        "xbox" => "Xbox",
+        "playstation" => "PlayStation",
+        "switch" => "Nintendo Switch",
+        _ => Loc.T("Tastatur"),
+    };
+
+    /// <summary>
+    /// Legende unter den Zeilen: jede Aktion mit ihrem Tastenbild, zweispaltig. Zeigt die Assets
+    /// aus tools/assetgen/interface.py so, wie Hinweise sie künftig benutzen können.
+    /// </summary>
+    private void DrawGlyphLegend(SpriteBatch spriteBatch, BitmapFont font, Texture2D pixel, Rectangle panel)
+    {
+        const int rowHeight = ButtonGlyphs.Height + 2;
+        const int rowsPerColumn = 6;
+        string family = PreviewFamily;
+        ControllerProfile? profile = PreviewProfile;
+        float top = panel.Top + 40 + RowCount * (font.LineHeight + 3) + 6;
+        UiDraw.Rect(spriteBatch, pixel, new Rectangle(panel.Left + 12, (int)top - 4, panel.Width - 24, 1), Palette.Gold * 0.3f);
+
+        // Laufen zuerst: bei Controllern Stick und Steuerkreuz, bei der Tastatur A und D.
+        string[] movement = family == InputState.KeyboardGlyphFamily ? new[] { "A", "D" } : new[] { "stick", "dpad" };
+        var entries = new List<(string[] Labels, string Name)> { (movement, Loc.T("Bewegen")) };
+        entries.AddRange(LegendActions.Select(entry =>
+            (new[] { InputState.LabelFor(entry.Action, profile) }, Loc.T(entry.Name))));
+
+        // Breite der Bildgruppe je Eintrag – die Namen einer Spalte stehen dann bündig hinter der breitesten.
+        int GroupWidth(string[] labels) => labels.Sum(label => ButtonGlyphs.Measure(Context, family, label) + 2);
+        int columns = (entries.Count + rowsPerColumn - 1) / rowsPerColumn;
+        for (int column = 0; column < columns; column++)
+        {
+            var columnEntries = entries.Skip(column * rowsPerColumn).Take(rowsPerColumn).ToList();
+            float left = panel.Left + 24 + column * 190;
+            float nameX = left + columnEntries.Max(entry => GroupWidth(entry.Labels)) + 4;
+            for (int row = 0; row < columnEntries.Count; row++)
+            {
+                float x = left;
+                float y = top + row * rowHeight;
+                foreach (string label in columnEntries[row].Labels)
+                {
+                    ButtonGlyphs.Draw(spriteBatch, Context, family, label, new Vector2(x, y), Color.White);
+                    x += ButtonGlyphs.Measure(Context, family, label) + 2;
+                }
+                font.DrawShadowed(spriteBatch, columnEntries[row].Name, new Vector2(nameX, y + 1), Palette.Bone * 0.85f);
+            }
+        }
     }
 
     /// <summary>Kurzhinweis unten im Panel, passend zum Reiter.</summary>
@@ -526,7 +606,7 @@ public sealed class SettingsScene : SceneBase
         {
             Tab.Screen => Loc.T("Fenstergröße: Auto füllt den Bildschirm, Faktoren sind pixelgenau. Das Fenster lässt sich frei ziehen."),
             Tab.Audio => Loc.T("Alle Regler wirken sofort. Effekte spielen beim Ändern einen Probe-Sound."),
-            Tab.Control => Loc.T("Zeigt den erkannten Controller und sein Beschriftungsprofil (controllers.json)."),
+            Tab.Control => Loc.T("Zeigt den erkannten Controller und seine Tastenbilder. Links/Rechts auf „Tastenbilder“ blättert durch die übrigen Controller."),
             Tab.Gameplay => CurrentDifficulty()?.Description,
             Tab.Language => Loc.T("Die Sprache wechselt sofort. Fehlt eine Übersetzung, erscheint der deutsche Text."),
             _ => null,

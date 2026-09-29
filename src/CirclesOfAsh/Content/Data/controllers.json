@@ -3,9 +3,13 @@
   //   match    = Textbausteine, die im Gerätenamen gesucht werden (klein geschrieben, erster Treffer gewinnt).
   //              Leer = Auffangprofil, wenn kein anderes passt.
   //   labels   = Beschriftung je Spielaktion. Der Code kennt nur die Aktion, nie eine Taste.
+  //   glyphs   = Familie der Tastenbilder: Blatt "glyphs.<familie>" in manifest.json (xbox,
+  //              playstation, switch). Das Bild zu einer Beschriftung heißt dort genau wie die
+  //              Beschriftung ("A", "RB", "○"); fehlt es, schreibt das Spiel sie auf einen leeren Knopf.
   // Die Reihenfolge in dieser Datei entscheidet, welches Profil zuerst geprüft wird.
   {
     "id": "dualsense",
+    "glyphs": "playstation",
     "name": "PlayStation",
     "match": [ "dualsense", "dualshock", "playstation", "ps4", "ps5", "wireless controller" ],
     "labels": {
@@ -16,6 +20,7 @@
   },
   {
     "id": "switch",
+    "glyphs": "switch",
     "name": "Nintendo Switch",
     "match": [ "nintendo", "switch", "joy-con", "joycon", "pro controller" ],
     "labels": {
@@ -26,6 +31,7 @@
   },
   {
     "id": "steam",
+    "glyphs": "xbox",
     "name": "Steam Deck",
     "match": [ "steam" ],
     "labels": {
@@ -38,6 +44,7 @@
     // 8BitDo-Pads melden sich je nach Modus (Switch/XInput/DInput) unterschiedlich, die
     // Belegung bleibt aber physisch gleich: Nintendo-Layout mit Xbox-Tastennamen.
     "id": "8bitdo",
+    "glyphs": "xbox",
     "name": "8BitDo",
     "match": [ "8bitdo" ],
     "labels": {
@@ -49,6 +56,7 @@
     // Logitech-Pads (F3xx/F5xx/ChillStream) nutzen das Xbox-Layout, melden sich aber
     // haeufig als reines DirectInput-Geraet ohne "xbox" im Namen.
     "id": "logitech",
+    "glyphs": "xbox",
     "name": "Logitech",
     "match": [ "logitech" ],
     "labels": {
@@ -58,6 +66,7 @@
   },
   {
     "id": "xbox",
+    "glyphs": "xbox",
     "name": "Xbox",
     "match": [],
     "labels": {

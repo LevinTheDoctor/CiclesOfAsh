@@ -603,6 +603,11 @@ public sealed class ControllerProfileDefinition : IDefinition
     public List<string> Match { get; init; } = new();
     /// <summary>Spielaktion (Name aus GameAction) -> Tastenbeschriftung, z. B. "Jump" -> "A".</summary>
     public Dictionary<string, string> Labels { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Familie der Tastenbilder: Blatt "glyphs.&lt;familie&gt;" im Manifest (xbox, playstation, switch).
+    /// Die Einzelbilder heißen dort wie die Beschriftungen in <see cref="Labels"/>.
+    /// </summary>
+    public string Glyphs { get; init; } = "xbox";
 }
 
 /// <summary>

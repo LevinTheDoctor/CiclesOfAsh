@@ -223,8 +223,32 @@ Hinweise im Spiel entsprechend – Xbox zeigt `A`, PlayStation `X`/`○`/`□`/`
 vertauschte Belegung `B`/`A`/`Y`/`X`, Steam Deck wie Xbox. Ohne Controller stehen dort die Tasten.
 
 Die Profile sind reine Daten: `Content/Data/controllers.json`. Ein neuer Controller braucht dort
-nur einen Eintrag mit `match` (Textbausteine im Gerätenamen) und `labels` – kein Codeeingriff.
-Das Auffangprofil ist das mit leerem `match`; genau eines davon muss es geben.
+nur einen Eintrag mit `match` (Textbausteine im Gerätenamen), `labels` und `glyphs` – kein
+Codeeingriff. Das Auffangprofil ist das mit leerem `match`; genau eines davon muss es geben.
+
+### Tastenbilder (Controller-Glyphen)
+
+Zu jeder Familie gibt es ein Blatt mit Tastenbildern in Pixel-Art, erzeugt von
+`tools/assetgen/interface.py`:
+
+| Blatt | Inhalt |
+|---|---|
+| `glyphs.xbox` | A B X Y (grün, rot, blau, gelb), LB RB LT RT, Menü, Ansicht, LS RS – dazu L1 R1 L2 R2 und Start/Select für Steam Deck und 8BitDo |
+| `glyphs.playstation` | ✕ ○ □ △ in ihren Farben, L1 R1 L2 R2, Options, Create, L3 R3 |
+| `glyphs.switch` | A B X Y, L R ZL ZR, + und −, LS RS |
+| `glyphs.keyboard` | eine leere Tastenkappe – das Spiel schreibt die Taste darauf und zieht sie für lange Namen in die Breite |
+
+Alle Controller-Blätter haben zusätzlich Steuerkreuz (`dpad`, `dpad_up` …), den Lauf-Stick
+(`stick`) und einen leeren Rundknopf (`round`). **Die Einzelbilder heißen genau wie die
+Beschriftungen** in `controllers.json` (`"A"`, `"RB"`, `"○"`, `"Menü"`), das Feld `glyphs` eines
+Profils wählt nur das Blatt. Fehlt ein Bild – etwa für die Nummern „1“ bis „10“ eines Logitech-Pads
+im DirectInput-Modus –, beschriftet `UI/ButtonGlyphs.cs` den leeren Rundknopf.
+
+Zu sehen sind sie im Optionsmenü unter **Steuerung**: eine Legende aller Aktionen mit dem Bild des
+erkannten Controllers, und über die Zeile **Tastenbilder** lassen sich alle Familien auch ohne
+angeschlossenen Controller durchblättern. Die Belegung selbst ist unverändert; Hinweise im Spiel
+schreiben die Tasten vorerst weiter als Text – der Umstieg auf die Bilder gehört zur Überarbeitung
+der Steuerung (Roadmap).
 
 Vibration hängt an `DungeonWorld.ShakeCamera`: Jeder wuchtige Moment erschüttert ohnehin schon die
 Kamera, also vibriert der Controller im selben Maß. Stärke = Regler im Optionsmenü × Schwierigkeitsstufe.
@@ -264,8 +288,10 @@ und wird in SQLite gesichert:
 * **Bildschirm** – Größe (Auto = füllt den Bildschirm, oder pixelgenau 1×–6× der virtuellen 480×270), Vollbild, VSync.
   Das Fenster lässt sich außerdem frei ziehen oder maximieren – das Bild wächst mit
 * **Audio** – Master, Musik und Effekte getrennt regelbar; beim Ändern der Effekte spielt ein Probe-Sound
-* **Steuerung** – zeigt den erkannten Controller und sein Beschriftungsprofil aus `controllers.json`.
-  Das freie Umbelegen der Tasten steht noch auf der [Roadmap](#roadmap)
+* **Steuerung** – zeigt den erkannten Controller, sein Profil aus `controllers.json` und eine Legende
+  aller Aktionen mit den [Tastenbildern](#tastenbilder-controller-glyphen); die Zeile
+  „Tastenbilder“ blättert durch Xbox, PlayStation, Switch und Tastatur. Das freie Umbelegen der
+  Tasten steht noch auf der [Roadmap](#roadmap)
 * **Gameplay** – Helligkeit (gegen zu dunkle Verliese), Vibration, Schadenszahlen, Tutorial an/aus,
   Bosskämpfe selbst bestreiten, Schwierigkeit
 * **Sprache** – Deutsch oder Englisch, je mit Flagge und dem Namen in der eigenen Sprache. Die
@@ -939,8 +965,9 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
       sowohl er als auch die Runenfolge länger werden (`balance.json`: `puzzleScaling.runeOrderLength`)
 - [ ] Ein Rätseltyp, der eigene Bilder braucht (Glockenreihe nach Gehör) – steht als Aufgabe in
       `GLM_TASKS.md`
-- [ ] Tastenbelegung frei belegbar aus `Content/Data/input.json` (Profile und der Reiter „Steuerung"
-      gibt es, das Umbelegen fehlt)
+- [x] Tastenbilder für Xbox, PlayStation, Switch und Tastatur (`glyphs.*`), Legende im Reiter „Steuerung"
+- [ ] Steuerung überarbeiten: Hinweise im Spiel mit Tastenbildern statt Text, Tastenbelegung frei
+      belegbar aus `Content/Data/input.json` (Profile, Bilder und der Reiter „Steuerung" gibt es)
 - [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus) und `ProgressionService` – gemessen wird
       bisher nur per Seed-Sweep, nicht in einer Testsuite. Der Sweep liefert inzwischen einen
       Rückgabewert (0 = sauber), lässt sich also schon in CI hängen
