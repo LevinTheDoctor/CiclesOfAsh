@@ -1,3 +1,4 @@
+using CirclesOfAsh.Assets;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Entities;
 using CirclesOfAsh.Localization;
@@ -91,6 +92,54 @@ public sealed class PauseScene : SceneBase
         UiDraw.Rect(spriteBatch, Context.Assets.Pixel, new Rectangle(0, 0, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight), Color.Black * 0.6f);
         Context.TitleFont.DrawCentered(spriteBatch, Loc.T("Innehalten"), CirclesGame.VirtualWidth / 2f, 80, Palette.Gold);
         _menu.Draw(spriteBatch, Context.Font, CirclesGame.VirtualWidth / 2f, 124);
+        spriteBatch.End();
+    }
+}
+
+/// <summary>
+/// Sicherheitsabfrage vor unumkehrbaren Aktionen (Gestalt löschen, Lauf aufgeben). Overlay: Die
+/// Szene darunter bleibt sichtbar. "Nein" steht bewusst oben und ist vorausgewählt – wer aus
+/// Versehen zweimal bestätigt, verliert so nichts.
+/// </summary>
+public sealed class ConfirmScene : SceneBase
+{
+    private readonly string _title;
+    private readonly string _question;
+    private readonly MenuList _menu = new();
+
+    public ConfirmScene(GameContext context, string title, string question, string confirmLabel, Action onConfirm) : base(context)
+    {
+        _title = title;
+        _question = question;
+        _menu.Add(Loc.T("Nein"), () => Context.Scenes.Pop());
+        _menu.Add(confirmLabel, () =>
+        {
+            // Erst schließen, dann handeln: onConfirm darf selbst Szenen wechseln. Beides landet
+            // in der Warteschlange des SceneManagers und wird in genau dieser Reihenfolge ausgeführt.
+            Context.Scenes.Pop();
+            onConfirm();
+        });
+    }
+
+    public override bool IsOverlay => true;
+
+    public override void Update(float deltaSeconds)
+    {
+        if (Context.Input.WasPressed(GameAction.Cancel)) Context.Scenes.Pop();
+        else _menu.Update(Context.Input, Context.Audio);
+    }
+
+    public override void Draw(SpriteBatch spriteBatch)
+    {
+        float centerX = CirclesGame.VirtualWidth / 2f;
+        BitmapFont font = Context.Font;
+        UiDraw.Begin(spriteBatch);
+        UiDraw.Rect(spriteBatch, Context.Assets.Pixel, new Rectangle(0, 0, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight), Color.Black * 0.6f);
+        var panel = new Rectangle(90, 70, CirclesGame.VirtualWidth - 180, 124);
+        UiDraw.Panel(spriteBatch, Context.Assets.Pixel, panel);
+        Context.TitleFont.DrawCentered(spriteBatch, _title, centerX, panel.Top + 6, Palette.Ember);
+        font.DrawCenteredLines(spriteBatch, font.Wrap(_question, panel.Width - 24), centerX, panel.Top + 42, Palette.Bone);
+        _menu.Draw(spriteBatch, font, centerX, panel.Bottom - 36);
         spriteBatch.End();
     }
 }

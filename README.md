@@ -79,6 +79,10 @@ Viertel der Gläubigen.
   (+Schaden, +Leben) und wecken neue **Begleitseelen**. Beim Tod bleibt nur ein Teil treu (Standard 25 %).
 - **Klassen**: Kreuzritter (Nahkampf), Magier (Fernkampf/Mana), Schatten (Tarnung + Bonusschaden),
   Engel (Flügel als Funktion). Beim Tod ist die Klasse vergessen – du wählst neu.
+- **Gestalten**: Bis zu acht gespeicherte Charaktere, jeder mit eigenem Aussehen, eigenem Lauf und
+  eigenem Werdegang (Abstiege, Tode, tiefster Kreis, Arena-Siege). Der Tod kostet Lauf und Klasse,
+  die Gestalt bleibt und kann neu hinabsteigen. Gläubige, Ewige Gaben, Begleitseelen, Bitten und der
+  Tempel gehören dem Gott – also allen Gestalten gemeinsam.
 - **Begleitseelen**: Angreifer, Heiler oder Manaspender, die dir folgen.
 - **Metroidvania-Sperren**: Schatzräume liegen hinter rissigen Wänden. Erst mit dem *Abgrundschritt*
   (Belohnung des ersten Bosses) kommst du hinein – in allen künftigen Läufen.
@@ -277,6 +281,24 @@ einer Stelle, damit Erkennung und Darstellung nicht auseinanderlaufen. Die Tempe
 sobald sich die Kleidung geändert hat – es gibt keinen Rückruf beim Schließen einer aufgesetzten
 Szene, also vergleicht `RefreshPlayerLook()` den Zustand.
 
+### Gestalten (mehrere Charaktere)
+
+Im Titel steht die zuletzt gespielte Gestalt ganz oben („Abstieg fortsetzen: Name" oder nach ihrem
+Tod „Neuer Abstieg: Name"). Alles andere liegt unter **Gestalten** (`Scenes/CharacterSelectScene.cs`):
+links die Liste, rechts Vorschau und Werdegang. `Enter` öffnet die Aktionen der gewählten Gestalt:
+
+| Aktion | Was passiert |
+|---|---|
+| Abstieg fortsetzen / Neuen Abstieg beginnen | Weiter im Tempel – oder ohne Lauf in den Editor, dort Klasse und Begleitseele neu wählen |
+| Aussehen ändern | Derselbe Editor ohne Klassenzeile, auch mitten im Lauf; die Vorschau trägt die aktuelle Kleidung |
+| Lauf aufgeben | Zählt als Tod (Gläubige schrumpfen), die Gestalt bleibt |
+| Gestalt löschen | Samt Lauf, nach Sicherheitsabfrage (`ConfirmScene`, „Nein" ist vorausgewählt) |
+
+Der Editor kennt dafür drei Modi (`CreatorMode`: `NewCharacter`, `NewRun`, `EditLook`). Die Gestalt
+entsteht erst, wenn der Lauf wirklich beginnt – wer vorher abbricht, hinterlässt nichts. Die Regeln
+dazu (anlegen, wählen, löschen, „zuletzt gespielt") stehen in `ProgressionService`, die Szenen rufen
+nur auf.
+
 ---
 
 ## Optionen & Schwierigkeit
@@ -411,9 +433,9 @@ CirclesOfAsh/
 │  ├─ Companions/    Begleiter-Verhalten
 │  ├─ Dialogs/       DialogService: Bedingungen, Antworten, Wirkungen (Segen, Bitten, Füttern)
 │  ├─ Pets/          PetService: Name, Stimmung, Loyalität der Begleitseelen
-│  ├─ Progression/   Lauf/Meta-Zustand, Regeln, Level-Up, Spieler-Factory, Items, Missionen, Einstellungen
+│  ├─ Progression/   Gestalten, Lauf/Meta-Zustand, Regeln, Level-Up, Spieler-Factory, Items, Missionen, Einstellungen
 │  ├─ Persistence/   ISaveRepository + SQLite-Implementierung mit Migrationen
-│  ├─ Scenes/        Laden, Titel, Charakter-Editor, Tempel, Kreis-Übersicht, Dungeon, Dialog, Optionen, Overlays
+│  ├─ Scenes/        Laden, Titel, Gestaltenauswahl, Charakter-Editor, Tempel, Kreis-Übersicht, Dungeon, Dialog, Optionen, Overlays
 │  └─ UI/            HUD, Minikarte, Menüs, Panels
 ├─ tools/generate_placeholder_assets.py   ← erzeugt alle Platzhalter-Assets (CC0)
 ├─ tools/assetgen/                         ← Generator-Module: Charaktere, Kreaturen, Welt, Medien, Musik, Icons
@@ -824,11 +846,12 @@ Pfad: `%APPDATA%\CirclesOfAsh\save.db` (Windows), `~/.config/CirclesOfAsh/save.d
 
 | Tabelle | Inhalt |
 |---|---|
-| `meta` | Schlüssel/Wert: Gläubige, Tode, gestartete Läufe |
+| `meta` | Schlüssel/Wert: Gläubige, Tode, gestartete Läufe, zuletzt gespielte Gestalt (`active_character`) |
 | `unlocks` | Dauerhafte Freischaltungen (`ability`, `companion`, `world`) mit Zeitstempel |
-| `run` | Genau **eine** Zeile (`CHECK (id = 1)`): aktueller Lauf – Klasse, Kreis, Verlies, Stufe, Seed |
-| `run_items` | Fähigkeitsstufen, Upgrades, Begleiter, Items (Anzahl) und angelegte Items (`equipped`, Slot als Zahl) |
-| `run_profile` *(v2)* | Schlüssel/Wert: Name und Aussehen aus dem Charakter-Editor, Haltbarkeit und Zustand der Kleidung (`armor_durability`, `armor_wear`), genutzte Reparaturen (`forge_uses`) |
+| `characters` *(v5)* | Die Gestalten: Name, Aussehen (Indizes in `appearance.json`), zuletzt gespielte Klasse, Zeitstempel und Werdegang (`runs`, `deaths`, `deepest_circle`, `arena_wins`) |
+| `runs` *(v5, ersetzt `run`)* | Höchstens **ein** Lauf je Gestalt (`character_id` ist Primärschlüssel): Klasse, Kreis, Verlies, Stufe, Seed |
+| `run_items` *(ab v5 mit `character_id`)* | Fähigkeitsstufen, Upgrades, Begleiter, Items (Anzahl) und angelegte Items (`equipped`, Slot als Zahl) |
+| `run_profile` *(v2, ab v5 mit `character_id`)* | Schlüssel/Wert je Lauf: Haltbarkeit und Zustand der Kleidung (`armor_durability`, `armor_wear`), genutzte Reparaturen (`forge_uses`), Unterwäsche. Das Aussehen stand bis v4 hier und liegt jetzt in `characters` |
 | `missions` *(v2)* | Bitten der Gläubigen: Status (`Active`/`Completed`) und Fortschritt |
 | `settings` *(v3)* | Optionsmenü: Bildschirm, Lautstärken, Helligkeit, Vibration, Schwierigkeit |
 | `hub_deco` *(v3)* | Im Tempel platzierte Deko (Prop-Id + Kachelkoordinate) |
@@ -836,20 +859,24 @@ Pfad: `%APPDATA%\CirclesOfAsh\save.db` (Windows), `~/.config/CirclesOfAsh/save.d
 | `collectibles` *(v3)* | Gefundene Reliquien über alle Läufe (Schrein im Tempel) |
 
 Befreite Kerker stehen in `unlocks` mit `kind = 'prison'` (Belohnung nur einmal pro Lauf).
-Alte Spielstände werden beim Start automatisch bis zur aktuellen Version migriert (zuletzt **v4**:
-`pets.skin`, die Farbfassung der Begleitseelen).
+Alte Spielstände werden beim Start automatisch bis zur aktuellen Version migriert (zuletzt **v5**:
+mehrere Gestalten). Ein vorhandener Lauf wird dabei zur Gestalt Nr. 1 – Name und Aussehen wandern
+per Pivot-Abfrage (`MAX(CASE WHEN key = … THEN value END)`) aus den Schlüssel/Wert-Zeilen in Spalten.
+Weil SQLite einen Primärschlüssel nicht per `ALTER TABLE` ändern kann, legt die Migration neue
+Tabellen an, kopiert um und benennt sie danach um.
 Fehlt in `settings` ein Schlüssel – frische Installation oder neu dazugekommene Option –, gilt der
 Standardwert aus `GameSettings`; ein fehlender Wert darf nicht als 0 durchschlagen (sonst wäre das
 Spiel beim ersten Start stumm).
 
 **Schema ändern:** In `SqliteSaveRepository.Migrations` einen **neuen** SQL-Block anhängen
-(z. B. `ALTER TABLE run ADD COLUMN ...`). Beim Start wird `PRAGMA user_version` gelesen und jede
+(z. B. `ALTER TABLE characters ADD COLUMN ...`). Beim Start wird `PRAGMA user_version` gelesen und jede
 fehlende Migration in einer Transaktion ausgeführt. Bestehende Einträge niemals ändern.
 
 **Oft geht es auch ohne Migration:** `run_profile`, `meta` und `settings` sind Schlüssel/Wert-Tabellen,
 ein fehlender Schlüssel liest sich als leer. Neue Werte am Lauf gehören deshalb dorthin – so kamen
-`armor_wear` und `forge_uses` dazu, ohne dass das Schema über **v4** hinausgehen musste und ohne
-dass ein alter Spielstand etwas merkt.
+`armor_wear` und `forge_uses` dazu, ohne eigene Migration und ohne dass ein alter Spielstand etwas
+merkt. Eine neue Spalte in `characters` braucht dagegen eine Migration **und** eine Zeile in
+`SqliteSaveRepository.CharacterColumns` – aus dieser einen Liste entstehen INSERT, UPDATE und Parameter.
 
 Anschauen lässt sich die Datei z. B. mit `sqlite3 save.db ".tables"` oder DB Browser for SQLite.
 
@@ -966,6 +993,7 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
 - [ ] Ein Rätseltyp, der eigene Bilder braucht (Glockenreihe nach Gehör) – steht als Aufgabe in
       `GLM_TASKS.md`
 - [x] Tastenbilder für Xbox, PlayStation, Switch und Tastatur (`glyphs.*`), Legende im Reiter „Steuerung"
+- [x] Mehrere Gestalten mit je eigenem Lauf und Werdegang, Gestaltenauswahl, Spielstand v5
 - [ ] Steuerung überarbeiten: Hinweise im Spiel mit Tastenbildern statt Text, Tastenbelegung frei
       belegbar aus `Content/Data/input.json` (Profile, Bilder und der Reiter „Steuerung" gibt es)
 - [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus) und `ProgressionService` – gemessen wird

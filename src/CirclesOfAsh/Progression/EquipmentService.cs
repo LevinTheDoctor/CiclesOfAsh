@@ -236,6 +236,15 @@ public static class EquipmentService
         return StageSprite(item.Sprite, ArmorStage(item, run), assets);
     }
 
+    /// <summary>
+    /// Sprite der Kleidung, mit der eine Klasse startet – oder null. Für Vorschauen ohne Lauf
+    /// (Editor, Gestaltenauswahl): So betritt die Gestalt das Verlies.
+    /// </summary>
+    public static string? StartingArmorSprite(DefinitionRegistry definitions, ClassDefinition playerClass) =>
+        definitions.Items.TryGet(playerClass.StartingArmor, out ItemDefinition? armor) && armor.Sprite.Length > 0
+            ? armor.Sprite
+            : null;
+
     /// <summary>Sprite-Id einer Stufe, mit Rückfall auf die nächstniedrigere vorhandene Fassung.</summary>
     public static string StageSprite(string sprite, int stage, AssetManager? assets = null)
     {

@@ -26,16 +26,20 @@ public sealed class TitleScene : SceneBase
         int selected = _menu.SelectedIndex;
         _menu = new MenuList();
         ProgressionService progression = Context.Progression;
-        if (progression.CurrentRun is not null)
+        // Die zuletzt gespielte Gestalt steht ganz oben: weiter in ihrem Lauf – oder nach ihrem Tod
+        // gleich neu hinab. Aufgeben, löschen und wechseln geht über "Gestalten".
+        if (progression.ActiveCharacter is { } active)
         {
-            _menu.Add(Loc.T("Abstieg fortsetzen"), () => Context.Scenes.Replace(new HubScene(Context)));
-            _menu.Add(Loc.T("Lauf aufgeben (zählt als Tod)"), () =>
-                Context.Scenes.Replace(new GameOverScene(Context, progression.HandleDeath())));
+            if (progression.CurrentRun is not null)
+                _menu.Add(Loc.T("Abstieg fortsetzen: {0}", active.Name), () => Continue(active));
+            else
+                _menu.Add(Loc.T("Neuer Abstieg: {0}", active.Name),
+                    () => Context.Scenes.Replace(new CharacterCreatorScene(Context, CreatorMode.NewRun, active)));
         }
+        if (progression.Characters.Count > 0)
+            _menu.Add(Loc.T("Gestalten"), () => Context.Scenes.Replace(new CharacterSelectScene(Context)));
         else
-        {
-            _menu.Add(Loc.T("Neuer Lauf"), () => Context.Scenes.Replace(new CharacterCreatorScene(Context)));
-        }
+            _menu.Add(Loc.T("Neue Gestalt erschaffen"), () => Context.Scenes.Replace(new CharacterCreatorScene(Context)));
         // Ohne laufenden Abstieg gibt es keinen begehbaren Tempel (kein Spielerfigur-Zustand) –
         // dann bleibt das Missionsbrett als Menü erreichbar.
         if (progression.CurrentRun is null)
@@ -45,6 +49,12 @@ public sealed class TitleScene : SceneBase
         _menu.Add(Loc.T("Optionen"), () => Context.Scenes.Push(new SettingsScene(Context)));
         _menu.Add(Loc.T("Beenden"), Context.RequestExit);
         _menu.Select(selected);
+    }
+
+    private void Continue(SavedCharacter character)
+    {
+        Context.Progression.SelectCharacter(character);   // merkt sich "zuletzt gespielt"
+        Context.Scenes.Replace(new HubScene(Context));
     }
 
     public override void Update(float deltaSeconds)

@@ -65,8 +65,8 @@ public static class PlayerFactory
     }
 
     /// <summary>
-    /// Spieler für den Heimwelt-Hub: nutzt den gespeicherten Lauf (falls vorhanden) oder einen
-    /// schlichten "Wandler"-Look. Ohne Kampf-Stats-Wirrwarr: Basiswerte + Gläubigen-Bonus reicht.
+    /// Spieler für den Heimwelt-Hub: die aktive Gestalt in der Klasse ihres Laufs (ohne Lauf: in
+    /// der zuletzt gespielten Klasse). Ohne Kampf-Stats-Wirrwarr: Basiswerte + Gläubigen-Bonus reicht.
     /// </summary>
     /// <param name="bottomCenter">
     /// Standpunkt in PIXELN: Mitte der Füße, also der Punkt, auf dem die Figur steht.
@@ -75,14 +75,14 @@ public static class PlayerFactory
     /// </param>
     public static Player CreateHubPlayer(GameContext context, Vector2 bottomCenter)
     {
-        ClassDefinition playerClass = context.Progression.CurrentRun is { } run
-            ? context.Definitions.Classes.Get(run.ClassId)
-            : context.Definitions.Classes.All.First();
-        CharacterAppearance appearance = context.Progression.CurrentRun?.Appearance ?? CharacterAppearance.Default;
+        ProgressionService progression = context.Progression;
+        RunState? hubRun = progression.CurrentRun;
+        ClassDefinition playerClass = progression.DisplayClassOf(progression.ActiveCharacter);
+        // "?." = Null-bedingter Zugriff: ohne Gestalt ergibt der Ausdruck null, "??" nimmt dann den Rückfall.
+        CharacterAppearance appearance = progression.ActiveCharacter?.Appearance ?? CharacterAppearance.Default;
         var stats = new StatSheet(StatSheet.ParseAll(playerClass.BaseStats));
-        stats.AddPercent(StatType.Might, context.Progression.BelieverBonus(context.Definitions.Balance.MightPerHundredBelievers));
+        stats.AddPercent(StatType.Might, progression.BelieverBonus(context.Definitions.Balance.MightPerHundredBelievers));
         // Im Tempel traegt der Spieler seine Kleidung ebenfalls sichtbar - samt Verfallsstufe.
-        RunState? hubRun = context.Progression.CurrentRun;
         string? hubArmor = hubRun is null ? null : EquipmentService.ArmorSprite(context.Definitions, hubRun, context.Assets);
         var player = new Player(playerClass,
             CharacterVisuals.Create(context, playerClass, appearance, hubArmor, hubRun?.Underwear ?? 0),

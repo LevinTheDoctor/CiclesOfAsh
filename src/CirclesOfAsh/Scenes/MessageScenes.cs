@@ -58,9 +58,11 @@ public sealed class GameOverScene : SceneBase
         UiDraw.Begin(spriteBatch);
         UiDraw.Backdrop(spriteBatch, Context, 0.75f);
         Context.TitleFont.DrawCentered(spriteBatch, Loc.T("Du bist gefallen"), centerX, 50, Palette.Blood);
-        Context.Font.DrawCentered(spriteBatch, Loc.T("Die Gestalt des {0} ist vergessen. Dein Abstieg endete im {1}. Kreis.", _report.ClassName, _report.ReachedCircle), centerX, 100, Palette.Bone);
-        Context.Font.DrawCentered(spriteBatch, Loc.T("Gläubige: {0}  ›  {1} bleiben dir treu.", _report.BelieversBefore, _report.BelieversAfter), centerX, 120, Palette.Faith);
-        Context.Font.DrawCentered(spriteBatch, Loc.T("Deine ewigen Gaben und Begleitseelen bleiben erhalten."), centerX, 140, Palette.Soul);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("{0} ist als {1} im {2}. Kreis gefallen.", _report.CharacterName, _report.ClassName, _report.ReachedCircle), centerX, 96, Palette.Bone);
+        // Die Gestalt überdauert den Tod – nur Lauf und Klasse sind verloren (Roguelike).
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Lauf und Klasse sind verloren – die Gestalt bleibt und kann neu hinabsteigen."), centerX, 110, Palette.Bone * 0.8f);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Gläubige: {0}  ›  {1} bleiben dir treu.", _report.BelieversBefore, _report.BelieversAfter), centerX, 128, Palette.Faith);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Deine ewigen Gaben und Begleitseelen bleiben erhalten."), centerX, 142, Palette.Soul);
         Context.Font.DrawCentered(spriteBatch, Loc.T("{0}: zurück zum Titel", Context.Input.Glyph(GameAction.Confirm)), centerX, CirclesGame.VirtualHeight - 20, Palette.Ash);
         spriteBatch.End();
     }
