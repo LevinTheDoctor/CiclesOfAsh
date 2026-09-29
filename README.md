@@ -777,8 +777,21 @@ sonst schreibt das Skript das icns-Format selbst – die CI unter Linux kommt da
 Der gesamte Publish-Inhalt liegt unter `MacOS/`, damit die relativen Content-Pfade unverändert gelten.
 Das Fenster verhält sich wie bei jeder Mac-App: frei ziehbar, grüner Knopf für Vollbild, Retina-fähig.
 
-Das Bündel ist **nicht signiert**. Beim ersten Start meldet sich Gatekeeper; ein Rechtsklick auf
-„Öffnen" oder `xattr -dr com.apple.quarantine CirclesOfAsh.app` genügt.
+Das Bündel bekommt eine **Ad-hoc-Signatur** (`codesign --sign -`), ist aber **nicht von Apple
+beglaubigt**. Beim ersten Start meldet sich Gatekeeper; ein Rechtsklick auf „Öffnen" oder
+`xattr -dr com.apple.quarantine CirclesOfAsh.app` genügt.
+
+Die Ad-hoc-Signatur ist kein Ersatz für eine echte, aber ohne sie schlägt `codesign --verify` am
+Bündel fehl (der Apphost bringt vom .NET-Build nur seine eigene mit, dem Bündel fehlt dann das
+`_CodeSignature`-Verzeichnis). Gestartet wäre das Spiel auch so – für eine spätere Notarisierung
+muss die Kette aber stimmen.
+
+**Version:** Der Workflow reicht den Tag als `VERSION` durch, also z. B. `v1.3.0`. Das „v" wird im
+Skript abgeschnitten, bevor der Wert irgendwohin geht. Das ist kein Schönheitsfehler: MSBuild liest
+Umgebungsvariablen als Properties, `VERSION=v1.3.0` wird damit zur Property `Version`, und schon
+`dotnet restore` bricht ab mit *„'v1.3.0' is not a valid version string"*. Windows und Linux merkten
+davon nichts, weil der Workflow die Variable nur für den macOS-Schritt setzt – deshalb sah es lange
+nach einem Problem allein des `osx-arm64`-Jobs aus.
 
 ### Automatischer Release
 
@@ -793,6 +806,13 @@ Gebaut wird für `win-x64`, `linux-x64`, `linux-arm64`, `osx-arm64` und `osx-x64
 Spieler brauchen kein installiertes .NET. Windows wird als `.zip` gepackt, alle übrigen als `.tar.gz`
 (das erhält das Ausführbar-Bit und die Struktur des `.app`-Bündels). Die Archive hängen anschließend
 am GitHub-Release.
+
+**Ein Job fällt aus, kein Release erscheint:** Der Release-Job hat `needs: package`, wartet also auf
+*alle* Pakete. `fail-fast: false` lässt die übrigen zwar zu Ende laufen, aber veröffentlicht wird
+nichts. Der Intel-Job lief deshalb lange auf `macos-13` – und seit dieses Abbild im Dezember 2025
+abgeschaltet wurde, hätte ein Tag gar kein Release mehr erzeugt, auch die Apple-Silicon-Fassung
+nicht. Jetzt läuft er auf `macos-15-intel`, dem letzten Intel-Abbild (verfügbar bis August 2027;
+danach gibt es auf GitHub Actions kein x86_64-macOS mehr, dann fällt `osx-x64` weg).
 
 `.github/workflows/build.yml` prüft bei jedem Push auf `main`/`master` zusätzlich, dass das Projekt auf
 allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei durchlaufen.
@@ -834,6 +854,8 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
 - [ ] Mehr Welten (Purgatorio, Paradiso) und Kreise
 - [ ] Handgezeichnete Raumvorlagen (Room Templates) als JSON statt reiner Prozedur
 - [ ] Echte Musik statt der prozeduralen Platzhalter; signiertes und notarisiertes macOS-Bündel
+      (die Ad-hoc-Signatur steht, es fehlt ein Entwicklerzertifikat und der Beglaubigungslauf)
+- [ ] `osx-x64` fällt weg, sobald GitHub das letzte Intel-Abbild abschaltet (August 2027)
 
 ---
 

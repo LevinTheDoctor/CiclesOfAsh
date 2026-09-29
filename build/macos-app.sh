@@ -12,7 +12,20 @@ RID="${1:-osx-arm64}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="$ROOT/publish/$RID"
 APP="$OUT/CirclesOfAsh.app"
+# Der Workflow reicht den Tag durch, also z. B. "v1.3.0".
+#
+# ACHTUNG, hier lag ein Fehler, der jede macOS-Veroeffentlichung abbrach: MSBuild liest
+# Umgebungsvariablen als Properties, und aus VERSION wird damit die Property "Version".
+# "v1.3.0" ist keine gueltige Versionsnummer -> schon "dotnet restore" bricht ab mit
+# "'v1.3.0' is not a valid version string". Windows und Linux merkten nichts davon, weil der
+# Workflow die Variable nur fuer den macOS-Schritt setzt.
+# Deshalb: das "v" abschneiden, den Wert ausdruecklich uebergeben und die Variable aus der
+# Umgebung des Aufrufs nehmen, damit sie nicht doch noch durchschlaegt.
 VERSION="${VERSION:-1.0.0}"
+VERSION="${VERSION#v}"
+# Apple verlangt fuer CFBundleVersion rein Ziffern und Punkte - ein Vorabteil wie "-beta1"
+# waere dort ungueltig, fuer .NET dagegen erlaubt.
+PLIST_VERSION="${VERSION%%-*}"
 
 case "$RID" in
   osx-arm64|osx-x64) ;;
@@ -22,8 +35,10 @@ esac
 # 1) Programm übersetzen. --self-contained: Spieler brauchen kein installiertes .NET.
 echo "==> Publish für $RID"
 rm -rf "$OUT"
-dotnet publish "$ROOT/src/CirclesOfAsh/CirclesOfAsh.csproj" \
-  -c Release -r "$RID" --self-contained true -o "$OUT/payload"
+env -u VERSION dotnet publish "$ROOT/src/CirclesOfAsh/CirclesOfAsh.csproj" \
+  -c Release -r "$RID" --self-contained true \
+  -p:Version="$VERSION" \
+  -o "$OUT/payload"
 
 # 2) Icon bereitstellen (nur, wenn Pillow da ist - sonst bleibt das Bündel eben ohne Symbol).
 if [ ! -f "$ROOT/build/icons/CirclesOfAsh.icns" ]; then
@@ -58,8 +73,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleDisplayName</key>           <string>Circles of Ash</string>
     <key>CFBundleExecutable</key>            <string>CirclesOfAsh</string>
     <key>CFBundleIdentifier</key>            <string>de.circlesofash.game</string>
-    <key>CFBundleVersion</key>               <string>$VERSION</string>
-    <key>CFBundleShortVersionString</key>    <string>$VERSION</string>
+    <key>CFBundleVersion</key>               <string>$PLIST_VERSION</string>
+    <key>CFBundleShortVersionString</key>    <string>$PLIST_VERSION</string>
     <key>CFBundlePackageType</key>           <string>APPL</string>
     <key>CFBundleIconFile</key>              <string>CirclesOfAsh</string>
     <key>LSMinimumSystemVersion</key>        <string>12.0</string>
@@ -72,6 +87,18 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 PLIST
 
 chmod +x "$APP/Contents/MacOS/CirclesOfAsh"
+
+# Ad-hoc-Signatur ueber das ganze Buendel. Das Programm startet auch ohne sie - der Apphost bringt
+# vom .NET-Build schon eine eigene mit, und genau die laesst der Kernel auf Apple Silicon gelten.
+# Dem BUENDEL fehlt aber das _CodeSignature-Verzeichnis, weshalb "codesign --verify" meckert
+# ("code has no resources but signature indicates they must be present"). Das sauber zu haben
+# kostet eine Zeile und ist die Voraussetzung fuer eine spaetere echte Signatur samt Notarisierung.
+# Bewusst nicht toedlich: Eine Veroeffentlichung soll nicht an einem kosmetischen Schritt scheitern.
+if command -v codesign >/dev/null 2>&1; then
+  codesign --force --deep --sign - "$APP" 2>/dev/null \
+    && echo "==> Buendel ad-hoc signiert" \
+    || echo "    (Signieren uebersprungen - das Buendel laeuft trotzdem)"
+fi
 # Das Änderungsdatum anfassen, damit der Finder das neue Icon sofort zeigt statt des alten aus dem Cache.
 touch "$APP"
 

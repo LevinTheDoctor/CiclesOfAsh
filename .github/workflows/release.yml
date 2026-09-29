@@ -21,7 +21,11 @@ jobs:
           - { os: ubuntu-latest,  rid: linux-x64 }
           - { os: ubuntu-latest,  rid: linux-arm64 }
           - { os: macos-latest,   rid: osx-arm64 }
-          - { os: macos-13,       rid: osx-x64 }
+          # macos-13 ist seit Dezember 2025 abgeschaltet. Der Job konnte also nicht mehr starten,
+          # und weil der Release-Job "needs: package" hat, waere damit gar kein Release erschienen -
+          # auch die Apple-Silicon-Fassung nicht. macos-15-intel ist das letzte Intel-Abbild und
+          # laeuft laut GitHub bis August 2027; danach gibt es auf Actions kein x86_64-macOS mehr.
+          - { os: macos-15-intel, rid: osx-x64 }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -106,6 +110,7 @@ jobs:
             | macOS (Apple Silicon) | `CirclesOfAsh-osx-arm64.tar.gz` |
             | macOS (Intel) | `CirclesOfAsh-osx-x64.tar.gz` |
 
-            Die macOS-Pakete enthalten ein fertiges `CirclesOfAsh.app`. Es ist nicht signiert –
-            beim ersten Start einmal mit Rechtsklick auf „Öffnen" gehen oder im Terminal
+            Die macOS-Pakete enthalten ein fertiges `CirclesOfAsh.app`. Es trägt nur eine
+            Ad-hoc-Signatur und ist **nicht von Apple beglaubigt** (nicht notarisiert) – beim
+            ersten Start einmal mit Rechtsklick auf „Öffnen" gehen oder im Terminal
             `xattr -dr com.apple.quarantine CirclesOfAsh.app` ausführen.
