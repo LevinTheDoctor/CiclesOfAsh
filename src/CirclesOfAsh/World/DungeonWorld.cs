@@ -4,6 +4,7 @@ using CirclesOfAsh.Companions;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.Props;
 using CirclesOfAsh.Puzzles;
@@ -378,7 +379,7 @@ public sealed class DungeonWorld : IDisposable
         // Der Rätselraum meldet sich einmal: Er sieht sonst aus wie jeder andere Korridor, und wer
         // ihn durchquert, ohne die Teile zu bemerken, sucht das Siegeltor später im ganzen Verlies.
         if (!room.IsVisited && room.Type == RoomType.Puzzle && Puzzle is { IsSolved: false })
-            Announce("Ein Rätsel versperrt das Siegeltor – hier steht sein Mechanismus.");
+            Announce(Loc.T("Ein Rätsel versperrt das Siegeltor – hier steht sein Mechanismus."));
         room.IsVisited = true;
     }
 
@@ -461,7 +462,7 @@ public sealed class DungeonWorld : IDisposable
     {
         if (RescueTriggered || RescueRoom is not { } room) return;
         RescueTriggered = true;
-        Announce("Eine Seele fleht um Hilfe!");
+        Announce(Loc.T("Eine Seele fleht um Hilfe!"));
         Context.Audio.Play("roar", 0.5f, 0.2f);
 
         // 2-3 Wachen aus dem Kreis-Gegnerpool
@@ -490,13 +491,13 @@ public sealed class DungeonWorld : IDisposable
             if (soul is null) return;
             soul.Tag = "rescued";
             soul.FleeTarget = Layout.GoalBottomCenter;
-            Announce("Die Seele ist frei! Eskortiere sie zum Ausgang.");
+            Announce(Loc.T("Die Seele ist frei! Eskortiere sie zum Ausgang."));
 
             // Gläubigen-Dank + Missionsfortschritt (Rescue, Ziel "*" zählt)
             int believers = 8 + (int)(Plan.DifficultyMultiplier * 2f);
             Context.Progression.Meta.Believers += believers;
             AnnounceMissions(Context.Progression.Missions.Report(MissionType.Rescue, "*", 1));
-            Announce($"+{believers} Gläubige");
+            Announce(Loc.T("+{0} Gläubige", believers));
         }
 
         // Gerettete Seele hat den Ausgang erreicht? -> Despawn + Abschluss-Meldung
@@ -507,7 +508,7 @@ public sealed class DungeonWorld : IDisposable
             {
                 npc.Remove();
                 Effects.Ring(npc.Center, 40f, Palette.Faith, 32);
-                Announce("Die Seele ist in Sicherheit. Ihre Dankbarkeit stärkt deinen Glauben.");
+                Announce(Loc.T("Die Seele ist in Sicherheit. Ihre Dankbarkeit stärkt deinen Glauben."));
             }
         }
     }
@@ -747,7 +748,7 @@ public sealed class DungeonWorld : IDisposable
                 if (relic is not null)
                 {
                     LevelUpService.Apply(relic, Context, Run, Player);
-                    Announce($"Reliquie: {relic.Title}");
+                    Announce(Loc.T("Reliquie: {0}", relic.Title));
                 }
                 Player.Health.Heal(Player.Health.Max);
                 Context.Audio.Play("levelup", 0.6f);
@@ -767,7 +768,7 @@ public sealed class DungeonWorld : IDisposable
 
         if (item.Slot == ItemSlot.Collectible)
         {
-            Announce($"Gefunden: {item.Name}");
+            Announce(Loc.T("Gefunden: {0}", item.Name));
             Say(CompanionChatter.CollectibleFound);
             AnnounceMissions(Context.Progression.Missions.Report(MissionType.Collect, item.Id));
             return;
@@ -780,7 +781,7 @@ public sealed class DungeonWorld : IDisposable
             // unsichtbar – Apply rührt nur die Werte an, nicht die Sprite-Ebenen.
             if (item.Slot == ItemSlot.Armor) Player.RefreshAppearance(Context, Run);
         }
-        Announce(equipped ? $"{item.Name} – ausgerüstet" : $"{item.Name} – im Inventar");
+        Announce(equipped ? Loc.T("{0} – ausgerüstet", item.Name) : Loc.T("{0} – im Inventar", item.Name));
     }
 
     /// <summary>Wird von Truhen aufgerufen. Kein neues Item mehr übrig? Dann gibt es eine Reliquie.</summary>
@@ -849,7 +850,7 @@ public sealed class DungeonWorld : IDisposable
                 break;
             default:
                 Say(CompanionChatter.RoomCleared);
-                Announce("Die Tore öffnen sich.");
+                Announce(Loc.T("Die Tore öffnen sich."));
                 break;
         }
         TryActivateGoal();
@@ -863,11 +864,11 @@ public sealed class DungeonWorld : IDisposable
         RescueResult result = Context.Progression.RescueCaptives(Plan, Run);
         if (result.AlreadyRescued)
         {
-            Announce("Diese Seelen sind bereits frei.");
+            Announce(Loc.T("Diese Seelen sind bereits frei."));
             return;
         }
-        Announce($"Die Gefangenen sind frei! +{result.Believers} Gläubige");
-        if (result.CompanionName is not null) Announce($"Neuer Begleiter: {result.CompanionName}");
+        Announce(Loc.T("Die Gefangenen sind frei! +{0} Gläubige", result.Believers));
+        if (result.CompanionName is not null) Announce(Loc.T("Neuer Begleiter: {0}", result.CompanionName));
         AnnounceMissions(result.CompletedMissions);
     }
 
@@ -875,7 +876,7 @@ public sealed class DungeonWorld : IDisposable
     {
         foreach (MissionDefinition mission in completed)
         {
-            Announce($"Bitte erfüllt: {mission.Title} (+{mission.RewardBelievers})");
+            Announce(Loc.T("Bitte erfüllt: {0} (+{1})", mission.Title, mission.RewardBelievers));
             Context.Audio.Play("levelup", 0.5f, 0.2f);
         }
     }
@@ -888,7 +889,7 @@ public sealed class DungeonWorld : IDisposable
         if (!fightsDone || !IsGateOpen) return;
         IsGoalActive = true;
         _sigil.Play("active");
-        Announce("Das Siegel ist erwacht – finde es!");
+        Announce(Loc.T("Das Siegel ist erwacht – finde es!"));
     }
 
     public void NotifyPlayerDied()
@@ -978,7 +979,7 @@ public sealed class DungeonWorld : IDisposable
     {
         if (NpcInteractionTarget is { } npc)
         {
-            string npcPrompt = npc.Tag == "rescue" ? "Seele ansprechen" : npc.Definition.Name;
+            string npcPrompt = npc.Tag == "rescue" ? Loc.T("Seele ansprechen") : npc.Definition.Name;
             string npcText = $"{Context.Input.Prompt(GameAction.Interact)} {npcPrompt}";
             int npcWidth = Context.Font.MeasureWidth(npcText);
             float npcBob = MathF.Sin(_time * 4f) * 1.5f;

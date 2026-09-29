@@ -57,7 +57,7 @@
   },
   {
     "id": "done",
-    "text": "Mehr brauchst du nicht von mir. Deine Rüstung hält zwei Treffer – dann zerspringt sie. Geh vorsichtig.",
+    "text": "Mehr brauchst du nicht von mir. Deine Kleidung fängt Treffer ab und zerfällt dabei Stück für Stück. Geh vorsichtig.",
     "trigger": "wait",
     "wait": 6
   }

@@ -1,4 +1,5 @@
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 
@@ -34,7 +35,7 @@ public sealed class MessageScene : SceneBase
         var panel = new Rectangle(60, 84, CirclesGame.VirtualWidth - 120, 130);
         UiDraw.Panel(spriteBatch, Context.Assets.Pixel, panel);
         Context.Font.DrawShadowed(spriteBatch, Context.Font.Wrap(_body, panel.Width - 20), new Vector2(panel.Left + 10, panel.Top + 10), Palette.Bone);
-        Context.Font.DrawCentered(spriteBatch, $"{Context.Input.Glyph(GameAction.Confirm)}: weiter", centerX, CirclesGame.VirtualHeight - 20, Palette.Ash);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("{0}: weiter", Context.Input.Glyph(GameAction.Confirm)), centerX, CirclesGame.VirtualHeight - 20, Palette.Ash);
         spriteBatch.End();
     }
 }
@@ -56,11 +57,11 @@ public sealed class GameOverScene : SceneBase
         float centerX = CirclesGame.VirtualWidth / 2f;
         UiDraw.Begin(spriteBatch);
         UiDraw.Backdrop(spriteBatch, Context, 0.75f);
-        Context.TitleFont.DrawCentered(spriteBatch, "Du bist gefallen", centerX, 50, Palette.Blood);
-        Context.Font.DrawCentered(spriteBatch, $"Die Gestalt des {_report.ClassName} ist vergessen. Dein Abstieg endete im {_report.ReachedCircle}. Kreis.", centerX, 100, Palette.Bone);
-        Context.Font.DrawCentered(spriteBatch, $"Gläubige: {_report.BelieversBefore}  ›  {_report.BelieversAfter} bleiben dir treu.", centerX, 120, Palette.Faith);
-        Context.Font.DrawCentered(spriteBatch, "Deine ewigen Gaben und Begleitseelen bleiben erhalten.", centerX, 140, Palette.Soul);
-        Context.Font.DrawCentered(spriteBatch, $"{Context.Input.Glyph(GameAction.Confirm)}: zurück zum Titel", centerX, CirclesGame.VirtualHeight - 20, Palette.Ash);
+        Context.TitleFont.DrawCentered(spriteBatch, Loc.T("Du bist gefallen"), centerX, 50, Palette.Blood);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Die Gestalt des {0} ist vergessen. Dein Abstieg endete im {1}. Kreis.", _report.ClassName, _report.ReachedCircle), centerX, 100, Palette.Bone);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Gläubige: {0}  ›  {1} bleiben dir treu.", _report.BelieversBefore, _report.BelieversAfter), centerX, 120, Palette.Faith);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Deine ewigen Gaben und Begleitseelen bleiben erhalten."), centerX, 140, Palette.Soul);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("{0}: zurück zum Titel", Context.Input.Glyph(GameAction.Confirm)), centerX, CirclesGame.VirtualHeight - 20, Palette.Ash);
         spriteBatch.End();
     }
 }
@@ -70,21 +71,21 @@ public static class ResultSceneFactory
 {
     public static IScene Create(GameContext context, DungeonOutcome outcome)
     {
-        var lines = new List<string> { $"+{outcome.BelieversGained} Gläubige schließen sich dir an." };
+        var lines = new List<string> { Loc.T("+{0} Gläubige schließen sich dir an.", outcome.BelieversGained) };
         if (outcome.UnlockedAbilityId is not null)
         {
             var ability = context.Definitions.Abilities.Get(outcome.UnlockedAbilityId);
-            lines.Add($"EWIGE GABE: {ability.Name} – {ability.Description} (bleibt auch nach dem Tod)");
+            lines.Add(Loc.T("EWIGE GABE: {0} – {1} (bleibt auch nach dem Tod)", ability.Name, ability.Description));
         }
         foreach (string companionId in outcome.UnlockedCompanionIds)
-            lines.Add($"Neue Begleitseele erwacht: {context.Definitions.Companions.Get(companionId).Name}");
-        if (outcome.LiberatedWorldName is not null) lines.Add($"{outcome.LiberatedWorldName} ist befreit!");
+            lines.Add(Loc.T("Neue Begleitseele erwacht: {0}", context.Definitions.Companions.Get(companionId).Name));
+        if (outcome.LiberatedWorldName is not null) lines.Add(Loc.T("{0} ist befreit!", outcome.LiberatedWorldName));
         foreach (var mission in outcome.CompletedMissions)
-            lines.Add($"Bitte erfüllt: {mission.Title} (+{mission.RewardBelievers} Gläubige)");
+            lines.Add(Loc.T("Bitte erfüllt: {0} (+{1} Gläubige)", mission.Title, mission.RewardBelievers));
 
-        string title = outcome.GameCompleted ? "Das Inferno ist gebrochen"
-            : outcome.CircleCompleted ? "Der Kreis ist befreit"
-            : "Das Verlies ist geläutert";
+        string title = outcome.GameCompleted ? Loc.T("Das Inferno ist gebrochen")
+            : outcome.CircleCompleted ? Loc.T("Der Kreis ist befreit")
+            : Loc.T("Das Verlies ist geläutert");
 
         // Ein Bildschirm mit ZWEI Wegen statt einer Taste: tiefer oder heim. Das Spiel schob den
         // Spieler vorher nach jedem Verlies ungefragt in den Tempel zurück.

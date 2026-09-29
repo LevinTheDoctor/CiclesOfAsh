@@ -1,5 +1,6 @@
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 
 namespace CirclesOfAsh.World;
 
@@ -47,7 +48,7 @@ public sealed class WaveDirector
     public RoomNode? ActiveArena => _arena;
 
     public string? StatusText => _arena is { Type: RoomType.Arena }   // Property-Pattern: nicht null UND Type == Arena
-        ? $"Welle {Math.Min(_waveIndex + 1, _plan.WavesPerArena)}/{_plan.WavesPerArena}"
+        ? Loc.T("Welle {0}/{1}", Math.Min(_waveIndex + 1, _plan.WavesPerArena), _plan.WavesPerArena)
         : null;
 
     public void Update(DungeonWorld world, float deltaSeconds)
@@ -94,7 +95,7 @@ public sealed class WaveDirector
             return;
         }
         _breakTimer = _balance.WaveBreakSeconds;
-        world.Announce($"Welle {_waveIndex + 1} naht …");
+        world.Announce(Loc.T("Welle {0} naht …", _waveIndex + 1));
     }
 
     /// <summary>
@@ -123,7 +124,7 @@ public sealed class WaveDirector
         Log.Warn($"NOTAUSGANG: Kampf in Raum {_arena.OwnerKey} ({_arena.Type}) ging {StalemateSeconds:0} s "
                + $"lang nicht vorwärts ({alive} Gegner lebten, niemand nahm Schaden). {removed} Gegner "
                + "wurden entfernt und die Arena abgeschlossen. Bitte melden, wenn das regulär vorkommt.");
-        world.Announce("Ein Fluch löst sich – die Tore öffnen sich.");
+        world.Announce(Loc.T("Ein Fluch löst sich – die Tore öffnen sich."));
         _stalemateTimer = 0f;
         _lastKnownThreat = 0f;
         CompleteArena(world);
@@ -161,7 +162,7 @@ public sealed class WaveDirector
         }
         _waveIndex = 0;
         StartWave();
-        world.Announce("Die Verdammten erheben sich!");
+        world.Announce(Loc.T("Die Verdammten erheben sich!"));
     }
 
     /// <summary>Mini-Boss in der Raummitte, Wachen verteilt. Danach öffnen sich die Käfige.</summary>
@@ -171,7 +172,7 @@ public sealed class WaveDirector
         float floorY = DungeonGenerator.FloorPixelY(room);
         Vector2 wardenSpot = world.FindSpawnSpot(warden, new Vector2(room.PixelBounds.Center.X + 64, floorY), room);
         world.SpawnEnemy(warden, wardenSpot, room.OwnerKey);
-        world.Announce($"{warden.Name} bewacht die Gefangenen!");
+        world.Announce(Loc.T("{0} bewacht die Gefangenen!", warden.Name));
         if (string.IsNullOrEmpty(prison.Guards)) return;
         EnemyDefinition guard = world.Context.Definitions.Enemies.Get(prison.Guards);
         for (int index = 0; index < prison.GuardCount; index++)

@@ -1,6 +1,7 @@
 using CirclesOfAsh.Assets;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Modding;
 using CirclesOfAsh.Persistence;
 using CirclesOfAsh.Progression;
@@ -27,6 +28,7 @@ public sealed class GameContext : IDisposable
         BehaviorRegistry behaviors,
         ProgressionService progression,
         ISaveRepository saves,
+        Localizer localizer,
         Action requestExit)
     {
         GraphicsDevice = graphicsDevice;
@@ -38,6 +40,7 @@ public sealed class GameContext : IDisposable
         Behaviors = behaviors;
         Progression = progression;
         Saves = saves;
+        Localizer = localizer;
         _requestExit = requestExit;
     }
 
@@ -50,6 +53,8 @@ public sealed class GameContext : IDisposable
     public BehaviorRegistry Behaviors { get; }
     public ProgressionService Progression { get; }
     public ISaveRepository Saves { get; }
+    /// <summary>Alle Sprachen und die aktive. Übersetzt wird überall über <see cref="Loc"/>.</summary>
+    public Localizer Localizer { get; }
     public GameSettings Settings { get; private set; } = new();
     public InputState Input { get; } = new();
     public SceneManager Scenes { get; } = new();
@@ -83,6 +88,9 @@ public sealed class GameContext : IDisposable
         Log.Initialize(LogFilePath);   // idempotent: CirclesGame hat das beim Start schon erledigt
 
         var locator = ContentLocator.Discover(AppContext.BaseDirectory);
+        // Sprachen zuerst: Schon die Meldungen beim Laden der Daten dürfen übersetzt sein.
+        var localizer = Localizer.Load(locator);
+        Loc.Current = localizer;
         var assets = AssetManager.Load(graphicsDevice, locator);
         var audio = new AudioService(locator, assets.Manifest.Sounds);
         var music = new MusicSystem(locator, assets.Manifest.Music);
@@ -97,7 +105,7 @@ public sealed class GameContext : IDisposable
         // "nie gesetzt". ScreenSetup waehlt daraus die groesste Stufe, die auf den Bildschirm passt.
         settings.Sanitize();
 
-        var context = new GameContext(graphicsDevice, locator, assets, audio, music, definitions, behaviors, progression, saves, requestExit)
+        var context = new GameContext(graphicsDevice, locator, assets, audio, music, definitions, behaviors, progression, saves, localizer, requestExit)
         {
             Settings = settings,
         };
@@ -160,6 +168,19 @@ public sealed class GameContext : IDisposable
         Audio.ApplySettings(Settings);
         Music.ApplySettings(Settings);
         Input.RumbleScale = Settings.RumbleIntensity * Progression.Difficulty.RumbleMultiplier;
+        ApplyLanguage();
+    }
+
+    /// <summary>
+    /// Schaltet die Sprache um, sobald sie sich in den Einstellungen geändert hat, und sagt allen
+    /// Szenen Bescheid. Danach steht in den Einstellungen die tatsächlich aktive Sprache – eine
+    /// unbekannte Id (etwa aus einer entfernten Mod) fällt so dauerhaft auf Deutsch zurück.
+    /// </summary>
+    private void ApplyLanguage()
+    {
+        bool changed = Localizer.SetLanguage(Settings.Language);
+        Settings.Language = Localizer.CurrentId;
+        if (changed) Scenes.NotifyLanguageChanged();
     }
 
     /// <summary>Heimwelt-Deko speichern (nach jeder Platzierung/Löschung im Hub).</summary>

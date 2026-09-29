@@ -20,6 +20,12 @@ public interface IScene
     /// </summary>
     void PrepareDraw(SpriteBatch spriteBatch);
     void Draw(SpriteBatch spriteBatch);
+
+    /// <summary>
+    /// Die Sprache wurde gewechselt (Optionsmenü). Szenen, die Texte beim Aufbau zwischenspeichern
+    /// – meist ein Menü –, bauen sie hier neu. Wer seine Texte in Draw erzeugt, braucht nichts zu tun.
+    /// </summary>
+    void OnLanguageChanged();
 }
 
 /// <summary>Basisklasse mit leeren Standardimplementierungen (Template-Method-Idee): Szenen überschreiben nur, was sie brauchen.</summary>
@@ -35,6 +41,7 @@ public abstract class SceneBase : IScene
     public abstract void Update(float deltaSeconds);
     public virtual void PrepareDraw(SpriteBatch spriteBatch) { }
     public abstract void Draw(SpriteBatch spriteBatch);
+    public virtual void OnLanguageChanged() { }
 }
 
 /// <summary>
@@ -84,6 +91,16 @@ public sealed class SceneManager
     public void Draw(SpriteBatch spriteBatch)
     {
         for (int index = FirstVisibleIndex(); index < _stack.Count; index++) _stack[index].Draw(spriteBatch);
+    }
+
+    /// <summary>
+    /// Gibt einen Sprachwechsel an ALLE Szenen im Stapel weiter, nicht nur an die oberste: Das
+    /// Optionsmenü liegt über Titel, Tempel oder Verlies, und deren Menüs sollen nach dem
+    /// Schließen schon in der neuen Sprache dastehen.
+    /// </summary>
+    public void NotifyLanguageChanged()
+    {
+        foreach (IScene scene in _stack) scene.OnLanguageChanged();
     }
 
     /// <summary>Von oben nach unten laufen, solange Overlays liegen -> ab dort aufwärts ist alles sichtbar.</summary>

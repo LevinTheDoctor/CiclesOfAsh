@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 
@@ -36,7 +37,7 @@ public sealed class LoadingScene : SceneBase
         _next = next;
         _minimumSeconds = minimumSeconds;
         _subtitle = subtitle;
-        IReadOnlyList<string> tips = context.Definitions.Tips;
+        IReadOnlyList<LocalizedText> tips = context.Definitions.Tips;
         _tip = tips.Count > 0 ? tips[_random.Next(tips.Count)] : "";
         for (int index = 0; index < 70; index++)
             _ash.Add(new Vector2(_random.Next(CirclesGame.VirtualWidth), _random.Next(CirclesGame.VirtualHeight)));
@@ -48,11 +49,11 @@ public sealed class LoadingScene : SceneBase
         var steps = new List<(string, Action)>();
         // "id" wird pro Schleifendurchlauf neu angelegt -> jedes Lambda fängt seinen eigenen Wert ein
         foreach (string id in context.Assets.TextureIds.ToList())
-            steps.Add(("Die Mauern werden errichtet …", () => context.Assets.GetTexture(id)));
+            steps.Add((Loc.T("Die Mauern werden errichtet …"), () => context.Assets.GetTexture(id)));
         foreach (string id in context.Assets.SpriteSheetIds.ToList())
-            steps.Add(("Die Verdammten erwachen …", () => context.Assets.GetSpriteSheet(id)));
+            steps.Add((Loc.T("Die Verdammten erwachen …"), () => context.Assets.GetSpriteSheet(id)));
         foreach (string id in context.Audio.SoundIds.ToList())
-            steps.Add(("Die Glocken werden gestimmt …", () => context.Audio.Preload(id)));
+            steps.Add((Loc.T("Die Glocken werden gestimmt …"), () => context.Audio.Preload(id)));
         return new LoadingScene(context, steps, () => new TitleScene(context), 2.6f, "");
     }
 
@@ -61,9 +62,9 @@ public sealed class LoadingScene : SceneBase
     {
         DungeonScene? scene = null;
         string circle = context.Progression.CircleOf(run).Name;
-        var steps = new List<(string, Action)> { ("Das Verlies formt sich …", () => scene = new DungeonScene(context, run)) };
+        var steps = new List<(string, Action)> { (Loc.T("Das Verlies formt sich …"), () => scene = new DungeonScene(context, run)) };
         // "scene!" -> nach dem Schritt garantiert gesetzt
-        return new LoadingScene(context, steps, () => scene!, 1.4f, $"Abstieg in {circle}");
+        return new LoadingScene(context, steps, () => scene!, 1.4f, Loc.T("Abstieg in {0}", circle));
     }
 
     public override void Update(float deltaSeconds)
@@ -109,9 +110,8 @@ public sealed class LoadingScene : SceneBase
 
         foreach (Vector2 flake in _ash) UiDraw.Rect(spriteBatch, pixel, new Rectangle((int)flake.X, (int)flake.Y, 1, 1), Palette.Ash * 0.8f);
 
-        Texture2D logo = Context.Assets.GetTexture("ui.logo");
         float breathe = MathF.Sin(_elapsed * 1.5f) * 2f;
-        spriteBatch.Draw(logo, new Vector2(centerX - logo.Width / 2f, 6 + breathe), Color.White);
+        UiDraw.Logo(spriteBatch, Context, centerX, 6 + breathe);
         if (_subtitle.Length > 0) Context.TitleFont.DrawCentered(spriteBatch, _subtitle, centerX, 120, Palette.Faith);
 
         var bar = new Rectangle((int)centerX - 110, 214, 220, 6);

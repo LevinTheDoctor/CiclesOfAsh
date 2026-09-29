@@ -3,6 +3,7 @@ using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 
 namespace CirclesOfAsh.Progression;
 
@@ -191,8 +192,14 @@ public static class EquipmentService
     /// </summary>
     public static readonly string[] StageSuffixes = { "", ".worn", ".broken" };
 
-    /// <summary>Menschenlesbare Stufennamen für Inventar und Meldungen.</summary>
-    public static readonly string[] StageNames = { "heil", "angeschlagen", "zerfetzt" };
+    /// <summary>
+    /// Stufennamen als deutscher Quelltext (für das Log). Angezeigt wird über
+    /// <see cref="StageName"/>, das übersetzt – Loc.N markiert sie für die Übersetzungsprüfung.
+    /// </summary>
+    public static readonly string[] StageNames = { Loc.N("heil"), Loc.N("angeschlagen"), Loc.N("zerfetzt") };
+
+    /// <summary>Stufenname in der aktuellen Sprache, für Inventar, Schmiede und Meldungen.</summary>
+    public static string StageName(int stage) => Loc.T(StageNames[Math.Clamp(stage, 0, StageNames.Length - 1)]);
 
     /// <summary>
     /// Verfallsstufe aus verbleibenden und höchstmöglichen Treffern. Gleichmäßig in Drittel

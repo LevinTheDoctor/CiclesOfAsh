@@ -2,6 +2,7 @@ using CirclesOfAsh.Abilities;
 using CirclesOfAsh.Combat;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 
 namespace CirclesOfAsh.Progression;
 
@@ -24,9 +25,9 @@ public static class LevelUpService
             AbilityDefinition ability = definitions.Abilities.Get(abilityId);
             AbilityInstance? owned = player.FindAbility(abilityId);
             if (owned is null)
-                candidates.Add(new UpgradeOffer(UpgradeOfferKind.NewAbility, abilityId, $"Neu: {ability.Name}", ability.Description));
+                candidates.Add(new UpgradeOffer(UpgradeOfferKind.NewAbility, abilityId, Loc.T("Neu: {0}", ability.Name), ability.Description));
             else if (!owned.IsMaxLevel)
-                candidates.Add(new UpgradeOffer(UpgradeOfferKind.AbilityLevel, abilityId, $"{ability.Name} Stufe {owned.Level + 1}", ability.Description));
+                candidates.Add(new UpgradeOffer(UpgradeOfferKind.AbilityLevel, abilityId, Loc.T("{0} Stufe {1}", ability.Name, owned.Level + 1), ability.Description));
         }
         candidates.AddRange(StatOffers(definitions, run));
 

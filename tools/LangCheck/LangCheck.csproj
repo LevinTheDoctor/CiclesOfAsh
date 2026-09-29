@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Übersetzungsprüfung: findet Texte ohne Übersetzung, verwaiste Einträge und falsche
+       Platzhalter. Kein Teil des Spiels, nur ein Werkzeug (wie tools/SeedSweep). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>LangCheck</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\CirclesOfAsh\CirclesOfAsh.csproj" />
+  </ItemGroup>
+
+</Project>

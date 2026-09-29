@@ -1,4 +1,5 @@
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.UI;
 
 namespace CirclesOfAsh.Scenes;
@@ -28,18 +29,18 @@ public sealed class ShrineScene : SceneBase
         UiDraw.Rect(spriteBatch, pixel, new Rectangle(0, 0, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight), Color.Black * 0.65f);
         var panel = new Rectangle(70, 48, CirclesGame.VirtualWidth - 140, 170);
         UiDraw.Panel(spriteBatch, pixel, panel);
-        Context.TitleFont.DrawCentered(spriteBatch, "Schrein der Reliquien", centerX, panel.Top + 6, Palette.Gold);
+        Context.TitleFont.DrawCentered(spriteBatch, Loc.T("Schrein der Reliquien"), centerX, panel.Top + 6, Palette.Gold);
 
         var counts = Context.Collectibles.Where(pair => pair.Value > 0).ToList();
         float y = panel.Top + 34;
         if (counts.Count == 0)
         {
-            Context.Font.DrawCentered(spriteBatch, "Der Schrein wartet auf Gaben aus der Tiefe.", centerX, y, Palette.Ash);
-            Context.Font.DrawCentered(spriteBatch, "Gebetsperlen, Seelensplitter und Briefe finden hier ihren Ruheplatz.", centerX, y + 16, Palette.Ash * 0.85f);
+            Context.Font.DrawCentered(spriteBatch, Loc.T("Der Schrein wartet auf Gaben aus der Tiefe."), centerX, y, Palette.Ash);
+            Context.Font.DrawCentered(spriteBatch, Loc.T("Gebetsperlen, Seelensplitter und Briefe finden hier ihren Ruheplatz."), centerX, y + 16, Palette.Ash * 0.85f);
         }
         else
         {
-            Context.Font.DrawCentered(spriteBatch, "Die Gläubigen bewahren deine Funde:", centerX, y, Palette.Bone);
+            Context.Font.DrawCentered(spriteBatch, Loc.T("Die Gläubigen bewahren deine Funde:"), centerX, y, Palette.Bone);
             y += 16;
             foreach (var (itemId, count) in counts)
             {
@@ -48,7 +49,7 @@ public sealed class ShrineScene : SceneBase
                 y += 13;
             }
         }
-        Context.Font.DrawCentered(spriteBatch, "Esc: zurück", centerX, panel.Bottom - 16, Palette.Ash);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("{0}: zurück", Context.Input.Glyph(GameAction.Cancel)), centerX, panel.Bottom - 16, Palette.Ash);
         spriteBatch.End();
     }
 }

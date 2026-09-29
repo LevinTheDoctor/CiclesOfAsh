@@ -3,6 +3,7 @@ using CirclesOfAsh.Companions;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.World;
 
@@ -228,8 +229,8 @@ public sealed class MendShrineProp : IPropBehavior
             // Nicht verbrauchen, wenn nichts passiert ist: Wer heil hier vorbeikommt, soll
             // auf dem Rückweg noch flicken können.
             world.Announce(outcome.Result == EquipmentService.MendResult.AlreadyWhole
-                ? "Deine Kleidung ist heil – der Engel schweigt."
-                : "Der Engel findet nichts, was er weben könnte.");
+                ? Loc.T("Deine Kleidung ist heil – der Engel schweigt.")
+                : Loc.T("Der Engel findet nichts, was er weben könnte."));
             world.Context.Audio.Play("error", 0.4f);
             return false;
         }
@@ -246,8 +247,8 @@ public sealed class MendShrineProp : IPropBehavior
         world.Effects.Burst(prop.Center, Palette.Faith, 22, 60f, 1.1f, gravity: -70f);
         world.Context.Audio.Play("unseal", 0.7f);
         world.Announce(outcome.Result == EquipmentService.MendResult.Reweaved
-            ? $"Der Engel webt {outcome.ItemName} aus Asche – zerfetzt, aber Kleidung."
-            : $"{outcome.ItemName} geflickt ({EquipmentService.StageNames[outcome.Stage]}).");
+            ? Loc.T("Der Engel webt {0} aus Asche – zerfetzt, aber Kleidung.", outcome.ItemName)
+            : Loc.T("{0} geflickt ({1}).", outcome.ItemName, EquipmentService.StageName(outcome.Stage)));
         world.Say(CompanionChatter.ArmorMended);
         return true;
     }

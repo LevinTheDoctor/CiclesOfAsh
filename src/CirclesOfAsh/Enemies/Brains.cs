@@ -2,6 +2,7 @@ using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Enemies;
@@ -281,7 +282,7 @@ public sealed class BossBrain : IEnemyBrain
         {
             if (_currentPhase is not null)   // Phasenwechsel (nicht beim ersten Mal) inszenieren
             {
-                world.Announce($"{enemy.Definition.Name} rast vor Zorn!");
+                world.Announce(Loc.T("{0} rast vor Zorn!", enemy.Definition.Name));
                 world.Effects.Ring(enemy.Center, 50f, Palette.Blood, 40);
                 world.Context.Audio.Play("roar", 0.8f);
             }

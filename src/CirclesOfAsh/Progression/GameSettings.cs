@@ -44,6 +44,13 @@ public sealed class GameSettings
     /// <summary>Id aus difficulties.json ("devout" = Standard). Wirkt ab dem nächsten Dungeon.</summary>
     public string DifficultyId { get; set; } = "devout";
 
+    // ------------------------------------------------------------------ Sprache
+    /// <summary>
+    /// Id der Oberflächensprache (Dateiname in Content/Lang, z. B. "en"). Standard ist die
+    /// Quellsprache Deutsch – bestehende Spielstände sehen nach dem Update also nichts Neues.
+    /// </summary>
+    public string Language { get; set; } = Localization.Localizer.SourceLanguageId;
+
     /// <summary>Klemmt alle Werte in gültige Bereiche (nach dem Laden aus der DB).</summary>
     public void Sanitize()
     {
@@ -54,5 +61,6 @@ public sealed class GameSettings
         AmbientLift = Math.Clamp(AmbientLift, 0f, 1f);
         RumbleIntensity = Math.Clamp(RumbleIntensity, 0f, 1f);
         DifficultyId = string.IsNullOrWhiteSpace(DifficultyId) ? "devout" : DifficultyId.Trim();
+        Language = string.IsNullOrWhiteSpace(Language) ? Localization.Localizer.SourceLanguageId : Language.Trim();
     }
 }

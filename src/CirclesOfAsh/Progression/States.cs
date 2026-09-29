@@ -1,4 +1,5 @@
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 
 namespace CirclesOfAsh.Progression;
 
@@ -15,7 +16,8 @@ public sealed record CharacterAppearance(
     string Name, int SkinTone, int HairStyle, int HairColor, int AccentColor,
     int BodyType = 0, int Makeup = 0, int MakeupColor = 0, int Wings = 0)
 {
-    public static CharacterAppearance Default { get; } = new("Namenloser", 0, 0, 0, 0);
+    /// <summary>Rückfall, wenn kein Aussehen gespeichert ist. Der Name ist ein Quelltext und wird beim Anzeigen übersetzt.</summary>
+    public static CharacterAppearance Default { get; } = new(Loc.N("Namenloser"), 0, 0, 0, 0);
 }
 
 /// <summary>

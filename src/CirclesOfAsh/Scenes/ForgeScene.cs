@@ -1,5 +1,6 @@
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 
@@ -51,24 +52,24 @@ public sealed class ForgeScene : SceneBase
         {
             bool whole = remaining >= max;
             _menu.Add(
-                whole ? "Flicken – nicht nötig, sie ist heil" : $"Flicken ({MendCost} Gläubige)",
+                whole ? Loc.T("Flicken – nicht nötig, sie ist heil") : Loc.T("Flicken ({0} Gläubige)", MendCost),
                 () => Mend(MendCost),
                 isEnabled: !whole && believers >= MendCost,
-                hint: whole ? null : $"Hebt die Kleidung um eine Stufe. Du hast {believers} Gläubige.");
+                hint: whole ? null : Loc.T("Hebt die Kleidung um eine Stufe. Du hast {0} Gläubige.", believers));
         }
         else
         {
             bool canWeave = !string.IsNullOrEmpty(PlayerClass?.StartingArmor);
             _menu.Add(
-                canWeave ? $"Neu weben ({Balance.ForgeWeaveCost} Gläubige)" : "Neu weben – deine Klasse trägt nichts",
+                canWeave ? Loc.T("Neu weben ({0} Gläubige)", Balance.ForgeWeaveCost) : Loc.T("Neu weben – deine Klasse trägt nichts"),
                 () => Mend(Balance.ForgeWeaveCost),
                 isEnabled: canWeave && believers >= Balance.ForgeWeaveCost,
                 hint: canWeave
-                    ? $"Webt deine Startkleidung aus Asche – zerfetzt, nicht heil. Du hast {believers} Gläubige."
+                    ? Loc.T("Webt deine Startkleidung aus Asche – zerfetzt, nicht heil. Du hast {0} Gläubige.", believers)
                     : null);
         }
 
-        _menu.Add("Zurück", () => Context.Scenes.Pop());
+        _menu.Add(Loc.T("Zurück"), () => Context.Scenes.Pop());
         _menu.Select(Math.Min(selected, _menu.Count - 1));
     }
 
@@ -76,7 +77,7 @@ public sealed class ForgeScene : SceneBase
     {
         if (Context.Progression.Meta.Believers < cost)
         {
-            _notice = $"Nicht genug Gläubige ({cost} nötig).";
+            _notice = Loc.T("Nicht genug Gläubige ({0} nötig).", cost);
             Context.Audio.Play("error", 0.5f);
             return;
         }
@@ -88,8 +89,8 @@ public sealed class ForgeScene : SceneBase
             // Nichts geändert heißt: nichts bezahlen. Der Knopf ist dann ohnehin gesperrt, aber
             // die Regel steht hier, nicht im Menü – sonst kostet ein künftiger zweiter Aufrufer.
             _notice = outcome.Result == EquipmentService.MendResult.AlreadyWhole
-                ? "Sie ist heil. Die Esse bleibt kalt."
-                : "Es ist nichts da, woraus sich etwas weben ließe.";
+                ? Loc.T("Sie ist heil. Die Esse bleibt kalt.")
+                : Loc.T("Es ist nichts da, woraus sich etwas weben ließe.");
             Context.Audio.Play("error", 0.5f);
             return;
         }
@@ -103,8 +104,8 @@ public sealed class ForgeScene : SceneBase
         // (PlayerFactory). Die Tempelfigur zieht sich um, sobald HubScene die Aenderung bemerkt.
 
         _notice = outcome.Result == EquipmentService.MendResult.Reweaved
-            ? $"{outcome.ItemName} neu gewoben – {EquipmentService.StageNames[outcome.Stage]} (-{cost} Gläubige)."
-            : $"{outcome.ItemName} geflickt – {EquipmentService.StageNames[outcome.Stage]} (-{cost} Gläubige).";
+            ? Loc.T("{0} neu gewoben – {1} (-{2} Gläubige).", outcome.ItemName, EquipmentService.StageName(outcome.Stage), cost)
+            : Loc.T("{0} geflickt – {1} (-{2} Gläubige).", outcome.ItemName, EquipmentService.StageName(outcome.Stage), cost);
         Context.Audio.Play("unseal", 0.7f);
         BuildMenu();
     }
@@ -128,7 +129,7 @@ public sealed class ForgeScene : SceneBase
         UiDraw.Rect(spriteBatch, pixel, new Rectangle(0, 0, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight), Color.Black * 0.65f);
         var panel = new Rectangle(70, 48, CirclesGame.VirtualWidth - 140, 170);
         UiDraw.Panel(spriteBatch, pixel, panel);
-        Context.TitleFont.DrawCentered(spriteBatch, "Glutschmiede", centerX, panel.Top + 6, Palette.Gold);
+        Context.TitleFont.DrawCentered(spriteBatch, Loc.T("Glutschmiede"), centerX, panel.Top + 6, Palette.Gold);
 
         float y = panel.Top + 32;
         (int remaining, int max) = EquipmentService.ArmorHits(Context.Definitions, _run);
@@ -137,22 +138,22 @@ public sealed class ForgeScene : SceneBase
             int stage = EquipmentService.StageOf(remaining, max);
             string name = Context.Definitions.Items.Contains(_run.Equipped[ItemSlot.Armor])
                 ? Context.Definitions.Items.Get(_run.Equipped[ItemSlot.Armor]).Name
-                : "Kleidung";
-            Context.Font.DrawCentered(spriteBatch, $"{name}: {EquipmentService.StageNames[stage]} ({remaining}/{max} Treffer)",
+                : Loc.T("Kleidung");
+            Context.Font.DrawCentered(spriteBatch, Loc.T("{0}: {1} ({2}/{3} Treffer)", name, EquipmentService.StageName(stage), remaining, max),
                 centerX, y, Palette.Bone);
         }
         else
         {
-            Context.Font.DrawCentered(spriteBatch, "Du trägst nur noch Unterwäsche.", centerX, y, Palette.Ash);
+            Context.Font.DrawCentered(spriteBatch, Loc.T("Du trägst nur noch Unterwäsche."), centerX, y, Palette.Ash);
         }
         y += 16;
-        Context.Font.DrawCentered(spriteBatch, $"Gläubige: {Context.Progression.Meta.Believers}", centerX, y, Palette.Faith);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Gläubige: {0}", Context.Progression.Meta.Believers), centerX, y, Palette.Faith);
 
         _menu.Draw(spriteBatch, Context.Font, centerX, y + 22);
 
         if (_notice.Length > 0)
             Context.Font.DrawCentered(spriteBatch, _notice, centerX, panel.Bottom - 30, Palette.Gold);
-        Context.Font.DrawCentered(spriteBatch, "Esc: zurück", centerX, panel.Bottom - 16, Palette.Ash);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("{0}: zurück", Context.Input.Glyph(GameAction.Cancel)), centerX, panel.Bottom - 16, Palette.Ash);
         spriteBatch.End();
     }
 }

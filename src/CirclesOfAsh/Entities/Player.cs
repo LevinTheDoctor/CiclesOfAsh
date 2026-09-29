@@ -3,6 +3,7 @@ using CirclesOfAsh.Assets;
 using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Entities;
@@ -420,7 +421,7 @@ public sealed class Player : Actor
             if (louder)
             {
                 world.Effects.Burst(Center, Palette.Bone, 5, 100f, 0.6f);
-                world.Announce($"{hit.ItemName}: {Progression.EquipmentService.StageNames[hit.Stage]}!");
+                world.Announce(Loc.T("{0}: {1}!", hit.ItemName, Progression.EquipmentService.StageName(hit.Stage)));
             }
             // Ohne das erschiene die ramponierte Fassung nie: Apply ruehrt nur die Werte an.
             RefreshAppearance(world.Context, world.Run);
@@ -434,7 +435,7 @@ public sealed class Player : Actor
         world.Effects.Ring(Center, 24f, Palette.Bone);
         world.Context.Audio.Play("crumble", 0.9f, -0.3f);
         // Der Name des Stuecks statt "Ruestung": Eine Russrobe zerspringt nicht, sie zerfaellt.
-        world.Announce($"{hit.ItemName} zerfaellt - nur noch die Unterwaesche!");
+        world.Announce(Loc.T("{0} zerfällt – nur noch die Unterwäsche!", hit.ItemName));
         world.Say(Companions.CompanionChatter.ArmorShattered);
         world.ShakeCamera(6f);
 

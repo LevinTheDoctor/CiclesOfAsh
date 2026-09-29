@@ -14,6 +14,8 @@ public sealed class BitmapFont
     private readonly int _cellHeight;
     private readonly Dictionary<char, (int Index, int Advance)> _glyphs = new();
     private readonly int _fallbackAdvance;
+    /// <summary>Zellenrand links/oben (siehe <see cref="FontEntry.GlyphOffsetX"/>), beim Zeichnen abgezogen.</summary>
+    private readonly Vector2 _glyphOffset;
 
     public BitmapFont(Texture2D texture, FontEntry entry)
     {
@@ -27,6 +29,7 @@ public sealed class BitmapFont
             _glyphs.TryAdd(entry.Charset[index], (index, advance));
         }
         _fallbackAdvance = _glyphs.TryGetValue(' ', out var space) ? space.Advance : _cellWidth / 2;
+        _glyphOffset = new Vector2(entry.GlyphOffsetX, entry.GlyphOffsetY);
     }
 
     public int LineHeight { get; }
@@ -61,7 +64,8 @@ public sealed class BitmapFont
                 continue;
             }
             var source = new Rectangle(glyph.Index % Columns * _cellWidth, glyph.Index / Columns * _cellHeight, _cellWidth, _cellHeight);
-            spriteBatch.Draw(_texture, new Vector2(MathF.Round(x), MathF.Round(y)), source, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+            var glyphPosition = new Vector2(MathF.Round(x), MathF.Round(y)) - _glyphOffset * scale;
+            spriteBatch.Draw(_texture, glyphPosition, source, color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
             x += glyph.Advance * scale;
         }
     }

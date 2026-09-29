@@ -2,6 +2,7 @@ using CirclesOfAsh.Assets;
 using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 using Microsoft.Xna.Framework.Input;
@@ -92,7 +93,7 @@ public sealed class CharacterCreatorScene : SceneBase
 
     private Row CurrentRow => _rows[_rowIndex];
     private ClassDefinition SelectedClass => _classes[_classIndex];
-    private CharacterAppearance Look => new(_name.Trim().Length > 0 ? _name.Trim() : "Namenloser",
+    private CharacterAppearance Look => new(_name.Trim().Length > 0 ? _name.Trim() : Loc.T("Namenloser"),
         _skin, _hair, _hairColor, _accent, _bodies.ToBodyType(_gender, _build), _makeup, _makeupColor, _wings);
 
     public override void OnEnter()
@@ -102,7 +103,7 @@ public sealed class CharacterCreatorScene : SceneBase
             string companionId = companion.Id;   // lokale Kopie für das Lambda (Closure)
             _companionMenu.Add(companion.Name, () => StartRun(new[] { companionId }), hint: companion.Description);
         }
-        _companionMenu.Add("Allein hinabsteigen", () => StartRun(Array.Empty<string>()), hint: "Kein Begleiter.");
+        _companionMenu.Add(Loc.T("Allein hinabsteigen"), () => StartRun(Array.Empty<string>()), hint: Loc.T("Kein Begleiter."));
     }
 
     // ------------------------------------------------------------------ Eingabe
@@ -253,7 +254,7 @@ public sealed class CharacterCreatorScene : SceneBase
         Texture2D pixel = Context.Assets.Pixel;
         float centerX = CirclesGame.VirtualWidth / 2f;
 
-        Context.TitleFont.DrawCentered(spriteBatch, _step == Step.Look ? "Erschaffe deine Gestalt" : "Wähle eine Begleitseele", centerX, 6, Palette.Gold);
+        Context.TitleFont.DrawCentered(spriteBatch, _step == Step.Look ? Loc.T("Erschaffe deine Gestalt") : Loc.T("Wähle eine Begleitseele"), centerX, 6, Palette.Gold);
 
         // Links: große Vorschau auf einem "Altar"
         // Beide Panels reichen bis 244 – erst bei 256 steht die Hilfezeile. Die Höhe wurde
@@ -273,7 +274,7 @@ public sealed class CharacterCreatorScene : SceneBase
         {
             _companionMenu.Draw(spriteBatch, font, panel.Center.X, panel.Top + 10, maxVisible: 8);
             font.DrawCenteredLines(spriteBatch, font.Wrap(_companionMenu.Selected?.Hint ?? "", panel.Width - 20), panel.Center.X, panel.Bottom - 40, Palette.Bone * 0.8f);
-            font.DrawCentered(spriteBatch, "Befreie Gefangene in den Kerkern für weitere Seelen.", panel.Center.X, panel.Bottom - 14, Palette.Ash);
+            font.DrawCentered(spriteBatch, Loc.T("Befreie Gefangene in den Kerkern für weitere Seelen."), panel.Center.X, panel.Bottom - 14, Palette.Ash);
         }
 
         string confirmGlyph = Context.Input.Glyph(GameAction.Confirm),
@@ -281,11 +282,11 @@ public sealed class CharacterCreatorScene : SceneBase
                randomGlyph = Context.Input.Glyph(GameAction.Randomize);
         string help = _step == Step.Look
             ? (CurrentRow == Row.Name
-                ? $"Tippen: Name · Runter/{confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück"
+                ? Loc.T("Tippen: Name · Runter/{0} weiter · {1} Zufall · {2} zurück", confirmGlyph, randomGlyph, cancelGlyph)
                 : ShowsBody
-                    ? $"Hoch/Runter Zeile · Links/Rechts ändern · Kleidung ausgeblendet · {cancelGlyph} zurück"
-                    : $"Hoch/Runter Zeile · Links/Rechts ändern · {confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück")
-            : $"{confirmGlyph} wählen · {cancelGlyph} zurück";
+                    ? Loc.T("Hoch/Runter Zeile · Links/Rechts ändern · Kleidung ausgeblendet · {0} zurück", cancelGlyph)
+                    : Loc.T("Hoch/Runter Zeile · Links/Rechts ändern · {0} weiter · {1} Zufall · {2} zurück", confirmGlyph, randomGlyph, cancelGlyph))
+            : Loc.T("{0} wählen · {1} zurück", confirmGlyph, cancelGlyph);
         font.DrawCentered(spriteBatch, help, centerX, CirclesGame.VirtualHeight - 14, Palette.Ash);
         spriteBatch.End();
     }
@@ -306,22 +307,23 @@ public sealed class CharacterCreatorScene : SceneBase
             Color color = isSelected ? Palette.Gold : Palette.Bone * 0.85f;
             string label = row switch
             {
-                Row.Name => "Name",
-                Row.Class => "Klasse",
-                Row.Skin => "Hautton",
-                Row.Hair => "Frisur",
-                Row.HairColor => "Haarfarbe",
-                Row.Gender => "Geschlecht",
-                Row.Body => _bodies.HasGenders ? "Statur" : "Gestalt",
-                Row.Makeup => "Bemalung",
-                Row.MakeupColor => "Bemalungsfarbe",
-                Row.Wings => "Flügel",
-                Row.Accent => "Wappenfarbe",
+                Row.Name => Loc.T("Name"),
+                Row.Class => Loc.T("Klasse"),
+                Row.Skin => Loc.T("Hautton"),
+                Row.Hair => Loc.T("Frisur"),
+                Row.HairColor => Loc.T("Haarfarbe"),
+                Row.Gender => Loc.T("Geschlecht"),
+                Row.Body => _bodies.HasGenders ? Loc.T("Statur") : Loc.T("Gestalt"),
+                Row.Makeup => Loc.T("Bemalung"),
+                Row.MakeupColor => Loc.T("Bemalungsfarbe"),
+                Row.Wings => Loc.T("Flügel"),
+                Row.Accent => Loc.T("Wappenfarbe"),
                 _ => "",
             };
             if (row == Row.Continue)
             {
-                font.DrawCentered(spriteBatch, isSelected ? "· Weiter zur Begleitseele ·" : "Weiter zur Begleitseele", panel.Center.X, y + 4, color);
+                string next = Loc.T("Weiter zur Begleitseele");
+                font.DrawCentered(spriteBatch, isSelected ? $"· {next} ·" : next, panel.Center.X, y + 4, color);
                 break;
             }
 
@@ -341,7 +343,7 @@ public sealed class CharacterCreatorScene : SceneBase
                     font.DrawShadowed(spriteBatch, $"‹ {hairName} ›", valuePosition, Palette.Faith);
                     break;
                 case Row.Gender:
-                    font.DrawShadowed(spriteBatch, $"‹ {_bodies.GenderName(_gender)} ›", valuePosition, Palette.Faith);
+                    font.DrawShadowed(spriteBatch, $"‹ {Loc.T(_bodies.GenderName(_gender))} ›", valuePosition, Palette.Faith);
                     break;
                 case Row.Body:
                     string bodyName = _bodies.HasGenders ? _bodies.BuildName(_build) : OptionName(_options.BodyTypes, _build);
@@ -365,7 +367,9 @@ public sealed class CharacterCreatorScene : SceneBase
         UiDraw.Rect(spriteBatch, pixel, new Rectangle(panel.Left + 8, (int)infoTop - 4, panel.Width - 16, 1), Palette.Gold * 0.4f);
         font.DrawShadowed(spriteBatch, font.Wrap(SelectedClass.Description, panel.Width - 20), new Vector2(panel.Left + 10, infoTop), Palette.Bone * 0.8f);
         Dictionary<StatType, float> stats = StatSheet.ParseAll(SelectedClass.BaseStats);
-        string statLine = $"Leben {Value(stats, StatType.MaxHealth)} · Mana {Value(stats, StatType.MaxMana)} · Rüstung {Value(stats, StatType.Armor)} · Tempo {Value(stats, StatType.MoveSpeed)}";
+        string statLine = string.Join(" · ",
+            new[] { StatType.MaxHealth, StatType.MaxMana, StatType.Armor, StatType.MoveSpeed }
+                .Select(stat => $"{StatNames.Of(stat)} {Value(stats, stat)}"));
         font.DrawShadowed(spriteBatch, statLine, new Vector2(panel.Left + 10, panel.Bottom - 14), Palette.Soul);
     }
 

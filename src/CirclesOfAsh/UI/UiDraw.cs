@@ -1,5 +1,6 @@
 using CirclesOfAsh.Assets;
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Localization;
 
 namespace CirclesOfAsh.UI;
 
@@ -37,6 +38,26 @@ public static class UiDraw
         int width = (int)((area.Width - 2) * Math.Clamp(ratio, 0f, 1f));
         Rect(spriteBatch, pixel, new Rectangle(area.Left + 1, area.Top + 1, width, area.Height - 2), fill);
         Border(spriteBatch, pixel, area, Palette.Ash * 0.8f);
+    }
+
+    /// <summary>Farbe des Logo-Untertitels – dieselbe, mit der tools/assetgen/world.py ihn früher ins Bild schrieb.</summary>
+    private static readonly Color LogoSubtitleColor = new(200, 190, 170);
+    /// <summary>Abstand des Untertitels von der Oberkante des Logos (in Logo-Pixeln).</summary>
+    private const int LogoSubtitleTop = 88;
+
+    /// <summary>
+    /// Zeichnet das Logo samt Untertitel in der aktuellen Sprache. Der Untertitel steht nicht mehr
+    /// im Bild, sondern wird hier geschrieben: gleiche Pixelschrift, gleiche Stelle, gleiche Farbe –
+    /// aber übersetzbar, ohne für jede Sprache ein eigenes Logo erzeugen zu müssen.
+    /// </summary>
+    public static void Logo(SpriteBatch spriteBatch, GameContext context, float centerX, float top)
+    {
+        Texture2D logo = context.Assets.GetTexture("ui.logo");
+        spriteBatch.Draw(logo, new Vector2(MathF.Round(centerX - logo.Width / 2f), MathF.Round(top)), Color.White);
+        string subtitle = Loc.T("·  EIN ABSTIEG DURCH DIE KREISE  ·");
+        BitmapFont font = context.Font;
+        // Ohne Schatten, wie im früheren Bild: Der Untertitel liegt auf den Trichterringen.
+        font.Draw(spriteBatch, subtitle, new Vector2(MathF.Round(centerX - font.MeasureWidth(subtitle) / 2f), MathF.Round(top) + LogoSubtitleTop), LogoSubtitleColor);
     }
 
     /// <summary>Menü-Hintergrund. backgroundId erlaubt kreisabhängige Hintergründe (tiefer = röter/dunkler).</summary>

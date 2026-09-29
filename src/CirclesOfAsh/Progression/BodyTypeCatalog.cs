@@ -1,4 +1,5 @@
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 
 namespace CirclesOfAsh.Progression;
 
@@ -20,8 +21,10 @@ public sealed class BodyTypeCatalog
     /// <summary>ID-Präfix, angezeigter Name und Sortierrang des Geschlechts.</summary>
     private static readonly (string Prefix, string Name)[] KnownGenders =
     {
-        ("m_", "Männlich"),
-        ("f_", "Weiblich"),
+        // Loc.N: Quelltext für die Übersetzungsprüfung. Die Namen dienen hier auch als Schlüssel,
+        // übersetzt wird erst in der Anzeige (CharacterCreatorScene).
+        ("m_", Loc.N("Männlich")),
+        ("f_", Loc.N("Weiblich")),
     };
 
     /// <summary>
@@ -80,9 +83,9 @@ public sealed class BodyTypeCatalog
         string build = Builds[CharacterVisuals.Wrap(buildIndex, Builds.Length)];
         return build switch
         {
-            "heavy" => "Kräftig",
-            "average" => "Normal",
-            "athletic" => "Trainiert",
+            "heavy" => Loc.T("Kräftig"),
+            "average" => Loc.T("Normal"),
+            "athletic" => Loc.T("Trainiert"),
             _ => build,
         };
     }

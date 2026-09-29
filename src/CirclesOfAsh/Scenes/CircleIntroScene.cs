@@ -1,5 +1,6 @@
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 
@@ -24,9 +25,9 @@ public sealed class CircleIntroScene : SceneBase
 
     public override void OnEnter()
     {
-        _menu.Add("Hinabsteigen", () => Context.Scenes.Replace(LoadingScene.ForDungeon(Context, Run)));
-        _menu.Add("Inventar", () => Context.Scenes.Push(new InventoryScene(Context, Run, player: null)));
-        _menu.Add("Zurück in den Tempel", () => Context.Scenes.Pop());
+        _menu.Add(Loc.T("Hinabsteigen"), () => Context.Scenes.Replace(LoadingScene.ForDungeon(Context, Run)));
+        _menu.Add(Loc.T("Inventar"), () => Context.Scenes.Push(new InventoryScene(Context, Run, player: null)));
+        _menu.Add(Loc.T("Zurück in den Tempel"), () => Context.Scenes.Pop());
     }
 
     public override void Update(float deltaSeconds)
@@ -53,7 +54,7 @@ public sealed class CircleIntroScene : SceneBase
 
         // Links: Trichter aller Kreise, der aktuelle pulsiert
         InfernoFunnel.Draw(spriteBatch, pixel, new Vector2(96, 60), 170f, 140f, world.Circles.Count, Run.CircleIndex, _time, animate: false);
-        Context.Font.DrawCentered(spriteBatch, $"Tiefe {Run.CircleIndex + 1} / {world.Circles.Count}", 96, 212, Palette.Ash);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Tiefe {0} / {1}", Run.CircleIndex + 1, world.Circles.Count), 96, 212, Palette.Ash);
 
         // Rechts: Name, Lore, Verliese
         float rightX = 318;
@@ -82,13 +83,13 @@ public sealed class CircleIntroScene : SceneBase
 
         bool bossNext = Run.DungeonIndex >= dungeons - 1;
         bool prisonNext = circle.Prison is { } nextPrison && nextPrison.DungeonIndex == Run.DungeonIndex;
-        string nextName = bossNext ? $"Thronsaal: {Context.Definitions.Enemies.Get(circle.Boss).Name}"
-            : prisonNext ? $"Verlies {Run.DungeonIndex + 1} – Gerüchte von Gefangenen …"
-            : $"Verlies {Run.DungeonIndex + 1}";
+        string nextName = bossNext ? Loc.T("Thronsaal: {0}", Context.Definitions.Enemies.Get(circle.Boss).Name)
+            : prisonNext ? Loc.T("Verlies {0} – Gerüchte von Gefangenen …", Run.DungeonIndex + 1)
+            : Loc.T("Verlies {0}", Run.DungeonIndex + 1);
         Context.Font.DrawCentered(spriteBatch, nextName, rightX, 154, bossNext ? Palette.Blood : prisonNext ? Palette.Violet : Palette.Bone);
 
         string className = Context.Definitions.Classes.Get(Run.ClassId).Name;
-        Context.Font.DrawCentered(spriteBatch, $"{Run.Appearance.Name}, {className} · Stufe {Run.Level} · Gläubige {Context.Progression.Meta.Believers}", rightX, 168, Palette.Faith);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("{0}, {1} · Stufe {2} · Gläubige {3}", Run.Appearance.Name, className, Run.Level, Context.Progression.Meta.Believers), rightX, 168, Palette.Faith);
         _menu.Draw(spriteBatch, Context.Font, rightX, 188);
         spriteBatch.End();
     }

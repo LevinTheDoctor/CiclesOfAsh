@@ -21,7 +21,12 @@
     "background.fraud": "Textures/bg_fraud.png",
     "background.treachery": "Textures/bg_treachery.png",
     "background.mid": "Textures/bg_mid.png",
-    "ui.logo": "Textures/logo.png"
+    "ui.logo": "Textures/logo.png",
+    // Sprachflaggen fürs Optionsmenü (tools/assetgen/interface.py). ".small" = Reiterleiste.
+    "flag.de": "Textures/flag_de.png",
+    "flag.de.small": "Textures/flag_de_small.png",
+    "flag.en": "Textures/flag_en.png",
+    "flag.en.small": "Textures/flag_en_small.png"
   },
   "fonts": {
     "body": "Fonts/body.font.json",

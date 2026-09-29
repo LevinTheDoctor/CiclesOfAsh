@@ -27,15 +27,16 @@ Figuren, Kleidungsstufen und Tilesets sind im Spiel inzwischen weiter.</sub>
 3. [Steuerung](#steuerung)
 4. [Der Tempel (Hub)](#der-tempel-hub)
 5. [Optionen & Schwierigkeit](#optionen--schwierigkeit)
-6. [Projektstruktur](#projektstruktur)
-7. [Architektur](#architektur)
-8. [Technische Entscheidungen](#technische-entscheidungen)
-9. [Erweitern – Schritt für Schritt](#erweitern--schritt-für-schritt)
-10. [Assets austauschen & Mods](#assets-austauschen--mods)
-11. [Spielstand (SQLite)](#spielstand-sqlite)
-12. [Auslieferung & Release](#auslieferung--release)
-13. [Roadmap](#roadmap)
-14. [Lizenz](#lizenz)
+6. [Sprachen](#sprachen)
+7. [Projektstruktur](#projektstruktur)
+8. [Architektur](#architektur)
+9. [Technische Entscheidungen](#technische-entscheidungen)
+10. [Erweitern – Schritt für Schritt](#erweitern--schritt-für-schritt)
+11. [Assets austauschen & Mods](#assets-austauschen--mods)
+12. [Spielstand (SQLite)](#spielstand-sqlite)
+13. [Auslieferung & Release](#auslieferung--release)
+14. [Roadmap](#roadmap)
+15. [Lizenz](#lizenz)
 
 ---
 
@@ -256,9 +257,9 @@ Szene, also vergleicht `RefreshPlayerLook()` den Zustand.
 
 ## Optionen & Schwierigkeit
 
-Das Optionsmenü (`Esc` → Optionen, `Scenes/SettingsScene.cs`) hat **vier Reiter** – links/rechts
-wechselt den Reiter, hoch/runter die Zeile, die Schultertasten den Wert. Alles wirkt sofort und wird
-in SQLite gesichert:
+Das Optionsmenü (`Esc` → Optionen, `Scenes/SettingsScene.cs`) hat **fünf Reiter** – `Q`/`E`
+(Gamepad X/Y) wechselt den Reiter, hoch/runter die Zeile, links/rechts den Wert. Alles wirkt sofort
+und wird in SQLite gesichert:
 
 * **Bildschirm** – Größe (Auto = füllt den Bildschirm, oder pixelgenau 1×–6× der virtuellen 480×270), Vollbild, VSync.
   Das Fenster lässt sich außerdem frei ziehen oder maximieren – das Bild wächst mit
@@ -267,6 +268,9 @@ in SQLite gesichert:
   Das freie Umbelegen der Tasten steht noch auf der [Roadmap](#roadmap)
 * **Gameplay** – Helligkeit (gegen zu dunkle Verliese), Vibration, Schadenszahlen, Tutorial an/aus,
   Bosskämpfe selbst bestreiten, Schwierigkeit
+* **Sprache** – Deutsch oder Englisch, je mit Flagge und dem Namen in der eigenen Sprache. Die
+  Flagge der aktiven Sprache steht auch vor dem Reitertitel – wer sich in eine Sprache verirrt, die
+  er nicht liest, findet so zurück. Umgeschaltet wird sofort, auch mitten im Verlies (siehe [Sprachen](#sprachen))
 
 ### Schwierigkeitsstufen
 
@@ -288,6 +292,75 @@ existieren, sie ist der Rückfallwert.
 
 ---
 
+## Sprachen
+
+Das Spiel gibt es auf **Deutsch** und **Englisch**; gewählt wird im Optionsmenü unter **Sprache**
+(Flaggen). Die Wahl steht in der Tabelle `settings` (Schlüssel `language`) und gilt ab dem nächsten
+Bild – Menüs, HUD, Ansagen, Dialoge, Namen und Beschreibungen, auch das Logo (sein Untertitel wird
+seit der Mehrsprachigkeit zur Laufzeit geschrieben, nicht mehr ins Bild gebacken).
+
+### Wie übersetzt wird
+
+**Der Schlüssel ist der deutsche Quelltext** – wie bei gettext:
+
+```csharp
+_menu.Add(Loc.T("Neuer Lauf"), …);                                  // fester Text
+Loc.T("Gläubige: {0}   ·   Tode: {1}", meta.Believers, meta.Deaths); // Vorlage mit Werten
+```
+
+```json
+// Content/Lang/en.json
+"Neuer Lauf": "New run",
+"Gläubige: {0}   ·   Tode: {1}": "Believers: {0}   ·   Deaths: {1}"
+```
+
+* **Code:** Jeder sichtbare Text läuft durch `Loc.T(...)` (`Localization/Loc.cs`). Texte in
+  Konstanten oder Tabellen werden mit `Loc.N(...)` markiert und erst beim Anzeigen übersetzt.
+* **Inhaltsdaten:** Namen, Beschreibungen, Lore, Dialog- und Tutorialzeilen, Zwischenrufe und Tipps
+  sind in den Definitionen vom Typ `LocalizedText` (`Localization/LocalizedText.cs`). In der JSON
+  steht weiter der deutsche Text; die implizite Umwandlung in `string` liefert beim Anzeigen die
+  gewählte Sprache. Keine Anzeigestelle kann das Übersetzen vergessen.
+* **Fehlt eine Übersetzung**, erscheint der deutsche Text – nie ein leeres Feld oder ein Schlüssel.
+
+Warum nicht Schlüssel wie `"menu.new_run"`? Deutsch stünde dann doppelt im Projekt (Code bzw. Daten
+**und** `de.json`), der Code würde unlesbarer, und ein vergessener Eintrag zeigte einen rohen
+Schlüssel. So bleibt Deutsch die eine Quelle, und eine neue Sprache ist genau eine Datei.
+
+### Prüfen: `tools/LangCheck`
+
+```bash
+dotnet run --project tools/LangCheck          # alle Sprachen
+dotnet run --project tools/LangCheck -- en    # nur Englisch
+```
+
+Das Werkzeug sammelt jeden Text aus `Loc.T`/`Loc.N` im Code und jeden `LocalizedText` der
+Inhaltsdaten (per Reflection, niemand pflegt eine Liste) und meldet je Sprache:
+
+| Befund | Bedeutung |
+|---|---|
+| `FEHLT` | Quelltext ohne Übersetzung – wird als fertige JSON-Zeile ausgegeben, zum Einfügen |
+| `PLATZHALTER` | `{0}`, `{name}` … stimmen zwischen Quelle und Übersetzung nicht überein |
+| `VERWAIST` | Eintrag, dessen Quelltext es nicht mehr gibt (meist ein umformulierter deutscher Text) |
+| `INTERPOLIERT` | `Loc.T($"…")` – ein interpolierter Schlüssel findet nie eine Übersetzung |
+
+Rückgabewert 0 = vollständig. Die CI (`build.yml`, Job `translations`) lässt es bei jedem Push laufen.
+**Wer einen deutschen Text ändert, ändert damit den Schlüssel** – LangCheck meldet dann den alten
+Eintrag als verwaist und den neuen als fehlend.
+
+### Neue Sprache
+
+1. `Content/Lang/<id>.json` nach dem Vorbild von `en.json` anlegen (Dateiname = Id, z. B. `fr`),
+   mit `name` (in der eigenen Sprache), `flag` und `order`.
+2. Flagge in `tools/assetgen/interface.py` (`FLAGS`) ergänzen, Assets neu erzeugen und in
+   `manifest.json` als `flag.<id>` und `flag.<id>.small` eintragen.
+3. `dotnet run --project tools/LangCheck -- <id>` listet jeden fehlenden Text.
+
+Die Pixelschrift kennt alle westeuropäischen Buchstaben (Latin-1 plus Œ/œ, „“ ‚‘ « » €), eine
+neue Sprache braucht also keine neue Schrift. Auch Mods können eine Sprache mitbringen oder
+ergänzen: `Mods/<Name>/Lang/en.json` legt sich Eintrag für Eintrag über die mitgelieferte.
+
+---
+
 ## Projektstruktur
 
 ```
@@ -296,10 +369,12 @@ CirclesOfAsh/
 │  ├─ Content/                  ← ALLE austauschbaren Inhalte (wird neben die .exe kopiert)
 │  │  ├─ manifest.json          ← Asset-IDs → Dateien, Spritesheet-Raster, Animationen
 │  │  ├─ Data/*.json            ← Klassen, Fähigkeiten, Gegner, Welten, Upgrades, Balancing
+│  │  ├─ Lang/*.json            ← Sprachen: deutscher Quelltext → Übersetzung (de ist die Quelle)
 │  │  ├─ Textures/ Fonts/ Audio/
 │  ├─ Core/          Game-Loop-Infrastruktur: Szenen, Eingabe, Kamera, ContentLocator, Log
 │  ├─ Assets/        Laufzeit-Laden von PNG/WAV/Fonts, Spritesheets, Animationen
 │  ├─ Definitions/   Datenklassen (1:1 JSON) + Laden/Validieren
+│  ├─ Localization/  Loc (Übersetzen), Localizer (Sprachen laden/umschalten), LocalizedText (Datentexte)
 │  ├─ Modding/       BehaviorRegistry: JSON-Schlüssel → C#-Klassen
 │  ├─ World/         Kachelkarte, Physik, Generator, Wellen, Licht, Bröckeln, Laufzeitwelt
 │  ├─ Entities/      Spieler, Gegner, Projektile, Pickups, Props, Begleiter, Effekte
@@ -317,6 +392,7 @@ CirclesOfAsh/
 ├─ tools/generate_placeholder_assets.py   ← erzeugt alle Platzhalter-Assets (CC0)
 ├─ tools/assetgen/                         ← Generator-Module: Charaktere, Kreaturen, Welt, Medien, Musik, Icons
 ├─ tools/SeedSweep/                        ← Kommandozeilen-Prüfer: Seeds erzeugen, Erreichbarkeit und Rätsel messen
+├─ tools/LangCheck/                        ← Übersetzungsprüfung: fehlende/verwaiste Texte, Platzhalter
 ├─ build/build.sh                          ← ein Befehl, Paket für das laufende System
 ├─ build/publish.sh, macos-app.sh          ← Cross-Builds, macOS-Programmbündel
 ├─ build/icons/                            ← erzeugte App-Icons (.icns/.ico)
@@ -856,6 +932,9 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
       verhindert, dass so ein Fehler noch einmal als „alles in Ordnung" durchgeht
 - [x] Kleidung flicken: Glutschmiede im Tempel und Trauernder Engel im Verlies
 - [x] Sechster Rätseltyp (Lichtkranz); Spiegelrätsel würfelt seine Anordnung und prüft sie nach
+- [x] Mehrsprachigkeit: Deutsch und Englisch, Auswahl mit Flaggen im Optionsmenü, Prüfwerkzeug
+      `tools/LangCheck` in der CI
+- [ ] Weitere Sprachen – die Schrift kann es schon (Latin-1), es fehlen nur Datei und Flagge
 - [ ] Der Lichtkranz hat nur vier Säulen, weil `runes.png` vier Symbole hat – mit mehr Runen könnte
       sowohl er als auch die Runenfolge länger werden (`balance.json`: `puzzleScaling.runeOrderLength`)
 - [ ] Ein Rätseltyp, der eigene Bilder braucht (Glockenreihe nach Gehör) – steht als Aufgabe in

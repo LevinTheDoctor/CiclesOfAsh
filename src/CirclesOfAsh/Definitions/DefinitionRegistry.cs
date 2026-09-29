@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using CirclesOfAsh.Assets;
 using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Modding;
 
 namespace CirclesOfAsh.Definitions;
@@ -63,7 +64,8 @@ public sealed class DefinitionRegistry
     public DefinitionSet<ControllerProfileDefinition> ControllerProfiles { get; } = new();
     public BalanceDefinition Balance { get; private set; } = new();
     public AppearanceDefinition Appearance { get; private set; } = new();
-    public IReadOnlyList<string> Tips { get; private set; } = Array.Empty<string>();
+    /// <summary>Ladebildschirm-Tipps (übersetzbar wie alle Anzeigetexte der Daten).</summary>
+    public IReadOnlyList<LocalizedText> Tips { get; private set; } = Array.Empty<LocalizedText>();
 
     public static DefinitionRegistry Load(ContentLocator locator)
     {
@@ -89,7 +91,7 @@ public sealed class DefinitionRegistry
         foreach (string path in locator.FindAllLayered("Data/balance.json")) registry.Balance = JsonDefaults.Load<BalanceDefinition>(path);
         foreach (string path in locator.FindAllLayered("Data/appearance.json")) registry.Appearance = JsonDefaults.Load<AppearanceDefinition>(path);
         // Tipps werden über alle Ebenen gesammelt (Mods können eigene ergänzen)
-        registry.Tips = locator.FindAllLayered("Data/tips.json").SelectMany(path => JsonDefaults.Load<List<string>>(path)).ToList();
+        registry.Tips = locator.FindAllLayered("Data/tips.json").SelectMany(path => JsonDefaults.Load<List<LocalizedText>>(path)).ToList();
         return registry;
     }
 
@@ -178,7 +180,7 @@ public sealed class DefinitionRegistry
                     $"Zwischenruf '{chatter.Id}': Begleiter '{line.Companion}' existiert nicht.");
                 Require(line.Behavior.Length == 0 || behaviors.HasCompanion(line.Behavior),
                     $"Zwischenruf '{chatter.Id}': Begleiter-Verhalten '{line.Behavior}' unbekannt.");
-                Require(line.Text.Length > 0, $"Zwischenruf '{chatter.Id}': leere Zeile.");
+                Require(!line.Text.IsEmpty, $"Zwischenruf '{chatter.Id}': leere Zeile.");
             }
 
         // Ein Tippfehler im Auslöser waere hier besonders teuer: Der Schritt wuerde nie bestanden
@@ -189,7 +191,7 @@ public sealed class DefinitionRegistry
         {
             Require(knownTriggers.Contains(step.Trigger),
                 $"Tutorial-Schritt '{step.Id}': Auslöser '{step.Trigger}' ist dem Code unbekannt.");
-            Require(step.Text.Length > 0, $"Tutorial-Schritt '{step.Id}': kein Text.");
+            Require(!step.Text.IsEmpty, $"Tutorial-Schritt '{step.Id}': kein Text.");
         }
 
         foreach (ArenaDefinition arena in Arenas.All)

@@ -9,6 +9,7 @@ Die eigentlichen Generatoren liegen im Paket tools/assetgen/:
   media.py       Bitmap-Fonts und Sounds
   music.py       Loopender Soundtrack je Ort
   icons.py       App-Icons (.icns/.ico) und das Fenster-/Dock-Symbol Icon.bmp
+  interface.py   Oberflächen-Grafiken: Sprachflaggen
 
 Aufruf aus dem Repo-Root:  python tools/generate_placeholder_assets.py   (benötigt: pip install pillow)
 Jede Datei darf durch echte Art ersetzt werden, solange Größe/Raster zu Content/manifest.json passen.
@@ -18,7 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from assetgen import characters, creatures, icons, media, music, world  # noqa: E402
+from assetgen import characters, creatures, icons, interface, media, music, world  # noqa: E402
 from assetgen.core import AUDIO, CONTENT, DOCS, FONTS, TEXTURES  # noqa: E402
 
 
@@ -30,6 +31,7 @@ def main():
     characters.generate(TEXTURES)
     creatures.generate(TEXTURES)
     world.generate(TEXTURES, DOCS)
+    interface.generate(TEXTURES)
     media.generate(FONTS, AUDIO)
     music.generate(AUDIO)
     icons.generate()

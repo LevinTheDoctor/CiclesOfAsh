@@ -392,6 +392,9 @@ public sealed class SqliteSaveRepository : ISaveRepository
         settings.Tutorial = ReadLong(values, "tutorial", settings.Tutorial ? 1 : 0) != 0;
         settings.ManualBossFights = ReadLong(values, "manual_boss", settings.ManualBossFights ? 1 : 0) != 0;
         if (values.TryGetValue("difficulty", out string? difficulty) && difficulty.Length > 0) settings.DifficultyId = difficulty;
+        // Neu ohne Migration: settings ist Schlüssel/Wert, ein alter Spielstand hat den Schlüssel
+        // einfach noch nicht und bleibt bei der Standardsprache.
+        if (values.TryGetValue("language", out string? language) && language.Length > 0) settings.Language = language;
         // Bewusst KEIN Sanitize() hier: es würde die 0 bei screen_scale auf 1 klemmen und damit
         // die Unterscheidung "nicht gesetzt" zerstören. Der Aufrufer (GameContext) setzt erst den
         // Standard aus balance.json ein und klemmt danach.
@@ -422,6 +425,7 @@ public sealed class SqliteSaveRepository : ISaveRepository
         Write("tutorial", settings.Tutorial ? "1" : "0");
         Write("manual_boss", settings.ManualBossFights ? "1" : "0");
         Write("difficulty", settings.DifficultyId);
+        Write("language", settings.Language);
         transaction.Commit();
     }
 

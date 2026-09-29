@@ -2,6 +2,7 @@ using CirclesOfAsh.Assets;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.UI;
 
 namespace CirclesOfAsh.Scenes;
@@ -31,14 +32,13 @@ public sealed class DialogScene : SceneBase
         _choices = entry.Choices.Count > 0
             ? entry.Choices.ToList()
             : new List<DialogChoiceDefinition> { new() { Label = "Weiter", Next = "" } };
-        if (entry.Choices.Count == 0 && string.IsNullOrEmpty(entry.Text) == false && dialog.Lines.All(line => line.Id != "farewell"))
-        {
-            // einfaches Gespräch: weiter beendet den Dialog
-        }
         _typewriter = 0f;
     }
 
     public override bool IsOverlay => true;
+
+    /// <summary>Die aktuelle Zeile in der gewählten Sprache (implizite Umwandlung von LocalizedText).</summary>
+    private string LineText => _line.Text;
 
     public override void Update(float deltaSeconds)
     {
@@ -46,12 +46,12 @@ public sealed class DialogScene : SceneBase
 
         // Typewriter: Zeichen um Zeichen (ca. 60 Zeichen/Sekunde); Taste drücken = sofort vollständig
         float charactersPerSecond = 60f;
-        bool isTyping = _typewriter < _line.Text.Length;
+        bool isTyping = _typewriter < LineText.Length;
         if (isTyping)
         {
             _typewriter += charactersPerSecond * deltaSeconds;
             if (input.WasPressed(GameAction.Confirm) || input.WasPressed(GameAction.Interact))
-                _typewriter = _line.Text.Length;   // Rest sofort anzeigen
+                _typewriter = LineText.Length;   // Rest sofort anzeigen
             return;
         }
 
@@ -123,7 +123,7 @@ public sealed class DialogScene : SceneBase
         string speaker = _npc is not null ? _npc.Definition.Name : "";
         if (speaker.Length > 0) font.DrawShadowed(spriteBatch, speaker, new Vector2(panel.Left + 8, panel.Top + 4), Palette.Gold);
 
-        string fullText = _feedback is not null && _feedbackTimer > 0f ? _feedback : _line.Text;
+        string fullText = _feedback is not null && _feedbackTimer > 0f ? _feedback : LineText;
         int visibleCharacters = Math.Min(fullText.Length, (int)_typewriter);
         string shown = fullText[..visibleCharacters];
         var body = new Rectangle(panel.Left + 6, panel.Top + 16, panel.Width - 12, 46);
@@ -142,9 +142,9 @@ public sealed class DialogScene : SceneBase
             }
         }
 
-        bool isTypingNow = _typewriter < _line.Text.Length && !(_feedback is not null);
+        bool isTypingNow = _typewriter < LineText.Length && !(_feedback is not null);
         string confirm = Context.Input.Glyph(GameAction.Confirm), cancel = Context.Input.Glyph(GameAction.Cancel);
-        string hint = isTypingNow ? $"{confirm}: überspringen" : $"{confirm}: wählen · {cancel}: verlassen";
+        string hint = isTypingNow ? Loc.T("{0}: überspringen", confirm) : Loc.T("{0}: wählen · {1}: verlassen", confirm, cancel);
         font.DrawCentered(spriteBatch, hint, centerX, panel.Top - 10, Palette.Ash * 0.9f);
         spriteBatch.End();
     }

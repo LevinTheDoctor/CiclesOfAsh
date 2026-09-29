@@ -1,4 +1,5 @@
 using System.Text;
+using CirclesOfAsh.Localization;
 using Microsoft.Xna.Framework.Input;
 
 namespace CirclesOfAsh.Core;
@@ -56,10 +57,11 @@ public sealed class InputState
     public float RumbleScale { get; set; } = 0.6f;
 
     // Tastatur-Beschriftungen. Bewusst hier und nicht in JSON: die Tastenbelegung selbst steht
-    // ebenfalls fest in _bindings – beides gehört zusammen.
+    // ebenfalls fest in _bindings – beides gehört zusammen. Loc.N markiert die übersetzbaren
+    // Tastennamen, übersetzt wird beim Anzeigen in Glyph.
     private static readonly Dictionary<GameAction, string> KeyboardLabels = new()
     {
-        [GameAction.Jump] = "Leer", [GameAction.Dash] = "Umschalt",
+        [GameAction.Jump] = Loc.N("Leer"), [GameAction.Dash] = Loc.N("Umschalt"),
         [GameAction.AbilityOne] = "Q", [GameAction.AbilityTwo] = "E",
         [GameAction.Interact] = "F", [GameAction.Confirm] = "Enter",
         [GameAction.Cancel] = "Esc", [GameAction.Pause] = "Esc", [GameAction.Randomize] = "F5",
@@ -162,10 +164,12 @@ public sealed class InputState
     /// </summary>
     public string Glyph(GameAction action)
     {
+        // Loc.T auch für Controller-Beschriftungen: "Menü"/"Ansicht" (Xbox) heißen im Englischen
+        // "Menu"/"View". Buchstaben wie "A" oder "R1" haben keinen Eintrag und bleiben, wie sie sind.
         if (HasGamePad && LastDevice == InputDevice.Gamepad
             && _padLabels is not null && _padLabels.TryGetValue(action, out string? label))
-            return label;
-        return KeyboardLabels.TryGetValue(action, out string? key) ? key : action.ToString();
+            return Loc.T(label);
+        return KeyboardLabels.TryGetValue(action, out string? key) ? Loc.T(key) : action.ToString();
     }
 
     /// <summary>Beschriftung in eckigen Klammern, wie sie über Interaktionspunkten steht: "[F]".</summary>

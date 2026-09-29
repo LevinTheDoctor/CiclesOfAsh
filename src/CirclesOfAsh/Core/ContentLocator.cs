@@ -52,4 +52,17 @@ public sealed class ContentLocator
         Enumerable.Reverse(_rootsByPriority)
             .Select(root => Path.Combine(root, relativePath))
             .Where(File.Exists);
+
+    /// <summary>
+    /// Alle passenden Dateien eines Ordners über alle Ebenen, niedrigste Priorität zuerst – wie
+    /// <see cref="FindAllLayered"/>, nur ohne festen Dateinamen. Für Ordner, deren Inhalt nicht
+    /// vorher bekannt ist (Content/Lang: jede Datei eine Sprache, Mods dürfen neue mitbringen).
+    /// </summary>
+    public IEnumerable<string> FindAllLayeredInDirectory(string relativeDirectory, string searchPattern) =>
+        Enumerable.Reverse(_rootsByPriority)
+            .Select(root => Path.Combine(root, relativeDirectory))
+            .Where(Directory.Exists)
+            // SelectMany "glättet": aus einer Liste von Ordnern wird EINE Folge von Dateien.
+            .SelectMany(directory => Directory.GetFiles(directory, searchPattern)
+                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
 }

@@ -40,3 +40,15 @@ jobs:
           test -f build/icons/CirclesOfAsh.ico
           test -f build/icons/CirclesOfAsh.icns
           test -f src/CirclesOfAsh/Icon.bmp
+
+  # Dritter Wächter: Fehlt eine Übersetzung, erscheint im Spiel der deutsche Text. Beim Entwickeln
+  # auf Deutsch fällt das nie auf – beim Spielen auf Englisch sofort. tools/LangCheck findet es vorher.
+  translations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Übersetzungen prüfen
+        run: dotnet run --project tools/LangCheck

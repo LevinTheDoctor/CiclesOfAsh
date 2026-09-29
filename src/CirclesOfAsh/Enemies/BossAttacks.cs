@@ -1,6 +1,7 @@
 using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Enemies;
@@ -103,7 +104,7 @@ public sealed class SummonAttack : IBossAttack
             Vector2 spot = world.FindSpawnSpot(minion, preferred, room);
             world.SpawnEnemy(minion, spot, boss.Owner);
         }
-        world.Announce("Diener werden beschworen!");
+        world.Announce(Loc.T("Diener werden beschworen!"));
     }
 
     public bool Update(Enemy boss, DungeonWorld world, float deltaSeconds)

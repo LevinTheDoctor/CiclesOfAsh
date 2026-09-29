@@ -1,6 +1,7 @@
 using CirclesOfAsh.Abilities;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.World;
 
@@ -34,14 +35,16 @@ public sealed class Hud
         // Unten: Seelenleiste (XP) über die volle Breite
         float needed = _context.Progression.ExperienceForNextLevel(world.Run.Level);
         UiDraw.Bar(spriteBatch, pixel, new Rectangle(0, CirclesGame.VirtualHeight - 4, CirclesGame.VirtualWidth, 4), world.Run.Experience / needed, Palette.Soul);
-        font.DrawShadowed(spriteBatch, $"Stufe {world.Run.Level}", new Vector2(6, CirclesGame.VirtualHeight - 16), Palette.Soul);
+        font.DrawShadowed(spriteBatch, Loc.T("Stufe {0}", world.Run.Level), new Vector2(6, CirclesGame.VirtualHeight - 16), Palette.Soul);
 
         // Oben mittig: Ort + Wellenstatus
         DungeonPlan plan = world.Plan;
-        string location = plan.IsBossDungeon ? $"{plan.Circle.Name} · Thronsaal" : $"{plan.Circle.Name} · Verlies {plan.DungeonIndex + 1}";
+        string location = plan.IsBossDungeon
+            ? Loc.T("{0} · Thronsaal", plan.Circle.Name)
+            : Loc.T("{0} · Verlies {1}", plan.Circle.Name, plan.DungeonIndex + 1);
         font.DrawCentered(spriteBatch, location, CirclesGame.VirtualWidth / 2f, 4, Palette.Bone * 0.9f);
         string? waveText = world.Waves.StatusText;
-        string progress = waveText ?? (plan.IsBossDungeon ? "" : $"Arenen {world.Waves.ClearedArenas}/{world.Waves.TotalArenas}");
+        string progress = waveText ?? (plan.IsBossDungeon ? "" : Loc.T("Arenen {0}/{1}", world.Waves.ClearedArenas, world.Waves.TotalArenas));
         font.DrawCentered(spriteBatch, progress, CirclesGame.VirtualWidth / 2f, 14, waveText is null ? Palette.Ash : Palette.Ember);
         // Verbliebene Gegner des AKTIVEN Kampfes: Ist die Welle vermeintlich leer, sieht der
         // Spieler hier sofort, dass noch etwas lebt (z. B. ein getarnter Egel in einer Ecke).
@@ -49,7 +52,7 @@ public sealed class Hud
         {
             int enemiesLeft = world.AliveEnemyCountOf(fight.OwnerKey);
             if (enemiesLeft > 0)
-                font.DrawCentered(spriteBatch, $"Verdammte: {enemiesLeft}", CirclesGame.VirtualWidth / 2f, 24, Palette.Ember * 0.8f);
+                font.DrawCentered(spriteBatch, Loc.T("Verdammte: {0}", enemiesLeft), CirclesGame.VirtualWidth / 2f, 24, Palette.Ember * 0.8f);
         }
         if (world.Puzzle is { IsSolved: false } puzzle)   // Property-Pattern: nicht null UND noch nicht gelöst
             font.DrawCentered(spriteBatch, puzzle.Hint, CirclesGame.VirtualWidth / 2f, 34, Palette.Soul);
@@ -67,7 +70,7 @@ public sealed class Hud
         }
 
         // Gläubige unter der Minikarte
-        string believers = $"Gläubige {_context.Progression.Meta.Believers}";
+        string believers = Loc.T("Gläubige {0}", _context.Progression.Meta.Believers);
         font.DrawShadowed(spriteBatch, believers, new Vector2(CirclesGame.VirtualWidth - 6 - font.MeasureWidth(believers), 44), Palette.Faith);
 
         DrawMissions(spriteBatch, world);
@@ -77,7 +80,7 @@ public sealed class Hud
 
         string? announcement = world.CurrentAnnouncement;
         if (announcement is not null) font.DrawCentered(spriteBatch, announcement, CirclesGame.VirtualWidth / 2f, 60, Palette.Faith);
-        if (player.IsStealthed) font.DrawCentered(spriteBatch, "– getarnt –", CirclesGame.VirtualWidth / 2f, 72, Palette.Violet);
+        if (player.IsStealthed) font.DrawCentered(spriteBatch, Loc.T("– getarnt –"), CirclesGame.VirtualWidth / 2f, 72, Palette.Violet);
 
         spriteBatch.End();
     }
