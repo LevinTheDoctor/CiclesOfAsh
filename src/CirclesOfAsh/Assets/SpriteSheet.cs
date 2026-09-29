@@ -22,6 +22,8 @@ public sealed class SpriteSheet
     }
 
     public Texture2D Texture { get; }
+    /// <summary>Id aus manifest.json. Die Online-Arena schickt sie statt des Bildes selbst.</summary>
+    public string Id { get; init; } = "";
     public int FrameWidth { get; }
     public int FrameHeight { get; }
 

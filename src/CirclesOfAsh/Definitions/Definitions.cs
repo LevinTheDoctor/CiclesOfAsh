@@ -252,6 +252,12 @@ public sealed class BalanceDefinition
     public int ForgeWeaveCost { get; init; } = 25;
     /// <summary>Wie viele Treffer ein Besuch zurückgibt. Eine Stufe, nicht das ganze Stück.</summary>
     public int ForgeMendHits { get; init; } = 1;
+
+    /// <summary>
+    /// Arena zu zweit: So viel mehr Leben bekommt der Gegner je zusätzlicher Spielfigur
+    /// (0.6 = +60 %). Nicht +100 %: Zwei Spieler behindern sich auch, und Aufrichten kostet Zeit.
+    /// </summary>
+    public float ArenaHealthPerExtraPlayer { get; init; } = 0.6f;
 }
 
 /// <summary>

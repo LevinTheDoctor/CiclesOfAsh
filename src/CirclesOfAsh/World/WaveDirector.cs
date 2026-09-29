@@ -135,10 +135,11 @@ public sealed class WaveDirector
         RoomNode? room = world.CurrentRoom;
         if (room is null || !room.IsCombatRoom || room.IsCleared) return;
 
-        // Erst starten, wenn der Spieler vollständig im Raum ist -> er wird nie in einer Tür eingemauert
+        // Erst starten, wenn ALLE Stehenden vollständig im Raum sind -> niemand wird in einer Tür
+        // eingemauert oder ausgesperrt. Im Einzelspiel ist das genau die eine Figur.
         Rectangle inner = room.PixelBounds;
         inner.Inflate(-28, -16);
-        if (!inner.Contains(world.Player.Bounds)) return;
+        if (!world.LivingPlayers.All(player => inner.Contains(player.Bounds))) return;
 
         _arena = room;
         _stalemateTimer = 0f;
@@ -149,10 +150,11 @@ public sealed class WaveDirector
 
         if (room.Type == RoomType.Boss)
         {
+            EnemyDefinition boss = world.Context.Definitions.Enemies.Get(_plan.BossEnemyId);
             var bossPosition = new Vector2(room.PixelBounds.Center.X + 96, DungeonGenerator.FloorPixelY(room));
-            bossPosition = world.FindSpawnSpot(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss), bossPosition, room);
-            world.SpawnEnemy(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss), bossPosition, room.OwnerKey);
-            world.Announce(world.Context.Definitions.Enemies.Get(_plan.Circle.Boss).Name);
+            bossPosition = world.FindSpawnSpot(boss, bossPosition, room);
+            world.SpawnEnemy(boss, bossPosition, room.OwnerKey);
+            world.Announce(boss.Name);
             return;
         }
         if (room.Type == RoomType.Prison && _plan.Circle.Prison is { } prison)

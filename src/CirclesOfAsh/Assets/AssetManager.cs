@@ -62,11 +62,11 @@ public sealed class AssetManager : IDisposable
             // LINQ-Select projiziert jeden Manifest-Eintrag auf ein AnimationClip-Record
             IEnumerable<AnimationClip> clips = entry.Animations.Select(pair =>
                 new AnimationClip(pair.Key, pair.Value.Row, Math.Max(1, pair.Value.Frames), pair.Value.Fps, pair.Value.Loop, pair.Value.Column));
-            sheet = new SpriteSheet(LoadTextureFile(entry.Texture), entry.FrameWidth, entry.FrameHeight, clips);
+            sheet = new SpriteSheet(LoadTextureFile(entry.Texture), entry.FrameWidth, entry.FrameHeight, clips) { Id = id };
         }
         else
         {
-            sheet = new SpriteSheet(Missing($"Spritesheet-ID '{id}'"), 16, 16, Array.Empty<AnimationClip>());
+            sheet = new SpriteSheet(Missing($"Spritesheet-ID '{id}'"), 16, 16, Array.Empty<AnimationClip>()) { Id = id };
         }
         _spriteSheets[id] = sheet;
         return sheet;

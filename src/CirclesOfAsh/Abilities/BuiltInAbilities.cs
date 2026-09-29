@@ -86,6 +86,13 @@ public sealed class OrbitAbility : IAbilityBehavior
 
     public bool TryActivate(DungeonWorld world, Player owner, AbilityInstance ability) => false;
 
+    /// <summary>Der Winkel der Kugeln – der Online-Gast bekommt ihn vom Gastgeber.</summary>
+    public float VisualPhase
+    {
+        get => _angle;
+        set => _angle = value;
+    }
+
     public void Update(DungeonWorld world, Player owner, AbilityInstance ability, float deltaSeconds)
     {
         float radius = ability.Area(owner.Stats);

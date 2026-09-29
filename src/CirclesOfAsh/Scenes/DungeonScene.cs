@@ -39,7 +39,7 @@ public sealed class DungeonScene : SceneBase
         // Eigenes Stück der Arena schlägt das des Kreises. Fehlt es noch im Manifest, bleibt es
         // beim bisherigen - eine Arena darf also auf ein Stück zeigen, das erst später kommt.
         if (plan.IsBossDungeon
-            && context.Definitions.Arenas.TryGet(plan.Circle.Boss, out ArenaDefinition? arena)
+            && context.Definitions.Arenas.TryGet(plan.BossEnemyId, out ArenaDefinition? arena)
             && arena.Music.Length > 0 && context.Music.Has(arena.Music))
             _musicId = arena.Music;
         Log.Info($"Dungeon erzeugt: Kreis {plan.CircleIndex + 1}, Verlies {plan.DungeonIndex + 1}, Seed {plan.Seed}, Boss {plan.IsBossDungeon}");

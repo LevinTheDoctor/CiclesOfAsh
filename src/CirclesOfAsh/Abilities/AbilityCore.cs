@@ -23,6 +23,13 @@ public interface IAbilityBehavior
     void Update(DungeonWorld world, Player owner, AbilityInstance ability, float deltaSeconds) { }
 
     void Draw(SpriteBatch spriteBatch, DungeonWorld world, Player owner, AbilityInstance ability) { }
+
+    /// <summary>
+    /// Sichtbarer Zustand für die Online-Arena, etwa der Winkel kreisender Kugeln. Der Gast zeichnet
+    /// die Fähigkeit damit genau dort, wo sie beim Gastgeber ist. Ohne eigenen Zustand: 0.
+    /// Eine Property mit Rumpf im Interface speichert nichts – wer Zustand hat, überschreibt sie.
+    /// </summary>
+    float VisualPhase { get => 0f; set { } }
 }
 
 /// <summary>

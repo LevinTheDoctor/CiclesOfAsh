@@ -34,9 +34,17 @@ public sealed class AudioService : IDisposable
         SfxVolume = settings.SfxVolume;
     }
 
+    /// <summary>
+    /// Jeder abgespielte Ton, auch ohne Audiogerät. Der Online-Gastgeber hört mit und schickt die
+    /// Töne des Kampfes an den Gast, der sie bei sich abspielt (Beobachter-Muster).
+    /// </summary>
+    public event Action<string, float, float>? Played;
+
     public void Play(string? soundId, float volume = 1f, float pitch = 0f)
     {
-        if (!_isAvailable || string.IsNullOrEmpty(soundId)) return;
+        if (string.IsNullOrEmpty(soundId)) return;
+        Played?.Invoke(soundId, volume, pitch);
+        if (!_isAvailable) return;
         SoundEffect? effect = GetOrLoad(soundId);
         // "?." = Null-Conditional: Play wird nur aufgerufen, wenn effect nicht null ist
         effect?.Play(Math.Clamp(volume * SfxVolume * MasterVolume, 0f, 1f), Math.Clamp(pitch, -1f, 1f), 0f);

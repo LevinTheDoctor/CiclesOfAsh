@@ -33,6 +33,21 @@ public sealed class Projectile : Entity
 
     public Faction Faction { get; }
     public float Gravity { get; }
+    public string SheetId => _animation.Sheet.Id;
+
+    /// <summary>Online-Gast: Ort und Flugrichtung vom Gastgeber.</summary>
+    public void ApplyMirror(Vector2 position, Vector2 velocity)
+    {
+        Position = position;
+        Velocity = velocity;
+    }
+
+    /// <summary>Online-Gast: bis zum nächsten Schnappschuss geradeaus weiterfliegen – ohne zu treffen.</summary>
+    public void AdvanceMirror(float deltaSeconds)
+    {
+        _animation.Update(deltaSeconds);
+        Position += Velocity * deltaSeconds;
+    }
 
     public override void Update(DungeonWorld world, float deltaSeconds)
     {
@@ -54,9 +69,9 @@ public sealed class Projectile : Entity
         }
 
         if (Faction == Faction.Player) HitEnemies(world);
-        else if (Bounds.Intersects(world.Player.Bounds))
+        else if (world.LivingPlayerIntersecting(Bounds) is { } victim)   // zu zweit trifft es den, der im Weg steht
         {
-            world.Player.TakeHit(world, _damage, Center, _knockback);
+            victim.TakeHit(world, _damage, Center, _knockback);
             Remove();
         }
     }

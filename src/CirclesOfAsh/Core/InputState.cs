@@ -20,14 +20,17 @@ public sealed record ControllerProfile(string Name, string GlyphFamily, IReadOnl
 /// <summary>
 /// Kapselt Tastatur, Gamepad und Texteingabe. Speichert den Zustand des aktuellen UND vorherigen Frames,
 /// damit "gerade gedrückt" (Flanke) von "wird gehalten" unterschieden werden kann.
+/// Zugleich die Eingabe der Spielfigur im Einzelspiel (<see cref="IPlayerInput"/>).
 /// </summary>
-public sealed class InputState
+public sealed class InputState : IPlayerInput
 {
-    private const float StickDeadZone = 0.35f;
+    /// <summary>Unterhalb dieser Auslenkung zählt der Stick als "losgelassen". Auch für <see cref="DeviceInput"/>.</summary>
+    internal const float StickDeadZone = 0.35f;
 
     // Tupel (Keys[] Keys, Buttons[] Buttons) = leichtgewichtiger, benannter Datencontainer ohne eigene Klasse.
     // "new[] { ... }" = implizit typisiertes Array; der Compiler leitet Keys[] bzw. Buttons[] ab.
-    private readonly Dictionary<GameAction, (Keys[] Keys, Buttons[] Buttons)> _bindings = new()
+    // static: EINE Belegung für alle Eingabequellen – DeviceInput liest dieselbe Tabelle.
+    private static readonly Dictionary<GameAction, (Keys[] Keys, Buttons[] Buttons)> Bindings = new()
     {
         [GameAction.Left] = (new[] { Keys.A, Keys.Left }, new[] { Buttons.DPadLeft, Buttons.LeftThumbstickLeft }),
         [GameAction.Right] = (new[] { Keys.D, Keys.Right }, new[] { Buttons.DPadRight, Buttons.LeftThumbstickRight }),
@@ -64,7 +67,7 @@ public sealed class InputState
     public float RumbleScale { get; set; } = 0.6f;
 
     // Tastatur-Beschriftungen. Bewusst hier und nicht in JSON: die Tastenbelegung selbst steht
-    // ebenfalls fest in _bindings – beides gehört zusammen. Loc.N markiert die übersetzbaren
+    // ebenfalls fest in Bindings – beides gehört zusammen. Loc.N markiert die übersetzbaren
     // Tastennamen, übersetzt wird beim Anzeigen in Glyph.
     private static readonly Dictionary<GameAction, string> KeyboardLabels = new()
     {
@@ -281,9 +284,15 @@ public sealed class InputState
         }
     }
 
-    private bool IsDown(GameAction action, KeyboardState keys, GamePadState pad)
+    private static bool IsDown(GameAction action, KeyboardState keys, GamePadState pad) => IsActionDown(action, keys, pad);
+
+    /// <summary>
+    /// Ist die Aktion auf dieser Tastatur ODER diesem Controller gedrückt? Geteilt mit
+    /// <see cref="DeviceInput"/>; ein nicht beteiligtes Gerät wird als <c>default</c> (nichts gedrückt) übergeben.
+    /// </summary>
+    internal static bool IsActionDown(GameAction action, KeyboardState keys, GamePadState pad)
     {
-        var (boundKeys, boundButtons) = _bindings[action];   // Dekonstruktion des Tupels in zwei Variablen
+        var (boundKeys, boundButtons) = Bindings[action];   // Dekonstruktion des Tupels in zwei Variablen
         return boundKeys.Any(key => keys.IsKeyDown(key)) || boundButtons.Any(button => pad.IsButtonDown(button));
     }
 }

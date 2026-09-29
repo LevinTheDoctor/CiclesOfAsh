@@ -26,17 +26,18 @@ Figuren, Kleidungsstufen und Tilesets sind im Spiel inzwischen weiter.</sub>
 2. [Schnellstart](#schnellstart)
 3. [Steuerung](#steuerung)
 4. [Der Tempel (Hub)](#der-tempel-hub)
-5. [Optionen & Schwierigkeit](#optionen--schwierigkeit)
-6. [Sprachen](#sprachen)
-7. [Projektstruktur](#projektstruktur)
-8. [Architektur](#architektur)
-9. [Technische Entscheidungen](#technische-entscheidungen)
-10. [Erweitern – Schritt für Schritt](#erweitern--schritt-für-schritt)
-11. [Assets austauschen & Mods](#assets-austauschen--mods)
-12. [Spielstand (SQLite)](#spielstand-sqlite)
-13. [Auslieferung & Release](#auslieferung--release)
-14. [Roadmap](#roadmap)
-15. [Lizenz](#lizenz)
+5. [Arena & Mehrspieler](#arena--mehrspieler)
+6. [Optionen & Schwierigkeit](#optionen--schwierigkeit)
+7. [Sprachen](#sprachen)
+8. [Projektstruktur](#projektstruktur)
+9. [Architektur](#architektur)
+10. [Technische Entscheidungen](#technische-entscheidungen)
+11. [Erweitern – Schritt für Schritt](#erweitern--schritt-für-schritt)
+12. [Assets austauschen & Mods](#assets-austauschen--mods)
+13. [Spielstand (SQLite)](#spielstand-sqlite)
+14. [Auslieferung & Release](#auslieferung--release)
+15. [Roadmap](#roadmap)
+16. [Lizenz](#lizenz)
 
 ---
 
@@ -101,6 +102,16 @@ Viertel der Gläubigen.
 | **Rätsel & Siegeltor** | Das Siegel steht hinter einem Gittertor. Sechs Typen öffnen es: verteilte **Hebel**, **Runenfolge** (Hinweis-Inschrift in einem anderen Raum), **Feuerbecken** auf Zeit, **Gewichte**, **Spiegel** und der **Lichtkranz**. Welche ein Kreis würfeln darf, steht in `worlds.json` | `Puzzles/Puzzles.cs`, `worlds.json` (`puzzles`) |
 | **Kerker & Mini-Boss** | Drei Kreise (Limbus, Gier, Zorn) haben ein Verlies mit optionalem Kerker. Besiege den Kerkermeister → Gefangene frei → **neue Begleitseele** | `WaveDirector`, `worlds.json` (`prison`), `companions.json` (`unlockAtBelievers: -1`) |
 | **Logo & Ladebildschirm** | Animierter Höllentrichter, Asche, Tipps, echter Fortschritt (Assets werden vorgeladen) | `Scenes/LoadingScene.cs`, `UI/InfernoFunnel.cs`, `tips.json` |
+
+### Neu in v1.4.0
+
+| Feature | Was passiert im Spiel | Wo im Code / in den Daten |
+|---|---|---|
+| **Eigenes Dock-Symbol** | Unter macOS zeigt das Dock beim Spielen den Höllentrichter statt des MonoGame-Logos | `Icon.bmp` (eingebettete Ressource), `tools/assetgen/icons.py` |
+| **Deutsch und Englisch** | Auswahl mit Flaggen im Optionsmenü, wirkt sofort | `Localization/`, `Content/Lang/*.json`, `tools/LangCheck` |
+| **Tastenbilder** | Xbox, PlayStation, Switch und Tastatur als eigene Bilder, Legende im Reiter „Steuerung" | `glyphs.*`, `UI/ButtonGlyphs.cs`, `controllers.json` |
+| **Mehrere Gestalten** | Bis zu acht Charaktere mit eigenem Lauf und Werdegang; der Tod kostet nur Lauf und Klasse | `Scenes/CharacterSelectScene.cs`, `ProgressionService`, Spielstand v5 |
+| **Arena** | Bosse und Kerkermeister allein, zu zweit an einem Rechner oder online bekämpfen – ohne Folgen für den Lauf | `Scenes/Arena*.cs`, `Progression/ArenaService.cs`, `Networking/` |
 
 ### Neu in v1.3.0
 
@@ -301,6 +312,63 @@ nur auf.
 
 ---
 
+## Arena & Mehrspieler
+
+Im Titel unter **Arena**: Bosse und Kerkermeister noch einmal bekämpfen – allein, zu zweit an einem
+Rechner oder online. Die Arena kostet nichts und bringt nichts ein: kein Tod, keine Seelen, keine
+Beute, keine Bitten. Gezählt wird nur der Sieg, im Werdegang der Gestalt (Gestaltenauswahl).
+
+| Was | Wie |
+|---|---|
+| **Gegner** | Alle Bosse und Kerkermeister der Kreise, die eine deiner Gestalten schon erreicht hat (in befreiten Welten alle). Gekämpft wird im Thronsaal des Gegners – mit seiner eigenen Arena, Musik und Stärke |
+| **Kämpfer** | Eine Gestalt mit Lauf kämpft mit dessen Stand (Stufe, Gaben, Ausrüstung) – als **Kopie**, der Lauf bleibt unberührt. Ohne Lauf: Startausstattung der zuletzt gespielten Klasse. Gläubigen-Bonus und Ewige Gaben gelten wie im Verlies |
+| **Allein** | Mit der Begleitseele aus dem Lauf |
+| **Zu zweit (ein Rechner)** | Spieler 2 braucht einen Controller: Er bekommt den zuletzt angeschlossenen, Spieler 1 alles andere (Tastatur und übrige Controller). „Geräte" tauscht die Seiten. Der Gegner hält zu zweit 60 % mehr aus (`balance.json`: `arenaHealthPerExtraPlayer`) |
+| **Aufrichten** | Fällt eine Figur, bleibt sie liegen. Wer 2,5 s neben ihr steht, richtet sie mit 35 % Leben wieder auf. Verloren ist erst, wenn beide liegen |
+| **Online** | Einer eröffnet, der andere tritt mit der IP-Adresse bei (TCP-Port **47017**). Die Pause hält online nichts an |
+
+### Online spielen
+
+Wer eröffnet, sieht in der Lobby seine Adresse im lokalen Netz. Der Mitspieler wählt „Online
+beitreten", gibt sie ein (`192.168.0.12` oder `192.168.0.12:47017`) und verbindet sich; die Adresse
+merkt sich das Spiel. Beide brauchen **dieselbe Spielversion** – das prüft der Handschlag, dazu eine
+Prüfsumme über den erzeugten Kampfplatz.
+
+- **Im selben Netz** (LAN/WLAN) geht es direkt. Fragt die Firewall beim ersten Eröffnen nach: freigeben.
+- **Über das Internet** braucht der Eröffnende eine Portweiterleitung (TCP 47017) im Router und gibt
+  seine öffentliche Adresse weiter – oder beide nutzen ein virtuelles Netz wie Tailscale oder ZeroTier
+  und verwenden dessen Adressen.
+
+**Wie es funktioniert** (`Networking/`): Der Eröffnende rechnet den Kampf allein – „Gastgeber rechnet,
+Gast zeigt". Der Gast schickt nur seine Tasten (Bitmasken je Frame) und bekommt in jedem Frame einen
+Schnappschuss zurück: Figuren, Gegner, Geschosse, Aufsammelbares, geänderte Kacheln, dazu Töne und
+Effekte als Ereignisse. So gibt es genau **eine** Wahrheit; Rundungsunterschiede zwischen zwei
+Rechnern können den Kampf nicht auseinanderlaufen lassen.
+
+| Baustein | Aufgabe |
+|---|---|
+| `NetConnection` | TCP mit Nachrichtenrahmen `[Länge][Typ][Daten]`, je ein Thread zum Empfangen und Senden – das Spiel wartet nie auf das Netz. Schnappschüsse dürfen bei Stau entfallen, der nächste enthält wieder alles |
+| `ArenaProtocol` | Binärformat aller Nachrichten (Hello, Welcome, Input, Snapshot, End …); Schreiben und Lesen stehen je Datentyp direkt untereinander |
+| `ArenaHostSession`, `ArenaClientSession` | Zustandsautomaten für Warten, Handschlag und Kampf |
+| `NetworkInput` | Die Tasten des Gastes als `IPlayerInput` – seine Figur merkt keinen Unterschied zu einem Controller |
+| `World/WorldMirror.cs` | Schnappschuss aufnehmen (Gastgeber) und anwenden (Gast); Ereignisse sind Records mit eigener `Replay`-Methode |
+| `ArenaService.Sanitize` | Prüft Kämpfer aus dem Netz: Unbekanntes fällt weg, Zahlen werden geklemmt |
+
+Ansagen erscheinen beim Gast in der Sprache des Gastgebers (sie kommen fertig übersetzt an); alles
+andere zeigt jeder in seiner eigenen Sprache.
+
+**Eingabe je Figur:** `IPlayerInput` (Strategy-Pattern) hat drei Umsetzungen – `InputState`
+(Tastatur und erster Controller: Einzelspiel und alle Menüs), `DeviceInput` (bestimmte Geräte, zu zweit)
+und `NetworkInput` (Online-Gast). Die Tastenbelegung selbst ist unverändert und für alle gleich;
+frei belegbare Tasten stehen auf der Roadmap.
+
+**Mehrere Figuren in einer Welt:** `DungeonWorld.Players` statt eines einzelnen Spielers. Gegner
+wenden sich dem nächsten sichtbaren zu (`NearestVisiblePlayer`), Geschosse treffen, wer im Weg steht,
+Aufsammelbares fliegt zum Näheren, und die Kamera folgt der Mitte. Im Einzelspiel ist die Liste
+einfach eins lang – deshalb verhält sich das Verlies genau wie vorher.
+
+---
+
 ## Optionen & Schwierigkeit
 
 Das Optionsmenü (`Esc` → Optionen, `Scenes/SettingsScene.cs`) hat **fünf Reiter** – `Q`/`E`
@@ -435,7 +503,8 @@ CirclesOfAsh/
 │  ├─ Pets/          PetService: Name, Stimmung, Loyalität der Begleitseelen
 │  ├─ Progression/   Gestalten, Lauf/Meta-Zustand, Regeln, Level-Up, Spieler-Factory, Items, Missionen, Einstellungen
 │  ├─ Persistence/   ISaveRepository + SQLite-Implementierung mit Migrationen
-│  ├─ Scenes/        Laden, Titel, Gestaltenauswahl, Charakter-Editor, Tempel, Kreis-Übersicht, Dungeon, Dialog, Optionen, Overlays
+│  ├─ Networking/    Online-Arena: TCP-Verbindung, Protokoll, Sitzungen von Gastgeber und Gast
+│  ├─ Scenes/        Laden, Titel, Gestaltenauswahl, Charakter-Editor, Tempel, Kreis-Übersicht, Dungeon, Arena, Dialog, Optionen, Overlays
 │  └─ UI/            HUD, Minikarte, Menüs, Panels
 ├─ tools/generate_placeholder_assets.py   ← erzeugt alle Platzhalter-Assets (CC0)
 ├─ tools/assetgen/                         ← Generator-Module: Charaktere, Kreaturen, Welt, Medien, Musik, Icons
@@ -853,7 +922,7 @@ Pfad: `%APPDATA%\CirclesOfAsh\save.db` (Windows), `~/.config/CirclesOfAsh/save.d
 | `run_items` *(ab v5 mit `character_id`)* | Fähigkeitsstufen, Upgrades, Begleiter, Items (Anzahl) und angelegte Items (`equipped`, Slot als Zahl) |
 | `run_profile` *(v2, ab v5 mit `character_id`)* | Schlüssel/Wert je Lauf: Haltbarkeit und Zustand der Kleidung (`armor_durability`, `armor_wear`), genutzte Reparaturen (`forge_uses`), Unterwäsche. Das Aussehen stand bis v4 hier und liegt jetzt in `characters` |
 | `missions` *(v2)* | Bitten der Gläubigen: Status (`Active`/`Completed`) und Fortschritt |
-| `settings` *(v3)* | Optionsmenü: Bildschirm, Lautstärken, Helligkeit, Vibration, Schwierigkeit |
+| `settings` *(v3)* | Optionsmenü: Bildschirm, Lautstärken, Helligkeit, Vibration, Schwierigkeit, Sprache; dazu die zuletzt benutzte Arena-Adresse (`arena_address`) |
 | `hub_deco` *(v3)* | Im Tempel platzierte Deko (Prop-Id + Kachelkoordinate) |
 | `pets` *(v3, Spalte `skin` ab v4)* | Begleitseelen: Name, Stimmung, Loyalität, letzte Fütterung, Farbfassung |
 | `collectibles` *(v3)* | Gefundene Reliquien über alle Läufe (Schrein im Tempel) |
@@ -994,6 +1063,10 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
       `GLM_TASKS.md`
 - [x] Tastenbilder für Xbox, PlayStation, Switch und Tastatur (`glyphs.*`), Legende im Reiter „Steuerung"
 - [x] Mehrere Gestalten mit je eigenem Lauf und Werdegang, Gestaltenauswahl, Spielstand v5
+- [x] Arena: Bosse und Kerkermeister allein, zu zweit an einem Rechner (mit Aufrichten) und online
+      (Gastgeber rechnet, Gast zeigt; TCP-Port 47017)
+- [ ] Online ohne Portfreigabe (Vermittlungsserver oder Relay) und mit mehr als zwei Spielern
+- [ ] Zu zweit an EINER Tastatur – braucht eine zweite Belegung, gehört zur Überarbeitung der Steuerung
 - [ ] Steuerung überarbeiten: Hinweise im Spiel mit Tastenbildern statt Text, Tastenbelegung frei
       belegbar aus `Content/Data/input.json` (Profile, Bilder und der Reiter „Steuerung" gibt es)
 - [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus) und `ProgressionService` – gemessen wird

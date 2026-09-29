@@ -51,6 +51,10 @@ public sealed class GameSettings
     /// </summary>
     public string Language { get; set; } = Localization.Localizer.SourceLanguageId;
 
+    // ------------------------------------------------------------------ Arena
+    /// <summary>Zuletzt benutzte Adresse beim Online-Beitreten – wer oft mit denselben Leuten spielt, tippt sie nur einmal.</summary>
+    public string ArenaAddress { get; set; } = "";
+
     /// <summary>Klemmt alle Werte in gültige Bereiche (nach dem Laden aus der DB).</summary>
     public void Sanitize()
     {

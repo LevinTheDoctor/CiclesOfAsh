@@ -39,6 +39,7 @@ public sealed class GameContext : IDisposable
         Definitions = definitions;
         Behaviors = behaviors;
         Progression = progression;
+        Arena = new ArenaService(definitions, progression);
         Saves = saves;
         Localizer = localizer;
         _requestExit = requestExit;
@@ -52,6 +53,8 @@ public sealed class GameContext : IDisposable
     public DefinitionRegistry Definitions { get; }
     public BehaviorRegistry Behaviors { get; }
     public ProgressionService Progression { get; }
+    /// <summary>Regeln der Arena: Gegner, Freischaltung, Kämpfer, Kampfplatz.</summary>
+    public ArenaService Arena { get; }
     public ISaveRepository Saves { get; }
     /// <summary>Alle Sprachen und die aktive. Übersetzt wird überall über <see cref="Loc"/>.</summary>
     public Localizer Localizer { get; }

@@ -1,6 +1,8 @@
 using CirclesOfAsh.Abilities;
+using CirclesOfAsh.Assets;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Entities;
 using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.World;
@@ -18,6 +20,11 @@ public sealed class Hud
 
     public void Draw(SpriteBatch spriteBatch, DungeonWorld world)
     {
+        if (world.Plan.IsArenaMatch)
+        {
+            DrawArena(spriteBatch, world);
+            return;
+        }
         Texture2D pixel = _context.Assets.Pixel;
         var font = _context.Font;
         var player = world.Player;
@@ -85,7 +92,64 @@ public sealed class Hud
         spriteBatch.End();
     }
 
-    /// <summary>Aktive Bitten rechts unter den Gläubigen – mit Fortschritt.</summary>
+    // ------------------------------------------------------------------ Arena
+    /// <summary>Breite der Lebensleiste einer Kämpfer-Tafel.</summary>
+    private const int ArenaBarWidth = 90;
+
+    /// <summary>
+    /// Arena: je Kämpfer eine Tafel (Spieler 1 links, Spieler 2 rechts gespiegelt), oben die
+    /// Kampfzeit, unten die Leiste des Gegners. Keine Seelen, Minikarte oder Bitten – die gibt es
+    /// in der Arena nicht. Liest nur die Spielfiguren, funktioniert also auch beim Online-Gast,
+    /// dessen Figuren ihre Werte aus dem Netz bekommen.
+    /// </summary>
+    private void DrawArena(SpriteBatch spriteBatch, DungeonWorld world)
+    {
+        BitmapFont font = _context.Font;
+        UiDraw.Begin(spriteBatch);
+        for (int index = 0; index < world.Players.Count && index < 2; index++)
+            DrawFighterPanel(spriteBatch, world, world.Players[index], rightAligned: index == 1);
+
+        // "\:" im Formatstring = wörtlicher Doppelpunkt; mm:ss statt Sekundenzahl
+        string clock = TimeSpan.FromSeconds(world.ElapsedSeconds).ToString(@"m\:ss");
+        font.DrawCentered(spriteBatch, Loc.T("Arena · {0}", clock), CirclesGame.VirtualWidth / 2f, 4, Palette.Bone * 0.9f);
+        if (world.Players.Count == 1) DrawManualAbilities(spriteBatch, world);
+        DrawBossBar(spriteBatch, world);
+
+        string? announcement = world.CurrentAnnouncement;
+        if (announcement is not null) font.DrawCentered(spriteBatch, announcement, CirclesGame.VirtualWidth / 2f, 60, Palette.Faith);
+        spriteBatch.End();
+    }
+
+    /// <summary>Name, Leben, Mana, Ausdauer und Kleidung eines Kämpfers. Rechts gespiegelt für Spieler 2.</summary>
+    private void DrawFighterPanel(SpriteBatch spriteBatch, DungeonWorld world, Player player, bool rightAligned)
+    {
+        BitmapFont font = _context.Font;
+        Texture2D pixel = _context.Assets.Pixel;
+        int left = rightAligned ? CirclesGame.VirtualWidth - 6 - ArenaBarWidth : 6;
+        // Kürzere Leisten bündig zur Außenkante: links am Anfang, rechts am Ende der Tafel.
+        int Align(int width) => rightAligned ? left + ArenaBarWidth - width : left;
+
+        bool isDown = player.Health.IsDead;
+        string name = isDown ? Loc.T("{0} – gefallen", player.Name) : player.Name;
+        float nameX = rightAligned ? left + ArenaBarWidth - font.MeasureWidth(name) : left;
+        font.DrawShadowed(spriteBatch, name, new Vector2(nameX, 3), isDown ? Palette.Blood : Palette.Faith);
+
+        UiDraw.Bar(spriteBatch, pixel, new Rectangle(left, 14, ArenaBarWidth, 7), player.Health.Ratio, Palette.Blood);
+        UiDraw.Bar(spriteBatch, pixel, new Rectangle(Align(70), 23, 70, 5), player.Mana / MathF.Max(1f, player.MaxMana), Palette.Mana);
+        UiDraw.Bar(spriteBatch, pixel, new Rectangle(Align(70), 30, 70, 4),
+            player.Stamina / player.MaxStaminaValue, player.IsBlocking ? Palette.Gold : Palette.Ash);
+
+        var (remaining, max) = EquipmentService.ArmorHits(_context.Definitions, player.RunOf(world));
+        for (int index = 0; index < max; index++)
+        {
+            int boxX = rightAligned ? left + ArenaBarWidth - (index + 1) * 6 : left + index * 6;
+            var box = new Rectangle(boxX, 37, 5, 5);
+            bool intact = index < remaining;
+            UiDraw.Rect(spriteBatch, pixel, box, intact ? Palette.Bone : new Color(40, 36, 46));
+            UiDraw.Border(spriteBatch, pixel, box, intact ? Palette.Gold : new Color(70, 64, 80));
+        }
+    }
+
     /// <summary>
     /// Ein Kästchen je verbleibendem Treffer der getragenen Kleidung, rechts neben der Lebensleiste.
     /// Ohne das bleibt "die Kleidung wird verbraucht" eine Behauptung, die man erst bemerkt, wenn

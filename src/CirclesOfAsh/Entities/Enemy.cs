@@ -42,6 +42,10 @@ public sealed class Enemy : Actor
     public void ApplySpeedMultiplier(float multiplier) => _speedMultiplier = multiplier;
 
     public bool IsSpawning => _spawnTimer > 0f;
+    /// <summary>Restzeit der Beschwörung (pulsierende Silhouette). Für die Online-Arena.</summary>
+    public float SpawnSecondsLeft => _spawnTimer;
+    public bool IsFlashing => HitFlashSeconds > 0f;
+    public string AnimationName => _animation.CurrentClip.Name;
     public bool IsBoss => Definition.IsBoss;
     public bool IsMiniBoss => Definition.IsMiniBoss;
 
@@ -107,6 +111,24 @@ public sealed class Enemy : Actor
         if (clampedX != Position.X) Velocity.X = 0f;
         if (clampedY != Position.Y) Velocity.Y = 0f;
         Position = new Vector2(clampedX, clampedY);
+    }
+
+    /// <summary>Online-Gast: steht und schaut so, wie der Gastgeber es meldet. Das Brain ruht.</summary>
+    public void ApplyMirror(EnemyMirrorState state)
+    {
+        Position = state.Position;
+        FacingRight = state.FacingRight;
+        _spawnTimer = state.SpawnSeconds;
+        HitFlashSeconds = state.Flashing ? 0.05f : 0f;
+        _animation.Play(state.Animation);
+        Health.Mirror(state.Health, state.MaxHealth, 0f);
+    }
+
+    /// <summary>Online-Gast: Animation und Beschwörungspuls laufen bis zum nächsten Schnappschuss weiter.</summary>
+    public void AdvanceMirror(float deltaSeconds)
+    {
+        _animation.Update(deltaSeconds);
+        _spawnTimer = MathF.Max(0f, _spawnTimer - deltaSeconds);
     }
 
     public override void Draw(SpriteBatch spriteBatch)

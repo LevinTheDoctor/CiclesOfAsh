@@ -38,6 +38,13 @@ public sealed class Pickup : Entity
 
     public PickupKind Kind { get; }
     public float Value { get; }
+    public string SheetId => _animation.Sheet.Id;
+    public string AnimationName => _animation.CurrentClip.Name;
+
+    /// <summary>Online-Gast: liegt dort, wo der Gastgeber es meldet.</summary>
+    public void ApplyMirror(Vector2 position) => Position = position;
+
+    public void AdvanceMirror(float deltaSeconds) => _animation.Update(deltaSeconds);
     public string ItemId { get; }
     public bool IsFloating { get; }
     /// <summary>Items und Reliquien leuchten schwach -> auch im Dunkeln auffindbar.</summary>
@@ -47,7 +54,8 @@ public sealed class Pickup : Entity
     {
         _animation.Update(deltaSeconds);
         _time += deltaSeconds;
-        Player player = world.Player;
+        // Zu zweit fliegt es zum Näheren. Sind alle gefallen, sammelt niemand mehr etwas ein.
+        if (world.NearestLivingPlayer(Center) is not { } player) return;
         bool canMagnetize = Kind is not (PickupKind.Relic or PickupKind.Item);
         if (!_isMagnetized && canMagnetize &&
             Vector2.Distance(Center, player.Center) < player.Stats[StatType.PickupRadius])
@@ -73,7 +81,7 @@ public sealed class Pickup : Entity
 
         if (Bounds.Intersects(player.Bounds))
         {
-            world.CollectPickup(this);
+            world.CollectPickup(this, player);
             Remove();
         }
     }

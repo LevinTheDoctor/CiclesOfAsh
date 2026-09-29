@@ -22,6 +22,12 @@ public interface IPropBehavior
     bool Interact(Prop prop, DungeonWorld world) => false;
     void OnSignal(Prop prop, DungeonWorld world, string signal) { }
     void Draw(SpriteBatch spriteBatch, Prop prop) => prop.DrawSprite(spriteBatch);
+
+    /// <summary>
+    /// Reine Zierde ohne Folgen für das Spiel (flatternde Fledermäuse, huschende Ratten). Nur solche
+    /// Props rechnet der Online-Gast selbst; alles andere zeigt er so, wie der Gastgeber es meldet.
+    /// </summary>
+    bool IsCosmetic => false;
 }
 
 /// <summary>"static": Deko, optional mit Licht (Laternen, Fackeln, Fenster ...).</summary>
@@ -30,6 +36,7 @@ public sealed class StaticProp : IPropBehavior { }
 /// <summary>"bats": hängt an der Decke und flattert davon, sobald der Spieler näher kommt.</summary>
 public sealed class BatProp : IPropBehavior
 {
+    public bool IsCosmetic => true;
     private const float ScareDistance = 110f;
     private const float FlightSeconds = 2.5f;
     private Vector2 _velocity;
@@ -40,10 +47,11 @@ public sealed class BatProp : IPropBehavior
     {
         if (prop.State == 0)
         {
-            if (Vector2.Distance(prop.Center, world.Player.Center) > ScareDistance) return;
+            Player nearest = world.TargetOf(prop.Center);
+            if (Vector2.Distance(prop.Center, nearest.Center) > ScareDistance) return;
             prop.State = 1;
             prop.Animation.Play("fly");
-            float away = MathF.Sign(prop.Center.X - world.Player.Center.X);
+            float away = MathF.Sign(prop.Center.X - nearest.Center.X);
             if (away == 0f) away = 1f;
             _velocity = new Vector2(away * (70f + world.Random.NextSingle() * 60f), -30f - world.Random.NextSingle() * 50f);
             prop.IsFlipped = away < 0f;

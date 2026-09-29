@@ -401,7 +401,7 @@ public sealed class CharacterCreatorScene : SceneBase
                 Row.Hair => Loc.T("Frisur"),
                 Row.HairColor => Loc.T("Haarfarbe"),
                 Row.Gender => Loc.T("Geschlecht"),
-                Row.Body => _bodies.HasGenders ? Loc.T("Statur") : Loc.T("Gestalt"),
+                Row.Body => _bodies.HasGenders ? Loc.T("Statur") : Loc.T("Körperbau"),
                 Row.Makeup => Loc.T("Bemalung"),
                 Row.MakeupColor => Loc.T("Bemalungsfarbe"),
                 Row.Wings => Loc.T("Flügel"),

@@ -36,6 +36,24 @@ public sealed class Health
 
     public void Heal(float amount) => Current = MathF.Min(Max, Current + MathF.Max(0f, amount));
 
+    /// <summary>
+    /// Online-Gast: Werte genau so übernehmen, wie der Gastgeber sie gerechnet hat – ohne eigene
+    /// Regeln (kein "tot bleibt tot", kein Mindestwert).
+    /// </summary>
+    public void Mirror(float current, float max, float invulnerableSeconds)
+    {
+        Max = MathF.Max(1f, max);
+        Current = Math.Clamp(current, 0f, Max);
+        InvulnerableSeconds = MathF.Max(0f, invulnerableSeconds);
+    }
+
+    /// <summary>Holt einen Gefallenen zurück – mit diesem Anteil des Maximums, mindestens 1 Punkt.</summary>
+    public void Revive(float ratio)
+    {
+        if (!IsDead) return;
+        Current = MathF.Max(1f, Max * Math.Clamp(ratio, 0f, 1f));
+    }
+
     /// <summary>Neues Maximum; das prozentuale Verhältnis bleibt erhalten (Upgrade soll nicht "leer" wirken).</summary>
     public void SetMax(float newMax)
     {

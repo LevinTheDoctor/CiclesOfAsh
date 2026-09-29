@@ -188,19 +188,7 @@ public sealed class ProgressionService
     {
         SavedCharacter character = RequireActiveCharacter();
         ClassDefinition playerClass = _definitions.Classes.Get(classId);
-        var run = new RunState
-        {
-            ClassId = playerClass.Id,
-            Appearance = character.Appearance,
-            WorldId = _definitions.Worlds.All.First().Id,
-            Seed = Random.Shared.Next(),
-            CompanionIds = companionIds.Take(Balance.CompanionSlots).ToList(),
-            Underwear = underwear >= 0 ? underwear : RollUnderwear(),
-        };
-        foreach (string abilityId in playerClass.StartingAbilities) run.AbilityLevels[abilityId] = 1;
-        // Startkleidung über den normalen Weg anlegen: AddItem setzt die Trefferzahl gleich mit.
-        if (_definitions.Items.TryGet(playerClass.StartingArmor, out ItemDefinition? armor))
-            EquipmentService.AddItem(run, armor);
+        RunState run = CreateStartingRun(playerClass, character.Appearance, companionIds, underwear);
 
         Meta.RunsStarted++;
         character.Runs++;
@@ -212,6 +200,37 @@ public sealed class ProgressionService
         Touch(character);
         _saves.SaveMeta(Meta);
         return run;
+    }
+
+    /// <summary>
+    /// Ein frischer Lauf mit der Startausstattung einer Klasse – noch nirgends gespeichert. Genutzt
+    /// für jeden neuen Abstieg und für Gestalten ohne Lauf in der Arena (DRY).
+    /// </summary>
+    public RunState CreateStartingRun(ClassDefinition playerClass, CharacterAppearance appearance,
+                                      IEnumerable<string> companionIds, int underwear = -1)
+    {
+        var run = new RunState
+        {
+            ClassId = playerClass.Id,
+            Appearance = appearance,
+            WorldId = _definitions.Worlds.All.First().Id,
+            Seed = Random.Shared.Next(),
+            CompanionIds = companionIds.Take(Balance.CompanionSlots).ToList(),
+            Underwear = underwear >= 0 ? underwear : RollUnderwear(),
+        };
+        foreach (string abilityId in playerClass.StartingAbilities) run.AbilityLevels[abilityId] = 1;
+        // Startkleidung über den normalen Weg anlegen: AddItem setzt die Trefferzahl gleich mit.
+        if (_definitions.Items.TryGet(playerClass.StartingArmor, out ItemDefinition? armor))
+            EquipmentService.AddItem(run, armor);
+        return run;
+    }
+
+    /// <summary>Arena gewonnen: zählt im Werdegang der Gestalt (Gestaltenauswahl). Sonst ändert sich nichts.</summary>
+    public void RecordArenaWin(int characterId)
+    {
+        if (_characters.FirstOrDefault(character => character.Id == characterId) is not { } winner) return;
+        winner.ArenaWins++;
+        _saves.SaveCharacter(winner);
     }
 
     /// <summary>Würfelt ein Unterwäsche-Muster. Ohne hinterlegte Muster bleibt es bei 0.</summary>
@@ -391,7 +410,10 @@ public sealed class ProgressionService
     public float ExperienceForNextLevel(int level) => MathF.Round(Balance.XpBase * MathF.Pow(Balance.XpGrowth, level - 1));
 
     /// <summary>Göttliche Macht: Prozentbonus aus Gläubigen, z. B. 250 Gläubige * 0.05 / 100 = +12,5 %.</summary>
-    public float BelieverBonus(float perHundred) => Meta.Believers / 100f * perHundred;
+    public float BelieverBonus(float perHundred) => BelieverBonusFor(Meta.Believers, perHundred);
+
+    /// <summary>Dieselbe Formel für beliebig viele Gläubige – etwa die des Online-Mitspielers.</summary>
+    public static float BelieverBonusFor(long believers, float perHundred) => believers / 100f * perHundred;
 
     private IEnumerable<string> UnlockCompanionsByBelievers()
     {

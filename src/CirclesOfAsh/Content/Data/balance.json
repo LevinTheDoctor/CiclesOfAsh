@@ -53,5 +53,8 @@
   "forgeMendCost": 8,
   "forgeCostPerUse": 6,
   "forgeWeaveCost": 25,
-  "forgeMendHits": 1
+  "forgeMendHits": 1,
+  // Arena zu zweit: so viel mehr Leben je weiterer Spielfigur (0.6 = +60 %). Nicht +100 %:
+  // Zwei Spieler stehen sich auch im Weg, und Aufrichten kostet Zeit.
+  "arenaHealthPerExtraPlayer": 0.6
 }

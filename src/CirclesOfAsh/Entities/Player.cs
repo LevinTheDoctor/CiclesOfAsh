@@ -103,6 +103,27 @@ public sealed class Player : Actor
 
     public ClassDefinition Class { get; }
     public StatSheet Stats { get; }
+
+    /// <summary>
+    /// Woher diese Figur ihre Tasten bekommt. null = die gemeinsame Eingabe (Tastatur + erster
+    /// Controller) wie im Einzelspiel. In der Arena hat jede Figur ihre eigene Quelle.
+    /// </summary>
+    public IPlayerInput? Input { get; set; }
+
+    /// <summary>
+    /// Der Lauf, aus dem diese Figur gebaut wurde – für Kleidung, die Treffer schluckt. null = der
+    /// Lauf der Welt (Einzelspiel). Zu zweit hat jede Figur ihren eigenen, sonst teilten sie sich eine Rüstung.
+    /// </summary>
+    public Progression.RunState? Run { get; set; }
+
+    /// <summary>Anzeigename (Gestalt), für Ansagen und die Arena-Anzeige.</summary>
+    public string Name { get; set; } = "";
+
+    /// <summary>Gerade gezeigte Animation ("idle", "run", "jump", "hurt"). Die Online-Arena schickt sie mit.</summary>
+    public string AnimationName { get; private set; } = "idle";
+
+    /// <summary>Beim Online-Gast: zuletzt gezeigte Kleidung, damit das Sprite nur bei einem Wechsel neu entsteht.</summary>
+    private string? _mirroredArmorSprite;
     public float Mana { get; private set; }
     public float MaxMana => Stats[StatType.MaxMana];
     public int MaxAirJumps { get; set; }
@@ -124,7 +145,8 @@ public sealed class Player : Actor
 
     public override void Update(DungeonWorld world, float deltaSeconds)
     {
-        InputState input = world.Context.Input;
+        // "??" = Null-Coalescing: ohne eigene Quelle die gemeinsame Eingabe des Spiels.
+        IPlayerInput input = Input ?? world.Context.Input;
         Health.Update(deltaSeconds);
         HitFlashSeconds -= deltaSeconds;
         _stealthTimer = MathF.Max(0f, _stealthTimer - deltaSeconds);
@@ -138,7 +160,7 @@ public sealed class Player : Actor
     }
 
     // ------------------------------------------------------------------ Bewegung
-    private void UpdateMovement(DungeonWorld world, InputState input, float deltaSeconds)
+    private void UpdateMovement(DungeonWorld world, IPlayerInput input, float deltaSeconds)
     {
         float horizontal = input.Horizontal;
         UpdateCrouch(world, input);
@@ -195,7 +217,7 @@ public sealed class Player : Actor
     /// statt als Faehigkeit – anders als die Faehigkeiten haengt das direkt an Bewegung und
     /// Trefferbox, und es soll auch ohne ausgeruestete Faehigkeit funktionieren.
     /// </summary>
-    private void UpdateMeleeCombat(DungeonWorld world, InputState input, float deltaSeconds)
+    private void UpdateMeleeCombat(DungeonWorld world, IPlayerInput input, float deltaSeconds)
     {
         _attackTimer -= deltaSeconds;
         _comboTimer -= deltaSeconds;
@@ -278,7 +300,7 @@ public sealed class Player : Actor
     /// Ducken: Runter halten, solange man am Boden und nicht im Wasser ist. Das Aufstehen ist
     /// gesperrt, solange oben eine massive Kachel liegt – sonst steckte die Figur in der Decke.
     /// </summary>
-    private void UpdateCrouch(DungeonWorld world, InputState input)
+    private void UpdateCrouch(DungeonWorld world, IPlayerInput input)
     {
         bool wantsCrouch = input.IsDown(GameAction.Down) && OnGround && !_wasInWater && !IsDashing;
         if (wantsCrouch)
@@ -307,7 +329,7 @@ public sealed class Player : Actor
         Position.Y = bottom - height;
     }
 
-    private void TryJump(DungeonWorld world, InputState input)
+    private void TryJump(DungeonWorld world, IPlayerInput input)
     {
         if (input.IsDown(GameAction.Down) && OnGround && TilePhysics.IsStandingOnPlatformOnly(this, world.Map))
         {
@@ -424,7 +446,7 @@ public sealed class Player : Actor
                 world.Announce(Loc.T("{0}: {1}!", hit.ItemName, Progression.EquipmentService.StageName(hit.Stage)));
             }
             // Ohne das erschiene die ramponierte Fassung nie: Apply ruehrt nur die Werte an.
-            RefreshAppearance(world.Context, world.Run);
+            RefreshAppearance(world.Context, RunOf(world));
             return;
         }
 
@@ -441,9 +463,12 @@ public sealed class Player : Actor
 
         RefreshDerivedStats();
         Stats.SetSource(Progression.EquipmentService.StatSource,
-            Progression.EquipmentService.CollectModifiers(world.Context.Definitions, world.Run));
-        RefreshAppearance(world.Context, world.Run);   // Kleidung verschwindet auch sichtbar
+            Progression.EquipmentService.CollectModifiers(world.Context.Definitions, RunOf(world)));
+        RefreshAppearance(world.Context, RunOf(world));   // Kleidung verschwindet auch sichtbar
     }
+
+    /// <summary>Der eigene Lauf, sonst der der Welt (Einzelspiel: beide sind dasselbe Objekt).</summary>
+    public Progression.RunState RunOf(DungeonWorld world) => Run ?? world.Run;
 
     /// <summary>
     /// Baut das Ebenen-Sprite neu – nötig, wenn sich die getragene Kleidung oder ihre Verfallsstufe
@@ -453,6 +478,64 @@ public sealed class Player : Actor
     public void RefreshAppearance(GameContext context, Progression.RunState run) =>
         _visual = Progression.CharacterVisuals.Create(context, Class, run.Appearance,
             Progression.EquipmentService.ArmorSprite(context.Definitions, run, context.Assets), run.Underwear);
+
+    // ------------------------------------------------------------------ Online-Arena (Spiegel)
+    /// <summary>Gastgeber: der sichtbare Zustand dieser Figur für den Schnappschuss.</summary>
+    public PlayerMirrorState CaptureMirror(DungeonWorld world)
+    {
+        Progression.RunState run = RunOf(world);
+        // "|" setzt Bits, "? X : None" nur, wenn der Zustand zutrifft
+        PlayerMirrorFlags flags = (FacingRight ? PlayerMirrorFlags.FacingRight : PlayerMirrorFlags.None)
+            | (Health.IsDead ? PlayerMirrorFlags.Dead : PlayerMirrorFlags.None)
+            | (IsCrouching ? PlayerMirrorFlags.Crouching : PlayerMirrorFlags.None)
+            | (IsStealthed ? PlayerMirrorFlags.Stealthed : PlayerMirrorFlags.None)
+            | (IsBlocking ? PlayerMirrorFlags.Blocking : PlayerMirrorFlags.None)
+            | (HitFlashSeconds > 0f ? PlayerMirrorFlags.Flashing : PlayerMirrorFlags.None)
+            | (IsDashing ? PlayerMirrorFlags.Dashing : PlayerMirrorFlags.None);
+        string armorSprite = Progression.EquipmentService.ArmorSprite(world.Context.Definitions, run, world.Context.Assets) ?? "";
+        return new PlayerMirrorState(Position, flags, AnimationName, Health.Current, Health.Max, Health.InvulnerableSeconds,
+            Mana, Stamina, run.ArmorDurability, armorSprite, world.ReviveProgressOf(this),
+            _abilities.Select(ability => ability.Behavior.VisualPhase).ToList());
+    }
+
+    /// <summary>
+    /// Gast: übernimmt, was der Gastgeber gerechnet hat. Die Figur rechnet selbst nichts – sie zeigt
+    /// nur, wo sie beim Gastgeber steht, wie sie aussieht und wie es ihr geht.
+    /// </summary>
+    public void ApplyMirror(PlayerMirrorState state, DungeonWorld world)
+    {
+        // Erst die Höhe (Ducken), dann die Position: Die Position des Gastgebers passt zur Höhe dort.
+        bool crouching = state.Flags.HasFlag(PlayerMirrorFlags.Crouching);
+        SetHeight(crouching ? _crouchHeight : _standHeight);
+        IsCrouching = crouching;
+        Position = state.Position;
+        FacingRight = state.Flags.HasFlag(PlayerMirrorFlags.FacingRight);
+        _stealthTimer = state.Flags.HasFlag(PlayerMirrorFlags.Stealthed) ? 1f : 0f;
+        IsBlocking = state.Flags.HasFlag(PlayerMirrorFlags.Blocking);
+        _dashTimer = state.Flags.HasFlag(PlayerMirrorFlags.Dashing) ? 0.05f : 0f;
+        HitFlashSeconds = state.Flags.HasFlag(PlayerMirrorFlags.Flashing) ? 0.05f : 0f;
+        Health.Mirror(state.Health, state.MaxHealth, state.InvulnerableSeconds);
+        Mana = state.Mana;
+        Stamina = state.Stamina;
+        if (AnimationName != state.Animation)
+        {
+            AnimationName = state.Animation;
+            _visual.Play(state.Animation);
+        }
+        for (int index = 0; index < _abilities.Count && index < state.AbilityPhases.Count; index++)
+            _abilities[index].Behavior.VisualPhase = state.AbilityPhases[index];
+
+        Progression.RunState run = RunOf(world);
+        run.ArmorDurability = state.ArmorDurability;   // für die Kästchen der Arena-Anzeige
+        if (_mirroredArmorSprite == state.ArmorSprite) return;
+        _mirroredArmorSprite = state.ArmorSprite;
+        _visual = Progression.CharacterVisuals.Create(world.Context, Class, run.Appearance,
+            state.ArmorSprite.Length > 0 ? state.ArmorSprite : null, run.Underwear);
+        _visual.Play(AnimationName);
+    }
+
+    /// <summary>Gast: nur die Animation läuft bis zum nächsten Schnappschuss weiter.</summary>
+    public void AdvanceMirror(float deltaSeconds) => _visual.Update(deltaSeconds);
 
     // ------------------------------------------------------------------ Kampf & Ressourcen
     public void TakeHit(DungeonWorld world, float amount, Vector2 source, float knockback)
@@ -481,9 +564,10 @@ public sealed class Player : Actor
         // Die Ruestung faengt den Treffer VOLLSTAENDIG ab, bevor Leben verloren geht (Vorbild
         // Ghosts 'n Goblins). Vorher lief TakeDamage zuerst und die Ruestung litt nur zusaetzlich
         // mit - sie war also eine zweite Lebensleiste statt eines Schildes.
+        if (Health.IsDead) return;   // Gefallene (zu zweit) nehmen keinen weiteren Schaden
         if (!Health.IsInvulnerable)
         {
-            var armorHit = Progression.EquipmentService.AbsorbHit(world.Context.Definitions, world.Run);
+            var armorHit = Progression.EquipmentService.AbsorbHit(world.Context.Definitions, RunOf(world));
             if (armorHit.Result != Progression.EquipmentService.ArmorResult.None)
             {
                 OnArmorHit(world, source, knockback, armorHit);
@@ -501,7 +585,18 @@ public sealed class Player : Actor
             world.Effects.Text(new Vector2(Center.X, Position.Y - 4), $"-{(int)MathF.Ceiling(reduced)}", Palette.Blood);
         world.Context.Audio.Play("hurt", 0.7f);
         world.ShakeCamera(3f);
-        if (Health.IsDead) world.NotifyPlayerDied();
+        if (Health.IsDead) world.NotifyPlayerDied(this);
+    }
+
+    /// <summary>
+    /// Zu zweit: Ein Mitspieler hat die gefallene Figur wieder aufgerichtet. Mit einem Teil des
+    /// Lebens und kurzer Unverwundbarkeit, damit sie nicht im selben Atemzug wieder fällt.
+    /// </summary>
+    public void Revive(float healthRatio)
+    {
+        Health.Revive(healthRatio);
+        Health.GrantInvulnerability(1.5f);
+        Velocity = Vector2.Zero;
     }
 
     public void RestoreMana(float amount) => Mana = MathF.Min(MaxMana, Mana + amount);
@@ -524,7 +619,7 @@ public sealed class Player : Actor
     public AbilityInstance? FindAbility(string abilityId) =>
         _abilities.FirstOrDefault(ability => string.Equals(ability.Definition.Id, abilityId, StringComparison.OrdinalIgnoreCase));
 
-    private void UpdateAbilities(DungeonWorld world, InputState input, float deltaSeconds)
+    private void UpdateAbilities(DungeonWorld world, IPlayerInput input, float deltaSeconds)
     {
         foreach (AbilityInstance ability in _abilities)
         {
@@ -552,7 +647,7 @@ public sealed class Player : Actor
 
     // ------------------------------------------------------------------ Heimwelt-Hub
     /// <summary>Bewegung im Hub: gleiche Plattformer-Physik, aber ohne Kampf/Fähigkeiten/Mana.</summary>
-    public void UpdateHub(World.TileMap map, InputState input, float deltaSeconds)
+    public void UpdateHub(World.TileMap map, IPlayerInput input, float deltaSeconds)
     {
         float horizontal = input.Horizontal;
         float targetSpeed = horizontal * Stats[StatType.MoveSpeed];
@@ -574,12 +669,20 @@ public sealed class Player : Actor
             : !OnGround ? "jump"
             : MathF.Abs(Velocity.X) > 10f ? "run"
             : "idle";
+        AnimationName = clip;
         _visual.Play(clip);
         _visual.Update(deltaSeconds);
     }
 
     public override void Draw(SpriteBatch spriteBatch)
     {
+        if (Health.IsDead)
+        {
+            // Gefallen (nur zu zweit sichtbar): fahl und liegend angedeutet, bis jemand hilft.
+            _visual.Draw(spriteBatch, BottomCenter, flipHorizontally: !FacingRight, new Color(120, 120, 140) * 0.55f,
+                         new Vector2(1f, 0.45f));
+            return;
+        }
         Color tint = IsStealthed ? new Color(150, 110, 220) * 0.45f : Color.White;
         // Blinken während der Unverwundbarkeit: jeden zweiten "Takt" halbtransparent
         if (Health.IsInvulnerable && !IsDashing && (int)(Health.InvulnerableSeconds * 20f) % 2 == 0) tint *= 0.35f;

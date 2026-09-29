@@ -35,14 +35,38 @@ public sealed class TileMap
     public int Height { get; }
     public Rectangle PixelBounds => new(0, 0, Width * TileSize, Height * TileSize);
 
+    /// <summary>
+    /// Eine Kachel hat sich geändert (x, y, vorher, nachher) – etwa eine Plattform zerbröckelt.
+    /// Die Online-Arena hält so fest, welche Kacheln vom erzeugten Stand abweichen.
+    /// </summary>
+    public event Action<int, int, TileType, TileType>? TileChanged;
+
     /// <summary>Außerhalb der Karte gilt alles als massiv -> niemand fällt aus der Welt.</summary>
     public TileType this[int x, int y]
     {
         get => IsInside(x, y) ? _tiles[y * Width + x] : TileType.Solid;
         set
         {
-            if (IsInside(x, y)) _tiles[y * Width + x] = value;   // "value" = der zugewiesene Wert im Setter
+            if (!IsInside(x, y)) return;
+            TileType previous = _tiles[y * Width + x];
+            _tiles[y * Width + x] = value;   // "value" = der zugewiesene Wert im Setter
+            if (previous != value) TileChanged?.Invoke(x, y, previous, value);
         }
+    }
+
+    /// <summary>
+    /// Prüfsumme über alle Kacheln (FNV-1a). Gastgeber und Gast vergleichen sie: Nur wenn beide aus
+    /// demselben Seed dasselbe Verlies erzeugt haben, passen Schnappschüsse zur Karte.
+    /// </summary>
+    public uint Checksum()
+    {
+        uint hash = 2166136261;   // FNV-Startwert
+        foreach (TileType tile in _tiles)
+        {
+            hash ^= (uint)tile;   // "^=" = XOR und zuweisen
+            hash *= 16777619;     // FNV-Primzahl; Überlauf ist gewollt (unchecked ist der Standard)
+        }
+        return hash;
     }
 
     public bool IsInside(int x, int y) => x >= 0 && y >= 0 && x < Width && y < Height;

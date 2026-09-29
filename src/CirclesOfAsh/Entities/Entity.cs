@@ -17,6 +17,12 @@ public abstract class Entity
     public Point Size { get; protected set; }
     public bool IsRemoved { get; private set; }
 
+    /// <summary>
+    /// Eindeutige Nummer in der Welt (von <see cref="DungeonWorld"/> vergeben). Über sie erkennt der
+    /// Online-Gast ein Objekt im nächsten Schnappschuss wieder. 0 = noch nicht vergeben.
+    /// </summary>
+    public int NetworkId { get; set; }
+
     public Rectangle Bounds => new((int)MathF.Floor(Position.X), (int)MathF.Floor(Position.Y), Size.X, Size.Y);
     public Vector2 Center => Position + Size.ToVector2() / 2f;
     public Vector2 BottomCenter => new(Position.X + Size.X / 2f, Position.Y + Size.Y);

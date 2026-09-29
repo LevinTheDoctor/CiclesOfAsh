@@ -25,7 +25,7 @@ public sealed class ChargeAttack : IBossAttack
     public void Begin(Enemy boss, DungeonWorld world, float intensity)
     {
         _intensity = intensity;
-        _direction = MathF.Sign(world.Player.Center.X - boss.Center.X);
+        _direction = MathF.Sign(world.TargetOf(boss.Center).Center.X - boss.Center.X);
         if (_direction == 0f) _direction = 1f;
         boss.ForcedAnimation = "cast";
     }
@@ -124,7 +124,7 @@ public sealed class SlamAttack : IBossAttack
     public void Begin(Enemy boss, DungeonWorld world, float intensity)
     {
         boss.Velocity.Y = -520f;
-        boss.Velocity.X = MathF.Sign(world.Player.Center.X - boss.Center.X) * 90f * intensity;
+        boss.Velocity.X = MathF.Sign(world.TargetOf(boss.Center).Center.X - boss.Center.X) * 90f * intensity;
     }
 
     public bool Update(Enemy boss, DungeonWorld world, float deltaSeconds)

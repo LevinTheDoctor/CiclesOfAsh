@@ -40,6 +40,9 @@ public sealed class TitleScene : SceneBase
             _menu.Add(Loc.T("Gestalten"), () => Context.Scenes.Replace(new CharacterSelectScene(Context)));
         else
             _menu.Add(Loc.T("Neue Gestalt erschaffen"), () => Context.Scenes.Replace(new CharacterCreatorScene(Context)));
+        // Die Arena braucht eine Gestalt, die hineinsteigt – vorher bleibt der Eintrag ausgegraut.
+        _menu.Add(Loc.T("Arena"), () => Context.Scenes.Replace(new ArenaLobbyScene(Context)),
+                  isEnabled: progression.Characters.Count > 0);
         // Ohne laufenden Abstieg gibt es keinen begehbaren Tempel (kein Spielerfigur-Zustand) –
         // dann bleibt das Missionsbrett als Menü erreichbar.
         if (progression.CurrentRun is null)
