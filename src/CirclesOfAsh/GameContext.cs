@@ -1,6 +1,7 @@
 using CirclesOfAsh.Assets;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Modding;
 using CirclesOfAsh.Persistence;
 using CirclesOfAsh.Progression;
@@ -27,6 +28,7 @@ public sealed class GameContext : IDisposable
         BehaviorRegistry behaviors,
         ProgressionService progression,
         ISaveRepository saves,
+        Localizer localizer,
         Action requestExit)
     {
         GraphicsDevice = graphicsDevice;
@@ -37,7 +39,9 @@ public sealed class GameContext : IDisposable
         Definitions = definitions;
         Behaviors = behaviors;
         Progression = progression;
+        Arena = new ArenaService(definitions, progression);
         Saves = saves;
+        Localizer = localizer;
         _requestExit = requestExit;
     }
 
@@ -49,7 +53,11 @@ public sealed class GameContext : IDisposable
     public DefinitionRegistry Definitions { get; }
     public BehaviorRegistry Behaviors { get; }
     public ProgressionService Progression { get; }
+    /// <summary>Regeln der Arena: Gegner, Freischaltung, Kämpfer, Kampfplatz.</summary>
+    public ArenaService Arena { get; }
     public ISaveRepository Saves { get; }
+    /// <summary>Alle Sprachen und die aktive. Übersetzt wird überall über <see cref="Loc"/>.</summary>
+    public Localizer Localizer { get; }
     public GameSettings Settings { get; private set; } = new();
     public InputState Input { get; } = new();
     public SceneManager Scenes { get; } = new();
@@ -83,6 +91,9 @@ public sealed class GameContext : IDisposable
         Log.Initialize(LogFilePath);   // idempotent: CirclesGame hat das beim Start schon erledigt
 
         var locator = ContentLocator.Discover(AppContext.BaseDirectory);
+        // Sprachen zuerst: Schon die Meldungen beim Laden der Daten dürfen übersetzt sein.
+        var localizer = Localizer.Load(locator);
+        Loc.Current = localizer;
         var assets = AssetManager.Load(graphicsDevice, locator);
         var audio = new AudioService(locator, assets.Manifest.Sounds);
         var music = new MusicSystem(locator, assets.Manifest.Music);
@@ -97,7 +108,7 @@ public sealed class GameContext : IDisposable
         // "nie gesetzt". ScreenSetup waehlt daraus die groesste Stufe, die auf den Bildschirm passt.
         settings.Sanitize();
 
-        var context = new GameContext(graphicsDevice, locator, assets, audio, music, definitions, behaviors, progression, saves, requestExit)
+        var context = new GameContext(graphicsDevice, locator, assets, audio, music, definitions, behaviors, progression, saves, localizer, requestExit)
         {
             Settings = settings,
         };
@@ -110,7 +121,7 @@ public sealed class GameContext : IDisposable
         // bei jedem Start auf die Voreinstellung zurück, obwohl es in der DB steht.
         progression.SetDifficulty(settings.DifficultyId);
         context.ApplyLiveSettings();
-        context.Input.ControllerProfileResolver = context.ResolveControllerLabels;
+        context.Input.ControllerProfileResolver = context.ResolveControllerProfile;
         // Einmal schreiben, damit beim ersten Start die tatsächlich benutzten Werte in der DB
         // stehen (inklusive der Bildschirmgröße aus balance.json) statt einer leeren Tabelle.
         saves.SaveSettings(settings);
@@ -120,11 +131,10 @@ public sealed class GameContext : IDisposable
     public void RequestExit() => _requestExit();
 
     /// <summary>
-    /// Sucht zum Gerätenamen eines Controllers das passende Profil aus controllers.json und
-    /// übersetzt dessen Beschriftungen in GameActions. Kein Treffer -> das Auffangprofil (leeres "match").
-    /// Public, damit der Steuerungs-Reiter im Optionsmenü das erkannte Profil anzeigen kann.
+    /// Sucht zum Gerätenamen eines Controllers das passende Profil aus controllers.json.
+    /// Kein Treffer -> das Auffangprofil (leeres "match").
     /// </summary>
-    public IReadOnlyDictionary<GameAction, string>? ResolveControllerLabels(string deviceName)
+    public ControllerProfile? ResolveControllerProfile(string deviceName)
     {
         List<ControllerProfileDefinition> profiles = Definitions.ControllerProfiles.All.ToList();
         if (profiles.Count == 0) return null;
@@ -135,12 +145,32 @@ public sealed class GameContext : IDisposable
             ?? profiles.FirstOrDefault(candidate => candidate.Match.Count == 0)
             ?? profiles[0];
         Log.Info($"Controller erkannt: \"{deviceName}\" -> Profil '{profile.Id}' ({profile.Name}).");
+        return ToControllerProfile(profile);
+    }
 
+    /// <summary>
+    /// Ein Profil der gewünschten Tastenbild-Familie – für die Vorschau im Optionsmenü, auch ohne
+    /// angeschlossenen Controller. Bevorzugt das Profil, dessen Id so heißt wie die Familie
+    /// ("xbox", "switch"), sonst das erste mit dieser Familie.
+    /// </summary>
+    public ControllerProfile? ControllerProfileOfFamily(string glyphFamily)
+    {
+        List<ControllerProfileDefinition> family = Definitions.ControllerProfiles.All
+            .Where(profile => profile.Glyphs.Equals(glyphFamily, StringComparison.OrdinalIgnoreCase)).ToList();
+        ControllerProfileDefinition? chosen =
+            family.FirstOrDefault(profile => profile.Id.Equals(glyphFamily, StringComparison.OrdinalIgnoreCase))
+            ?? family.FirstOrDefault();
+        return chosen is null ? null : ToControllerProfile(chosen);
+    }
+
+    /// <summary>Übersetzt die Aktionsnamen der JSON ("Jump") in GameActions; Unbekanntes fällt weg.</summary>
+    private static ControllerProfile ToControllerProfile(ControllerProfileDefinition profile)
+    {
         var labels = new Dictionary<GameAction, string>();
         foreach (var (actionName, label) in profile.Labels)
             if (Enum.TryParse(actionName, ignoreCase: true, out GameAction action))
                 labels[action] = label;
-        return labels;
+        return new ControllerProfile(profile.Name, profile.Glyphs, labels);
     }
 
     /// <summary>Wird nach Änderungen im Optionsmenü aufgerufen: sofort hörbar machen und persistieren.</summary>
@@ -160,6 +190,19 @@ public sealed class GameContext : IDisposable
         Audio.ApplySettings(Settings);
         Music.ApplySettings(Settings);
         Input.RumbleScale = Settings.RumbleIntensity * Progression.Difficulty.RumbleMultiplier;
+        ApplyLanguage();
+    }
+
+    /// <summary>
+    /// Schaltet die Sprache um, sobald sie sich in den Einstellungen geändert hat, und sagt allen
+    /// Szenen Bescheid. Danach steht in den Einstellungen die tatsächlich aktive Sprache – eine
+    /// unbekannte Id (etwa aus einer entfernten Mod) fällt so dauerhaft auf Deutsch zurück.
+    /// </summary>
+    private void ApplyLanguage()
+    {
+        bool changed = Localizer.SetLanguage(Settings.Language);
+        Settings.Language = Localizer.CurrentId;
+        if (changed) Scenes.NotifyLanguageChanged();
     }
 
     /// <summary>Heimwelt-Deko speichern (nach jeder Platzierung/Löschung im Hub).</summary>

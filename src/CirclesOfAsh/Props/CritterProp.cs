@@ -12,6 +12,7 @@ namespace CirclesOfAsh.Props;
 /// </summary>
 public sealed class CritterProp : IPropBehavior
 {
+    public bool IsCosmetic => true;
     private const float ScareDistance = 40f;
     private const float PanicSeconds = 3.5f;
     private float _panicTimer;
@@ -26,7 +27,8 @@ public sealed class CritterProp : IPropBehavior
     public void Update(Prop prop, DungeonWorld world, float deltaSeconds)
     {
         _phase += deltaSeconds;
-        float distance = Vector2.Distance(prop.Center, world.Player.Center);
+        Player nearest = world.TargetOf(prop.Center);   // flieht vor dem, der am nächsten ist
+        float distance = Vector2.Distance(prop.Center, nearest.Center);
         if (_panicTimer <= 0f && distance < ScareDistance)
         {
             _panicTimer = PanicSeconds;
@@ -37,7 +39,7 @@ public sealed class CritterProp : IPropBehavior
         if (_panicTimer > 0f)
         {
             _panicTimer -= deltaSeconds;
-            float away = MathF.Sign(prop.Center.X - world.Player.Center.X);
+            float away = MathF.Sign(prop.Center.X - nearest.Center.X);
             if (away == 0f) away = 1f;
             prop.IsFlipped = away < 0f;
             float speed = 55f;

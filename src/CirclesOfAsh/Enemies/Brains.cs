@@ -2,6 +2,7 @@ using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Enemies;
@@ -12,21 +13,22 @@ public interface IEnemyBrain
     void Update(Enemy enemy, DungeonWorld world, float deltaSeconds);
 }
 
-/// <summary>Gemeinsame Helfer für Brains (DRY).</summary>
+/// <summary>
+/// Gemeinsame Helfer für Brains (DRY). Zielwahl: Jede KI fragt die Welt nach dem NÄCHSTEN Spieler
+/// (<see cref="DungeonWorld.NearestVisiblePlayer"/>) – im Einzelspiel ist das immer derselbe, zu
+/// zweit wendet sich ein Gegner dem zu, der ihm näher ist. Getarnte Spieler sieht er nicht.
+/// </summary>
 internal static class BrainHelpers
 {
-    /// <summary>Getarnte Spieler sind unsichtbar -> Gegner wandern ziellos.</summary>
-    public static bool CanSeePlayer(DungeonWorld world) => !world.Player.IsStealthed && !world.Player.Health.IsDead;
-
     public static bool IsWallAhead(Enemy enemy, TileMap map, float direction)
     {
         float probeX = direction > 0 ? enemy.Bounds.Right + 2 : enemy.Bounds.Left - 2;
         return TileMap.IsBlocking(map[TileMap.ToTile(probeX), TileMap.ToTile(enemy.Center.Y)]);
     }
 
-    public static void FireAtPlayer(Enemy enemy, DungeonWorld world, float speed, float spreadRadians = 0f)
+    public static void FireAt(Enemy enemy, DungeonWorld world, Player target, float speed, float spreadRadians = 0f)
     {
-        Vector2 direction = MathUtil.SafeNormalize(world.Player.Center - enemy.Center, Vector2.UnitX);
+        Vector2 direction = MathUtil.SafeNormalize(target.Center - enemy.Center, Vector2.UnitX);
         direction = MathUtil.Rotate(direction, spreadRadians);
         world.Spawn(new Projectile(Faction.Enemy, world.Context.Assets.GetSpriteSheet(enemy.Definition.ProjectileSprite),
             enemy.Center, direction * speed, enemy.Definition.ProjectileDamage * enemy.DamageMultiplier, 0, 4f, 60f));
@@ -43,9 +45,10 @@ public sealed class WalkerBrain : IEnemyBrain
     {
         _jumpCooldown -= deltaSeconds;
         float direction;
-        if (BrainHelpers.CanSeePlayer(world))
+        // "is { } target" = Eigenschaftsmuster: nicht null -> in "target" binden
+        if (world.NearestVisiblePlayer(enemy.Center) is { } target)
         {
-            float deltaX = world.Player.Center.X - enemy.Center.X;
+            float deltaX = target.Center.X - enemy.Center.X;
             direction = MathF.Abs(deltaX) < 4f ? 0f : MathF.Sign(deltaX);
         }
         else
@@ -56,7 +59,7 @@ public sealed class WalkerBrain : IEnemyBrain
         }
         enemy.Velocity.X = direction * enemy.EffectiveMoveSpeed;
 
-        bool playerAbove = world.Player.Bounds.Bottom < enemy.Bounds.Top - 24;
+        bool playerAbove = world.TargetOf(enemy.Center).Bounds.Bottom < enemy.Bounds.Top - 24;
         bool wantsJump = BrainHelpers.IsWallAhead(enemy, world.Map, direction) || (playerAbove && world.Random.NextSingle() < 0.02f);
         if (enemy.OnGround && wantsJump && _jumpCooldown <= 0f && direction != 0f)
         {
@@ -75,9 +78,9 @@ public sealed class FlyerBrain : IEnemyBrain
     {
         _time += deltaSeconds;
         Vector2 desired;
-        if (BrainHelpers.CanSeePlayer(world))
+        if (world.NearestVisiblePlayer(enemy.Center) is { } target)
         {
-            Vector2 toPlayer = MathUtil.SafeNormalize(world.Player.Center - enemy.Center, Vector2.Zero);
+            Vector2 toPlayer = MathUtil.SafeNormalize(target.Center - enemy.Center, Vector2.Zero);
             var perpendicular = new Vector2(-toPlayer.Y, toPlayer.X);   // 90°-gedrehter Vektor für die Welle
             desired = (toPlayer + perpendicular * MathF.Sin(_time * 4f) * 0.6f) * enemy.EffectiveMoveSpeed;
         }
@@ -100,13 +103,14 @@ public sealed class CasterBrain : IEnemyBrain
     {
         _castAnimationTimer -= deltaSeconds;
         enemy.ForcedAnimation = _castAnimationTimer > 0f ? "cast" : null;
-        if (!BrainHelpers.CanSeePlayer(world))
+        // "is not { } target" = kein sichtbarer Spieler -> stehen bleiben
+        if (world.NearestVisiblePlayer(enemy.Center) is not { } target)
         {
             enemy.Velocity.X = 0f;
             return;
         }
 
-        float deltaX = world.Player.Center.X - enemy.Center.X;
+        float deltaX = target.Center.X - enemy.Center.X;
         float distance = MathF.Abs(deltaX);
         float direction = distance < PreferredMin ? -MathF.Sign(deltaX) : distance > PreferredMax ? MathF.Sign(deltaX) : 0f;
         enemy.Velocity.X = direction * enemy.EffectiveMoveSpeed;
@@ -116,7 +120,7 @@ public sealed class CasterBrain : IEnemyBrain
         if (_attackTimer > 0f || distance > 280f) return;
         _attackTimer = enemy.Definition.AttackInterval;
         _castAnimationTimer = 0.4f;
-        BrainHelpers.FireAtPlayer(enemy, world, enemy.Definition.ProjectileSpeed);
+        BrainHelpers.FireAt(enemy, world, target, enemy.Definition.ProjectileSpeed);
     }
 }
 
@@ -141,16 +145,16 @@ public sealed class ChargerBrain : IEnemyBrain
         {
             case Phase.Stalk:
             {
-                if (!BrainHelpers.CanSeePlayer(world))
+                if (world.NearestVisiblePlayer(enemy.Center) is not { } target)
                 {
                     enemy.Velocity.X = 0f;
                     return;
                 }
-                float deltaX = world.Player.Center.X - enemy.Center.X;
+                float deltaX = target.Center.X - enemy.Center.X;
                 enemy.FacingRight = deltaX > 0f;
                 enemy.Velocity.X = MathF.Sign(deltaX) * enemy.EffectiveMoveSpeed;
                 // In Angriffsweite und auf gleicher Höhe? Dann ausholen.
-                if (MathF.Abs(deltaX) < 150f && MathF.Abs(world.Player.Center.Y - enemy.Center.Y) < 30f)
+                if (MathF.Abs(deltaX) < 150f && MathF.Abs(target.Center.Y - enemy.Center.Y) < 30f)
                 {
                     _phase = Phase.Telegraph;
                     _timer = TelegraphSeconds;
@@ -198,17 +202,17 @@ public sealed class SwarmerBrain : IEnemyBrain
     public void Update(Enemy enemy, DungeonWorld world, float deltaSeconds)
     {
         _hopCooldown -= deltaSeconds;
-        if (!BrainHelpers.CanSeePlayer(world))
+        if (world.NearestVisiblePlayer(enemy.Center) is not { } target)
         {
             enemy.Velocity.X = 0f;
             return;
         }
         if (enemy.OnGround && _hopCooldown <= 0f)
         {
-            float deltaX = world.Player.Center.X - enemy.Center.X;
+            float deltaX = target.Center.X - enemy.Center.X;
             enemy.Velocity.X = MathF.Sign(deltaX) * enemy.EffectiveMoveSpeed;
             enemy.Velocity.Y = -260f;
-            bool playerAbove = world.Player.Center.Y < enemy.Center.Y - 40f;
+            bool playerAbove = target.Center.Y < enemy.Center.Y - 40f;
             if (playerAbove) enemy.Velocity.Y = -420f;
             _hopCooldown = 0.35f;
         }
@@ -235,13 +239,14 @@ public sealed class AmbusherBrain : IEnemyBrain
         if (!_wasTriggered)
         {
             enemy.Velocity.X = 0f;
-            float distance = Vector2.Distance(enemy.Center, world.Player.Center);
+            Player nearest = world.TargetOf(enemy.Center);
+            float distance = Vector2.Distance(enemy.Center, nearest.Center);
             bool isLastOfItsFight = enemy.Owner.Length > 0 && world.AliveEnemyCountOf(enemy.Owner) <= 1;
             if (distance < (isLastOfItsFight ? LastOneTriggerDistance : TriggerDistance))
             {
                 _wasTriggered = true;
                 enemy.ForcedAnimation = null;
-                float direction = MathF.Sign(world.Player.Center.X - enemy.Center.X);
+                float direction = MathF.Sign(nearest.Center.X - enemy.Center.X);
                 enemy.Velocity.X = direction * enemy.EffectiveMoveSpeed * 2f;
                 enemy.Velocity.Y = -180f;   // Blutegel springt hoch
             }
@@ -252,11 +257,11 @@ public sealed class AmbusherBrain : IEnemyBrain
             return;
         }
         // Ausgelöst: kriecht zäh auf den Spieler zu und springt nach
-        if (BrainHelpers.CanSeePlayer(world))
+        if (world.NearestVisiblePlayer(enemy.Center) is { } target)
         {
-            float deltaX = world.Player.Center.X - enemy.Center.X;
+            float deltaX = target.Center.X - enemy.Center.X;
             enemy.Velocity.X = MathF.Abs(deltaX) < 3f ? 0f : MathF.Sign(deltaX) * enemy.EffectiveMoveSpeed;
-            bool playerAbove = world.Player.Bounds.Bottom < enemy.Bounds.Top - 20;
+            bool playerAbove = target.Bounds.Bottom < enemy.Bounds.Top - 20;
             if (playerAbove && enemy.OnGround) enemy.Velocity.Y = -300f;
         }
     }
@@ -281,7 +286,7 @@ public sealed class BossBrain : IEnemyBrain
         {
             if (_currentPhase is not null)   // Phasenwechsel (nicht beim ersten Mal) inszenieren
             {
-                world.Announce($"{enemy.Definition.Name} rast vor Zorn!");
+                world.Announce(Loc.T("{0} rast vor Zorn!", enemy.Definition.Name));
                 world.Effects.Ring(enemy.Center, 50f, Palette.Blood, 40);
                 world.Context.Audio.Play("roar", 0.8f);
             }
@@ -298,8 +303,8 @@ public sealed class BossBrain : IEnemyBrain
             return;
         }
 
-        // Zwischen Angriffen langsam auf den Spieler zugehen
-        float deltaX = world.Player.Center.X - enemy.Center.X;
+        // Zwischen Angriffen langsam auf den nächsten Spieler zugehen
+        float deltaX = world.TargetOf(enemy.Center).Center.X - enemy.Center.X;
         enemy.Velocity.X = MathF.Sign(deltaX) * enemy.EffectiveMoveSpeed * 0.4f * phase.SpeedMultiplier;
 
         _pauseTimer -= deltaSeconds;

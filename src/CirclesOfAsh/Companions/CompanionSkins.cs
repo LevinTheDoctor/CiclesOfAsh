@@ -1,5 +1,6 @@
 using CirclesOfAsh.Assets;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Persistence;
 using CirclesOfAsh.Pets;
 
@@ -19,9 +20,9 @@ public static class CompanionSkins
     /// <summary>Suffix im Manifest und der Name, der dem Spieler angezeigt wird.</summary>
     private static readonly (string Suffix, string Name)[] Variants =
     {
-        ("", "Grundfassung"),
-        (".pale", "Bleich"),
-        (".deep", "Tiefdunkel"),
+        ("", Loc.N("Grundfassung")),
+        (".pale", Loc.N("Bleich")),
+        (".deep", Loc.N("Tiefdunkel")),
     };
 
     /// <summary>Alle Fassungen, für die wirklich ein Spritesheet existiert (Reihenfolge = Zyklus).</summary>
@@ -69,11 +70,12 @@ public static class CompanionSkins
             pet = PetService.GetPet(context, definition.Id);
             if (pet is null) return null;
         }
-        if (skins.Count < 2) return $"{pet.Name} kennt nur diese eine Gestalt.";
+        string name = PetService.DisplayName(context, definition);
+        if (skins.Count < 2) return Loc.T("{0} kennt nur diese eine Gestalt.", name);
 
         pet.Skin = (IndexOf(context, definition) + 1) % skins.Count;
         PetService.Save(context);
         context.Audio.Play("unseal", 0.4f, 0.4f);
-        return $"{pet.Name} nimmt eine neue Gestalt an: {skins[pet.Skin].Name}.";
+        return Loc.T("{0} nimmt eine neue Gestalt an: {1}.", name, Loc.T(skins[pet.Skin].Name));
     }
 }

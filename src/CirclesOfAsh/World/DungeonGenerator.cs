@@ -467,7 +467,7 @@ public sealed class DungeonGenerator
     {
         string enemyId = room.Type switch
         {
-            RoomType.Boss => plan.Circle.Boss,
+            RoomType.Boss => plan.BossEnemyId,
             RoomType.Prison => plan.Circle.Prison?.MiniBoss ?? "",
             _ => "",
         };

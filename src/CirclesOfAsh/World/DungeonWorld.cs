@@ -4,6 +4,7 @@ using CirclesOfAsh.Companions;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.Props;
 using CirclesOfAsh.Puzzles;
@@ -16,11 +17,20 @@ namespace CirclesOfAsh.World;
 /// damit Fähigkeiten/Brains/Props nicht selbst Listen manipulieren müssen.
 /// Nach außen (Szene) kommuniziert die Welt über Events -> sie kennt keine Szenen.
 /// </summary>
-public sealed class DungeonWorld : IDisposable
+public sealed partial class DungeonWorld : IDisposable
 {
     private const float AnnouncementSeconds = 2.4f;
     private const float InteractionRange = 14f;
+    /// <summary>Zu zweit: So nah muss man an einem Gefallenen stehen, um ihn aufzurichten.</summary>
+    private const float ReviveRange = 24f;
+    private const float ReviveSeconds = 2.5f;
+    /// <summary>Mit diesem Anteil des Lebens steht ein Aufgerichteter wieder.</summary>
+    private const float ReviveHealth = 0.35f;
 
+    /// <summary>Alle Spielfiguren. Index 0 ist die Hauptfigur (Kamera, HUD, Interaktion im Einzelspiel).</summary>
+    private readonly List<Player> _players;
+    /// <summary>Zu zweit: Sekunden, die schon jemand neben einem Gefallenen steht.</summary>
+    private readonly Dictionary<Player, float> _reviveProgress = new();
     private readonly List<Enemy> _enemies = new();
     private readonly List<Projectile> _projectiles = new();
     private readonly List<Pickup> _pickups = new();
@@ -48,14 +58,24 @@ public sealed class DungeonWorld : IDisposable
     private float _announcementTimer;
     private float _time;
 
+    /// <summary>Einzelspiel: eine Figur, ihr Lauf ist der Lauf der Welt.</summary>
     public DungeonWorld(GameContext context, DungeonPlan plan, DungeonLayout layout, RunState run,
                         Player player, IEnumerable<Companion> companions)
+        : this(context, plan, layout, run, new[] { player }, companions) { }
+
+    /// <summary>
+    /// Mehrere Figuren (Arena). "run" ist der Lauf der Hauptfigur; jede weitere bringt ihren
+    /// eigenen mit (<see cref="Player.Run"/>) – Kleidung schluckt so nur die Treffer ihrer Trägerin.
+    /// </summary>
+    public DungeonWorld(GameContext context, DungeonPlan plan, DungeonLayout layout, RunState run,
+                        IReadOnlyList<Player> players, IEnumerable<Companion> companions)
     {
+        if (players.Count == 0) throw new ArgumentException("Eine Welt braucht mindestens eine Spielfigur.", nameof(players));
         Context = context;
         Plan = plan;
         Layout = layout;
         Run = run;
-        Player = player;
+        _players = players.ToList();
         _companions = companions.ToList();
         Random = new Random(plan.Seed ^ 0x5EED);   // "^" = XOR: leitet einen zweiten, unabhängigen Seed ab
         Effects = new EffectSystem(Random);
@@ -82,6 +102,9 @@ public sealed class DungeonWorld : IDisposable
 
         CreateProps();
         CreateNpcs();
+        // Erst NACH der Erzeugung zuhören: Nur spätere Änderungen weichen vom Verlies ab.
+        Map.TileChanged += OnTileChanged;
+        Effects.Emitted += RecordEvent;
         foreach (CollectiblePlacement collectible in layout.Collectibles) SpawnItemPickup(collectible.ItemId, collectible.Center, floating: true);
 
         if (layout.Puzzle is { } puzzleSpec)
@@ -97,8 +120,11 @@ public sealed class DungeonWorld : IDisposable
     }
 
     // "event Action?" = Beobachter-Muster (Observer): Die Szene abonniert, die Welt meldet.
+    /// <summary>Alle Spielfiguren sind gefallen – im Einzelspiel also: der Spieler ist tot.</summary>
     public event Action? PlayerDied;
     public event Action? GoalReached;
+    /// <summary>Der Boss des Thronsaals liegt. Die Arena beendet damit den Kampf.</summary>
+    public event Action? BossDefeated;
     /// <summary>Szene will einen Dialog öffnen (NPC + Startzeile). Welt kennt keine Szenen (lose Kopplung).</summary>
     public event Action<Npc>? DialogRequested;
 
@@ -107,7 +133,19 @@ public sealed class DungeonWorld : IDisposable
     public DungeonLayout Layout { get; }
     public TileMap Map => Layout.Map;
     public RunState Run { get; }
-    public Player Player { get; }
+    /// <summary>Die Hauptfigur (im Einzelspiel die einzige).</summary>
+    public Player Player => _players[0];
+    public IReadOnlyList<Player> Players => _players;
+
+    /// <summary>Alle Figuren, die noch stehen. "yield return" liefert sie einzeln, ohne Zwischenliste.</summary>
+    public IEnumerable<Player> LivingPlayers
+    {
+        get
+        {
+            foreach (Player player in _players)
+                if (!player.Health.IsDead) yield return player;
+        }
+    }
     public EffectSystem Effects { get; }
     public Camera2D Camera { get; }
     public WaveDirector Waves { get; }
@@ -120,6 +158,8 @@ public sealed class DungeonWorld : IDisposable
     public Enemy? ActiveBoss { get; private set; }
     public Prop? InteractionTarget { get; private set; }
     public int PendingLevelUps { get; set; }
+    /// <summary>Sekunden seit Beginn – die Arena zeigt daraus die Kampfzeit.</summary>
+    public float ElapsedSeconds => _time;
     public IReadOnlyList<Companion> Companions => _companions;
 
     /// <summary>Zwischenrufe der Begleitseelen. Blockiert nie – siehe <see cref="CompanionChatter"/>.</summary>
@@ -253,7 +293,7 @@ public sealed class DungeonWorld : IDisposable
     /// </summary>
     private static string AmbientLightOf(GameContext context, DungeonPlan plan) =>
         plan.IsBossDungeon
-        && context.Definitions.Arenas.TryGet(plan.Circle.Boss, out ArenaDefinition? arena)
+        && context.Definitions.Arenas.TryGet(plan.BossEnemyId, out ArenaDefinition? arena)
         && arena.AmbientLight.Length > 0
             ? arena.AmbientLight
             : plan.Circle.AmbientLight;
@@ -266,7 +306,10 @@ public sealed class DungeonWorld : IDisposable
         {
             var prop = new Prop(placement.Definition, Context.Assets.GetSpriteSheet(placement.Definition.SpriteSheet),
                 Context.Behaviors.CreateProp(placement.Definition.Behavior), placement.BottomCenter,
-                placement.Room, placement.Tag, placement.Index);
+                placement.Room, placement.Tag, placement.Index)
+            {
+                NetworkId = NextNetworkId(),   // gleiche Reihenfolge wie beim Online-Gast -> gleiche Ids
+            };
             _props.Add(prop);
         }
         // Erst initialisieren, wenn alle existieren (Behaviors dürfen andere Props abfragen)
@@ -324,7 +367,10 @@ public sealed class DungeonWorld : IDisposable
     public void Update(float deltaSeconds)
     {
         _time += deltaSeconds;
-        Player.Update(this, deltaSeconds);
+        // Gefallene bleiben liegen: keine Bewegung, keine Fähigkeiten, bis jemand sie aufrichtet.
+        foreach (Player player in _players)
+            if (!player.Health.IsDead) player.Update(this, deltaSeconds);
+        UpdateRevives(deltaSeconds);
         UpdateCurrentRoom();
         Waves.Update(this, deltaSeconds);
         _crumble.Update(this, deltaSeconds);
@@ -351,10 +397,59 @@ public sealed class DungeonWorld : IDisposable
         RemoveDeadAndFlushSpawns();
         UpdateAnnouncements(deltaSeconds);
 
+        UpdateCameraAndShake(deltaSeconds);
+    }
+
+    /// <summary>Erschütterung abklingen lassen und der Mitte der Figuren folgen (auch beim Online-Gast).</summary>
+    private void UpdateCameraAndShake(float deltaSeconds)
+    {
         _shakeStrength = MathUtil.Damp(_shakeStrength, 0f, 10f, deltaSeconds);
         Vector2 shake = _shakeStrength > 0.2f ? MathUtil.RandomDirection(Random) * _shakeStrength : Vector2.Zero;
         _shakeOffset = new Vector2(MathF.Round(shake.X), MathF.Round(shake.Y));   // einmal pro Frame -> Licht und Welt wackeln gleich
-        Camera.Follow(Player.Center, CurrentRoom?.PixelBounds ?? Map.PixelBounds, deltaSeconds);
+        Camera.Follow(CameraFocus(), CurrentRoom?.PixelBounds ?? Map.PixelBounds, deltaSeconds);
+    }
+
+    /// <summary>Die Mitte aller Stehenden; im Einzelspiel also einfach die Figur.</summary>
+    private Vector2 CameraFocus()
+    {
+        Vector2 sum = Vector2.Zero;
+        int count = 0;
+        foreach (Player player in LivingPlayers)
+        {
+            sum += player.Center;
+            count++;
+        }
+        return count == 0 ? Player.Center : sum / count;
+    }
+
+    /// <summary>
+    /// Zu zweit: Wer neben einem Gefallenen steht, richtet ihn nach <see cref="ReviveSeconds"/> wieder
+    /// auf. Geht der Helfer weg, sinkt der Fortschritt langsam – kurzes Ausweichen kostet nicht alles.
+    /// </summary>
+    private void UpdateRevives(float deltaSeconds)
+    {
+        if (_players.Count < 2) return;
+        foreach (Player fallen in _players)
+        {
+            if (!fallen.Health.IsDead)
+            {
+                _reviveProgress.Remove(fallen);
+                continue;
+            }
+            bool isHelped = LivingPlayers.Any(helper => Vector2.Distance(helper.Center, fallen.Center) < ReviveRange);
+            float progress = _reviveProgress.GetValueOrDefault(fallen);
+            progress = isHelped ? progress + deltaSeconds : MathF.Max(0f, progress - deltaSeconds * 0.5f);
+            if (progress < ReviveSeconds)
+            {
+                _reviveProgress[fallen] = progress;
+                continue;
+            }
+            _reviveProgress.Remove(fallen);
+            fallen.Revive(ReviveHealth);
+            Effects.Ring(fallen.Center, 30f, Palette.Faith, 32);
+            Context.Audio.Play("levelup", 0.5f, 0.2f);
+            Announce(Loc.T("{0} steht wieder auf!", fallen.Name));
+        }
     }
 
     /// <summary>
@@ -378,7 +473,7 @@ public sealed class DungeonWorld : IDisposable
         // Der Rätselraum meldet sich einmal: Er sieht sonst aus wie jeder andere Korridor, und wer
         // ihn durchquert, ohne die Teile zu bemerken, sucht das Siegeltor später im ganzen Verlies.
         if (!room.IsVisited && room.Type == RoomType.Puzzle && Puzzle is { IsSolved: false })
-            Announce("Ein Rätsel versperrt das Siegeltor – hier steht sein Mechanismus.");
+            Announce(Loc.T("Ein Rätsel versperrt das Siegeltor – hier steht sein Mechanismus."));
         room.IsVisited = true;
     }
 
@@ -461,7 +556,7 @@ public sealed class DungeonWorld : IDisposable
     {
         if (RescueTriggered || RescueRoom is not { } room) return;
         RescueTriggered = true;
-        Announce("Eine Seele fleht um Hilfe!");
+        Announce(Loc.T("Eine Seele fleht um Hilfe!"));
         Context.Audio.Play("roar", 0.5f, 0.2f);
 
         // 2-3 Wachen aus dem Kreis-Gegnerpool
@@ -490,13 +585,13 @@ public sealed class DungeonWorld : IDisposable
             if (soul is null) return;
             soul.Tag = "rescued";
             soul.FleeTarget = Layout.GoalBottomCenter;
-            Announce("Die Seele ist frei! Eskortiere sie zum Ausgang.");
+            Announce(Loc.T("Die Seele ist frei! Eskortiere sie zum Ausgang."));
 
             // Gläubigen-Dank + Missionsfortschritt (Rescue, Ziel "*" zählt)
             int believers = 8 + (int)(Plan.DifficultyMultiplier * 2f);
             Context.Progression.Meta.Believers += believers;
             AnnounceMissions(Context.Progression.Missions.Report(MissionType.Rescue, "*", 1));
-            Announce($"+{believers} Gläubige");
+            Announce(Loc.T("+{0} Gläubige", believers));
         }
 
         // Gerettete Seele hat den Ausgang erreicht? -> Despawn + Abschluss-Meldung
@@ -507,7 +602,7 @@ public sealed class DungeonWorld : IDisposable
             {
                 npc.Remove();
                 Effects.Ring(npc.Center, 40f, Palette.Faith, 32);
-                Announce("Die Seele ist in Sicherheit. Ihre Dankbarkeit stärkt deinen Glauben.");
+                Announce(Loc.T("Die Seele ist in Sicherheit. Ihre Dankbarkeit stärkt deinen Glauben."));
             }
         }
     }
@@ -516,8 +611,9 @@ public sealed class DungeonWorld : IDisposable
     {
         foreach (Enemy enemy in _enemies)
         {
-            if (enemy.IsRemoved || enemy.IsSpawning || !enemy.Bounds.Intersects(Player.Bounds)) continue;
-            Player.TakeHit(this, enemy.ContactDamage, enemy.Center, 110f);
+            if (enemy.IsRemoved || enemy.IsSpawning) continue;
+            foreach (Player player in LivingPlayers)
+                if (enemy.Bounds.Intersects(player.Bounds)) player.TakeHit(this, enemy.ContactDamage, enemy.Center, 110f);
         }
     }
 
@@ -532,6 +628,9 @@ public sealed class DungeonWorld : IDisposable
 
     private void RemoveDeadAndFlushSpawns()
     {
+        // Zerschlagene Urnen & Co. merken: Der Online-Gast entfernt sie anhand dieser Liste auch.
+        foreach (Prop prop in _props)
+            if (prop.IsRemoved && !prop.Behavior.IsCosmetic) _removedPropIds.Add(prop.NetworkId);
         _enemies.RemoveAll(entity => entity.IsRemoved);
         _projectiles.RemoveAll(entity => entity.IsRemoved);
         _pickups.RemoveAll(entity => entity.IsRemoved);
@@ -560,6 +659,40 @@ public sealed class DungeonWorld : IDisposable
     }
 
     // ------------------------------------------------------------------ Abfragen
+    /// <summary>Nächster lebender, nicht getarnter Spieler – das Ziel einer Gegner-KI. null = niemand zu sehen.</summary>
+    public Player? NearestVisiblePlayer(Vector2 from) => NearestPlayer(from, visibleOnly: true);
+
+    /// <summary>Nächster lebender Spieler (auch getarnt), oder null, wenn alle gefallen sind.</summary>
+    public Player? NearestLivingPlayer(Vector2 from) => NearestPlayer(from, visibleOnly: false);
+
+    /// <summary>
+    /// Wohin sich ein Gegner wendet, auch ohne Sicht (Boss zwischen zwei Angriffen, Sprungrichtung):
+    /// der nächste lebende Spieler, notfalls die Hauptfigur. Nie null – das hält die KI einfach.
+    /// </summary>
+    public Player TargetOf(Vector2 from) => NearestLivingPlayer(from) ?? Player;
+
+    private Player? NearestPlayer(Vector2 from, bool visibleOnly)
+    {
+        Player? nearest = null;
+        float bestDistanceSquared = float.MaxValue;
+        foreach (Player player in LivingPlayers)
+        {
+            if (visibleOnly && player.IsStealthed) continue;
+            float distanceSquared = Vector2.DistanceSquared(from, player.Center);
+            if (distanceSquared >= bestDistanceSquared) continue;
+            bestDistanceSquared = distanceSquared;
+            nearest = player;
+        }
+        return nearest;
+    }
+
+    /// <summary>Erster lebender Spieler, dessen Körper diese Fläche berührt – für Geschosse und Kontaktschaden.</summary>
+    public Player? LivingPlayerIntersecting(Rectangle area) =>
+        LivingPlayers.FirstOrDefault(player => player.Bounds.Intersects(area));
+
+    /// <summary>Zu zweit: Fortschritt des Aufrichtens (0..1) für die Anzeige über dem Gefallenen.</summary>
+    public float ReviveProgressOf(Player player) => _reviveProgress.GetValueOrDefault(player) / ReviveSeconds;
+
     public Enemy? FindNearestEnemy(Vector2 from, float maxRange)
     {
         Enemy? nearest = null;
@@ -614,7 +747,11 @@ public sealed class DungeonWorld : IDisposable
     }
 
     // ------------------------------------------------------------------ Aktionen
-    public void Spawn(Entity entity) => _spawnQueue.Add(entity);
+    public void Spawn(Entity entity)
+    {
+        if (entity.NetworkId == 0) entity.NetworkId = NextNetworkId();
+        _spawnQueue.Add(entity);
+    }
 
     /// <param name="owner">
     /// Ereignis, zu dem dieser Gegner gehört (Id des Arenaraums oder "rescue"). Siehe
@@ -623,7 +760,7 @@ public sealed class DungeonWorld : IDisposable
     public Enemy SpawnEnemy(EnemyDefinition definition, Vector2 bottomCenter, string owner = "")
     {
         DifficultyDefinition difficulty = Context.Progression.Difficulty;
-        float healthMultiplier = Plan.DifficultyMultiplier * difficulty.EnemyHealth;
+        float healthMultiplier = Plan.DifficultyMultiplier * difficulty.EnemyHealth * PartyHealthFactor;
         float damageMultiplier = (1f + (Plan.DifficultyMultiplier - 1f) * 0.5f) * difficulty.EnemyDamage;
         var enemy = new Enemy(definition, Context.Assets.GetSpriteSheet(definition.SpriteSheet),
             Context.Behaviors.CreateEnemyBrain(definition.Brain), bottomCenter, healthMultiplier, damageMultiplier);
@@ -681,19 +818,30 @@ public sealed class DungeonWorld : IDisposable
         _musicBeforeBoss = null;
     }
 
+    /// <summary>
+    /// Zu zweit hält der Gegner mehr aus (balance.json: arenaHealthPerExtraPlayer). Sonst wäre ein
+    /// Boss gegen zwei Klingen in der halben Zeit erledigt.
+    /// </summary>
+    private float PartyHealthFactor =>
+        1f + Math.Max(0, Plan.PartySize - 1) * Context.Definitions.Balance.ArenaHealthPerExtraPlayer;
+
     private void KillEnemy(Enemy enemy)
     {
         enemy.Remove();
         Say(CompanionChatter.Kill);
         Effects.Burst(enemy.Center, Palette.Ash, 14, 90f);
-        for (int soul = 0; soul < enemy.Definition.SoulValue; soul++) SpawnPickup(PickupKind.Soul, enemy.Center, 1f);
+        // In der Arena gibt es keinen Lauf, der Seelen sammelt, und keine Bitten, die zählen –
+        // sonst ließen sich beide dort beliebig oft abholen.
+        if (!Plan.IsArenaMatch)
+            for (int soul = 0; soul < enemy.Definition.SoulValue; soul++) SpawnPickup(PickupKind.Soul, enemy.Center, 1f);
 
         BalanceDefinition balance = Context.Definitions.Balance;
         double roll = Random.NextDouble();
         if (roll < balance.HeartDropChance) SpawnPickup(PickupKind.Heart, enemy.Center, 15f);
         else if (roll < balance.HeartDropChance + balance.ManaDropChance) SpawnPickup(PickupKind.ManaShard, enemy.Center, 20f);
 
-        AnnounceMissions(Context.Progression.Missions.Report(MissionType.Slay, enemy.Definition.Id));
+        if (!Plan.IsArenaMatch)
+            AnnounceMissions(Context.Progression.Missions.Report(MissionType.Slay, enemy.Definition.Id));
 
         if (enemy != ActiveBoss) return;
         ActiveBoss = null;
@@ -721,12 +869,18 @@ public sealed class DungeonWorld : IDisposable
         var pickup = new Pickup(PickupKind.Item, Context.Assets.GetSpriteSheet("items.icons"), center, 0f, Random,
                                 itemId, clip: itemId, floating: floating);
         // Im Konstruktor direkt einfügen (Warteschlange läuft erst im ersten Update)
-        if (floating) _pickups.Add(pickup);
+        if (floating)
+        {
+            pickup.NetworkId = NextNetworkId();
+            _pickups.Add(pickup);
+        }
         else Spawn(pickup);
     }
 
-    public void CollectPickup(Pickup pickup)
+    /// <param name="collector">Wer es berührt hat – zu zweit heilt ein Herz nur den, der es aufhebt.</param>
+    public void CollectPickup(Pickup pickup, Player collector)
     {
+        RunState collectorRun = collector.RunOf(this);
         switch (pickup.Kind)
         {
             case PickupKind.Soul:
@@ -735,52 +889,53 @@ public sealed class DungeonWorld : IDisposable
                 break;
             case PickupKind.Heart:
                 float healed = pickup.Value * Context.Progression.Difficulty.HealMultiplier;
-                Player.Health.Heal(healed);
-                Effects.Text(Player.Center - new Vector2(0, 16), $"+{healed:0}", Palette.Soul);
+                collector.Health.Heal(healed);
+                Effects.Text(collector.Center - new Vector2(0, 16), $"+{healed:0}", Palette.Soul);
                 break;
             case PickupKind.ManaShard:
-                Player.RestoreMana(pickup.Value);
-                Effects.Text(Player.Center - new Vector2(0, 16), $"+{pickup.Value:0}", Palette.Mana);
+                collector.RestoreMana(pickup.Value);
+                Effects.Text(collector.Center - new Vector2(0, 16), $"+{pickup.Value:0}", Palette.Mana);
                 break;
             case PickupKind.Relic:
-                UpgradeOffer? relic = LevelUpService.CreateRandomStatOffer(Context, Run, Random);
+                UpgradeOffer? relic = LevelUpService.CreateRandomStatOffer(Context, collectorRun, Random);
                 if (relic is not null)
                 {
-                    LevelUpService.Apply(relic, Context, Run, Player);
-                    Announce($"Reliquie: {relic.Title}");
+                    LevelUpService.Apply(relic, Context, collectorRun, collector);
+                    Announce(Loc.T("Reliquie: {0}", relic.Title));
                 }
-                Player.Health.Heal(Player.Health.Max);
+                collector.Health.Heal(collector.Health.Max);
                 Context.Audio.Play("levelup", 0.6f);
                 break;
             case PickupKind.Item:
-                CollectItem(pickup.ItemId);
+                CollectItem(pickup.ItemId, collector);
                 break;
         }
     }
 
-    private void CollectItem(string itemId)
+    private void CollectItem(string itemId, Player collector)
     {
         if (!Context.Definitions.Items.Contains(itemId)) return;
         ItemDefinition item = Context.Definitions.Items.Get(itemId);
+        RunState collectorRun = collector.RunOf(this);
         Context.Audio.Play("chest", 0.5f, 0.3f);
-        Effects.Ring(Player.Center, 20f, Palette.Faith, 20);
+        Effects.Ring(collector.Center, 20f, Palette.Faith, 20);
 
         if (item.Slot == ItemSlot.Collectible)
         {
-            Announce($"Gefunden: {item.Name}");
+            Announce(Loc.T("Gefunden: {0}", item.Name));
             Say(CompanionChatter.CollectibleFound);
             AnnounceMissions(Context.Progression.Missions.Report(MissionType.Collect, item.Id));
             return;
         }
-        bool equipped = EquipmentService.AddItem(Run, item);
+        bool equipped = EquipmentService.AddItem(collectorRun, item);
         if (equipped)
         {
-            EquipmentService.Apply(Context.Definitions, Run, Player);
+            EquipmentService.Apply(Context.Definitions, collectorRun, collector);
             // Ohne das blieb eine im Verlies aufgesammelte Rüstung bis zum nächsten Verlies
             // unsichtbar – Apply rührt nur die Werte an, nicht die Sprite-Ebenen.
-            if (item.Slot == ItemSlot.Armor) Player.RefreshAppearance(Context, Run);
+            if (item.Slot == ItemSlot.Armor) collector.RefreshAppearance(Context, collectorRun);
         }
-        Announce(equipped ? $"{item.Name} – ausgerüstet" : $"{item.Name} – im Inventar");
+        Announce(equipped ? Loc.T("{0} – ausgerüstet", item.Name) : Loc.T("{0} – im Inventar", item.Name));
     }
 
     /// <summary>Wird von Truhen aufgerufen. Kein neues Item mehr übrig? Dann gibt es eine Reliquie.</summary>
@@ -843,13 +998,16 @@ public sealed class DungeonWorld : IDisposable
             case RoomType.Boss:
                 _bossDefeated = true;
                 Say(CompanionChatter.BossDefeated);
+                BossDefeated?.Invoke();
+                // Die Arena endet mit dem Boss – dort erwacht kein Siegel, das man suchen müsste.
+                if (Plan.IsArenaMatch) return;
                 break;
             case RoomType.Prison:
                 FreeCaptives(room);
                 break;
             default:
                 Say(CompanionChatter.RoomCleared);
-                Announce("Die Tore öffnen sich.");
+                Announce(Loc.T("Die Tore öffnen sich."));
                 break;
         }
         TryActivateGoal();
@@ -863,11 +1021,11 @@ public sealed class DungeonWorld : IDisposable
         RescueResult result = Context.Progression.RescueCaptives(Plan, Run);
         if (result.AlreadyRescued)
         {
-            Announce("Diese Seelen sind bereits frei.");
+            Announce(Loc.T("Diese Seelen sind bereits frei."));
             return;
         }
-        Announce($"Die Gefangenen sind frei! +{result.Believers} Gläubige");
-        if (result.CompanionName is not null) Announce($"Neuer Begleiter: {result.CompanionName}");
+        Announce(Loc.T("Die Gefangenen sind frei! +{0} Gläubige", result.Believers));
+        if (result.CompanionName is not null) Announce(Loc.T("Neuer Begleiter: {0}", result.CompanionName));
         AnnounceMissions(result.CompletedMissions);
     }
 
@@ -875,7 +1033,7 @@ public sealed class DungeonWorld : IDisposable
     {
         foreach (MissionDefinition mission in completed)
         {
-            Announce($"Bitte erfüllt: {mission.Title} (+{mission.RewardBelievers})");
+            Announce(Loc.T("Bitte erfüllt: {0} (+{1})", mission.Title, mission.RewardBelievers));
             Context.Audio.Play("levelup", 0.5f, 0.2f);
         }
     }
@@ -888,12 +1046,17 @@ public sealed class DungeonWorld : IDisposable
         if (!fightsDone || !IsGateOpen) return;
         IsGoalActive = true;
         _sigil.Play("active");
-        Announce("Das Siegel ist erwacht – finde es!");
+        Announce(Loc.T("Das Siegel ist erwacht – finde es!"));
     }
 
-    public void NotifyPlayerDied()
+    /// <summary>
+    /// Eine Figur ist gefallen. <see cref="PlayerDied"/> kommt erst, wenn KEINE mehr steht – im
+    /// Einzelspiel also sofort, zu zweit erst, wenn niemand mehr aufrichten kann.
+    /// </summary>
+    public void NotifyPlayerDied(Player player)
     {
-        if (_playerDeathReported) return;
+        if (_players.Count > 1 && LivingPlayers.Any()) Announce(Loc.T("{0} ist gefallen!", player.Name));
+        if (_playerDeathReported || LivingPlayers.Any()) return;
         _playerDeathReported = true;
         PlayerDied?.Invoke();
     }
@@ -905,6 +1068,7 @@ public sealed class DungeonWorld : IDisposable
     /// </summary>
     public void ShakeCamera(float strength)
     {
+        RecordEvent(new ShakeEvent(strength));
         _shakeStrength = MathF.Max(_shakeStrength, strength);
         // 8 = stärkste im Spiel vorkommende Erschütterung (Boss-Tod) -> darauf normieren.
         float intensity = Math.Clamp(strength / 8f, 0f, 1f);
@@ -913,6 +1077,7 @@ public sealed class DungeonWorld : IDisposable
 
     public void Announce(string text)
     {
+        RecordEvent(new AnnounceEvent(text));
         if (_announcements.Count < 6) _announcements.Enqueue(text);
     }
 
@@ -923,7 +1088,8 @@ public sealed class DungeonWorld : IDisposable
     public void PrepareDraw(SpriteBatch spriteBatch)
     {
         Lighting.Clear();
-        Lighting.Add(Player.Center, Player.Stats[StatType.LightRadius], Player.LightColor);
+        foreach (Player player in _players)
+            Lighting.Add(player.Center, player.Stats[StatType.LightRadius] * (player.Health.IsDead ? 0.4f : 1f), player.LightColor);
         foreach (Prop prop in _props)
         {
             if (prop.LightRadius <= 0f) continue;
@@ -952,11 +1118,13 @@ public sealed class DungeonWorld : IDisposable
         Map.Draw(spriteBatch, _tileset, Camera.VisibleArea, _tileTint, Plan.Circle.Decay, _time);
         foreach (Prop prop in _props) prop.Draw(spriteBatch);
         foreach (Npc npc in _npcs) if (!npc.IsRemoved) npc.Draw(spriteBatch);
-        if (!IsGoalActive) _sigil.Draw(spriteBatch, Layout.GoalBottomCenter, false, Color.White * 0.5f);
+        // In der Arena gibt es kein Siegel – der schlafende Umriss stünde sonst mitten im Kampfplatz.
+        if (!IsGoalActive && !Plan.IsArenaMatch) _sigil.Draw(spriteBatch, Layout.GoalBottomCenter, false, Color.White * 0.5f);
         foreach (Pickup pickup in _pickups) pickup.Draw(spriteBatch);
         foreach (Enemy enemy in _enemies) enemy.Draw(spriteBatch);
         foreach (Companion companion in _companions) companion.Draw(spriteBatch);
-        Player.Draw(spriteBatch);
+        // Rückwärts: Die Hauptfigur (Index 0) liegt so obenauf, wenn beide an derselben Stelle stehen.
+        for (int index = _players.Count - 1; index >= 0; index--) _players[index].Draw(spriteBatch);
         spriteBatch.End();
 
         // 3) Licht darübermultiplizieren -> Dunkelheit
@@ -965,7 +1133,9 @@ public sealed class DungeonWorld : IDisposable
         // 4) Selbstleuchtendes (unbeeinflusst vom Dunkel): Siegel, Magie, Partikel, Texte, Interaktionshinweis
         spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointClamp, transformMatrix: WorldTransform);
         if (IsGoalActive) _sigil.Draw(spriteBatch, Layout.GoalBottomCenter, false, Color.White);
-        foreach (var ability in Player.Abilities) ability.Behavior.Draw(spriteBatch, this, Player, ability);
+        foreach (Player player in LivingPlayers)
+            foreach (var ability in player.Abilities) ability.Behavior.Draw(spriteBatch, this, player, ability);
+        DrawReviveProgress(spriteBatch);
         foreach (Projectile projectile in _projectiles) projectile.Draw(spriteBatch);
         Puzzle?.Draw(spriteBatch, this);
         Effects.Draw(spriteBatch, Context.Assets.Pixel, Context.Font);
@@ -974,11 +1144,22 @@ public sealed class DungeonWorld : IDisposable
         spriteBatch.End();
     }
 
+    /// <summary>Zu zweit: Balken über einem Gefallenen, solange ihn jemand aufrichtet.</summary>
+    private void DrawReviveProgress(SpriteBatch spriteBatch)
+    {
+        foreach (var (fallen, seconds) in _reviveProgress)
+        {
+            if (seconds <= 0f) continue;
+            var bar = new Rectangle((int)fallen.Center.X - 12, (int)fallen.Position.Y - 10, 24, 4);
+            UI.UiDraw.Bar(spriteBatch, Context.Assets.Pixel, bar, seconds / ReviveSeconds, Palette.Faith);
+        }
+    }
+
     private void DrawInteractionPrompt(SpriteBatch spriteBatch)
     {
         if (NpcInteractionTarget is { } npc)
         {
-            string npcPrompt = npc.Tag == "rescue" ? "Seele ansprechen" : npc.Definition.Name;
+            string npcPrompt = npc.Tag == "rescue" ? Loc.T("Seele ansprechen") : npc.Definition.Name;
             string npcText = $"{Context.Input.Prompt(GameAction.Interact)} {npcPrompt}";
             int npcWidth = Context.Font.MeasureWidth(npcText);
             float npcBob = MathF.Sin(_time * 4f) * 1.5f;
@@ -999,5 +1180,10 @@ public sealed class DungeonWorld : IDisposable
         spriteBatch.Draw(texture, new Vector2(MathF.Round(offset) + texture.Width, 0f), _backgroundTint);
     }
 
-    public void Dispose() => Lighting.Dispose();
+    public void Dispose()
+    {
+        Map.TileChanged -= OnTileChanged;
+        Effects.Emitted -= RecordEvent;
+        Lighting.Dispose();
+    }
 }

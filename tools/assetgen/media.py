@@ -12,25 +12,42 @@ CHARSET = "".join(chr(code) for code in range(32, 127)) + "ÄÖÜäöüß–·�
 # Controller-Glyphen (Content/Data/controllers.json). Das PlayStation-Kreuz fehlt in Tiny5
 # und würde als leerer Kasten erscheinen – dafür steht dort schlicht ein "X".
 CHARSET += "○□△"
+# Für weitere Sprachen (Content/Lang): die übrigen westeuropäischen Buchstaben und Satzzeichen.
+# Immer HINTEN anhängen – die Position im Raster ist die Glyphennummer. Beide Schriften führen
+# diese Zeichen (mit fontTools geprüft), eine neue Sprache braucht also keine neue Schrift.
+CHARSET += "ÀÁÂÃÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕØÙÚÛÝàáâãåæçèéêëìíîïñòóôõøùúûýÿŒœ¡¿«»‘’“”„€—"
 
 
 def build_font(fonts, name, source_file, size):
-    """Rendert eine TTF ohne Anti-Aliasing (fontmode '1') in ein Glyphenraster + JSON-Beschreibung."""
+    """
+    Rendert eine TTF ohne Anti-Aliasing (fontmode '1') in ein Glyphenraster + JSON-Beschreibung.
+
+    Jede Glyphe bekommt eine Zelle, in der sie VOLLSTÄNDIG liegt. Akzente auf Großbuchstaben
+    (É, Ê …) ragen über die Oberlänge hinaus, manche Glyphen links über ihren Ursprung – ohne Rand
+    malten sie in die Nachbarzelle, und dort stand dann etwa unter jedem "·" ein Strich.
+    Der Rand steckt in glyphOffsetX/Y; BitmapFont zieht ihn beim Zeichnen wieder ab, damit die
+    Grundlinie bleibt, wo sie war. Zeilenhöhe und Layout ändern sich dadurch nicht.
+    """
     font = ImageFont.truetype(str(FONT_SOURCES / source_file), size)
     ascent, descent = font.getmetrics()
-    cell_height = ascent + descent
+    boxes = [font.getbbox(ch) for ch in CHARSET]            # (links, oben, rechts, unten) je Glyphe
+    offset_x = max(0, -min(box[0] for box in boxes))        # Überhang nach links
+    offset_y = max(0, -min(box[1] for box in boxes))        # Überhang nach oben (Akzente)
+    cell_height = max(ascent + descent, max(box[3] for box in boxes)) + offset_y
     advances = [max(1, int(round(font.getlength(ch)))) for ch in CHARSET]
-    cell_width = max(advances) + 2
+    cell_width = max(max(advances), max(box[2] for box in boxes)) + 2 + offset_x
     columns = 16
     rows = math.ceil(len(CHARSET) / columns)
     atlas = new_image(columns * cell_width, rows * cell_height)
     draw = ImageDraw.Draw(atlas)
     draw.fontmode = "1"
     for index, character in enumerate(CHARSET):
-        draw.text(((index % columns) * cell_width, (index // columns) * cell_height), character, font=font, fill=(255, 255, 255, 255))
+        origin = ((index % columns) * cell_width + offset_x, (index // columns) * cell_height + offset_y)
+        draw.text(origin, character, font=font, fill=(255, 255, 255, 255))
     atlas.save(fonts / f"{name}.png")
     descriptor = {"texture": f"Fonts/{name}.png", "cellWidth": cell_width, "cellHeight": cell_height,
-                  "lineHeight": cell_height + 1, "charset": CHARSET, "advances": advances}
+                  "lineHeight": ascent + descent + 1, "glyphOffsetX": offset_x, "glyphOffsetY": offset_y,
+                  "charset": CHARSET, "advances": advances}
     (fonts / f"{name}.font.json").write_text(json.dumps(descriptor, ensure_ascii=False, indent=2), encoding="utf-8")
 
 

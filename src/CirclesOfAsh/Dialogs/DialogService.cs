@@ -1,5 +1,6 @@
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Pets;
 using CirclesOfAsh.Progression;
 
@@ -57,16 +58,16 @@ public sealed class DialogService
                 if (npc.Tag == "blessed") return null;
                 npc.Tag = "blessed";
                 _context.Audio.Play("unseal", 0.7f, 0.2f);
-                return "Du fühlst Wärme in deinen Adern. (+10% Macht für diesen Lauf)";
+                return Loc.T("Du fühlst Wärme in deinen Adern. (+10% Macht für diesen Lauf)");
             case "accept_mission":
             {
                 MissionDefinition? mission = _context.Progression.Missions.Available.FirstOrDefault(m => m.Id == choice.Target);
                 if (mission is null) return null;
                 if (!_context.Progression.Missions.Accept(mission))
-                    return $"Du trägst bereits zu viele Bitten. ({_context.Progression.Missions.MaxActive} gleichzeitig)";
+                    return Loc.T("Du trägst bereits zu viele Bitten. ({0} gleichzeitig)", _context.Progression.Missions.MaxActive);
                 _context.Progression.SaveMeta();
                 _context.Audio.Play("levelup", 0.4f, 0.3f);
-                return $"Bitte angenommen: {mission.Title}";
+                return Loc.T("Bitte angenommen: {0}", mission.Title);
             }
             case "pet_pet":
                 return PetService.Pet(_context, npc?.Definition.Id ?? "");

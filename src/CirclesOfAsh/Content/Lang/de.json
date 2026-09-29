@@ -1,0 +1,14 @@
+{
+  // Deutsch ist die QUELLSPRACHE: Alle Texte stehen direkt im Code (Loc.T("…")) und in
+  // Content/Data. Diese Datei braucht deshalb keine Einträge – sie macht Deutsch nur wählbar.
+  //
+  // Eine neue Sprache anlegen:
+  //   1. Content/Lang/<id>.json nach dem Vorbild von en.json (Dateiname = Id, z. B. "fr").
+  //   2. Flagge in tools/assetgen/interface.py (FLAGS) ergänzen und in manifest.json eintragen:
+  //      "flag.<id>" und "flag.<id>.small".
+  //   3. dotnet run --project tools/LangCheck -- <id>   zeigt, welche Texte noch fehlen.
+  "name": "Deutsch",
+  "flag": "flag.de",
+  "order": 1,
+  "strings": {}
+}

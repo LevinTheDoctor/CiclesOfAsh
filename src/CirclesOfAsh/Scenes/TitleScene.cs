@@ -1,4 +1,5 @@
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 
@@ -6,7 +7,7 @@ namespace CirclesOfAsh.Scenes;
 
 public sealed class TitleScene : SceneBase
 {
-    private readonly MenuList _menu = new();
+    private MenuList _menu = new();
     private float _time;
 
     public TitleScene(GameContext context) : base(context) { }
@@ -14,25 +15,49 @@ public sealed class TitleScene : SceneBase
     public override void OnEnter()
     {
         Context.Music.Play("music.title");
+        BuildMenu();
+    }
+
+    /// <summary>Nach einem Sprachwechsel im Optionsmenü (das über dem Titel liegt) neu beschriften.</summary>
+    public override void OnLanguageChanged() => BuildMenu();
+
+    private void BuildMenu()
+    {
+        int selected = _menu.SelectedIndex;
+        _menu = new MenuList();
         ProgressionService progression = Context.Progression;
-        if (progression.CurrentRun is not null)
+        // Die zuletzt gespielte Gestalt steht ganz oben: weiter in ihrem Lauf – oder nach ihrem Tod
+        // gleich neu hinab. Aufgeben, löschen und wechseln geht über "Gestalten".
+        if (progression.ActiveCharacter is { } active)
         {
-            _menu.Add("Abstieg fortsetzen", () => Context.Scenes.Replace(new HubScene(Context)));
-            _menu.Add("Lauf aufgeben (zählt als Tod)", () =>
-                Context.Scenes.Replace(new GameOverScene(Context, progression.HandleDeath())));
+            if (progression.CurrentRun is not null)
+                _menu.Add(Loc.T("Abstieg fortsetzen: {0}", active.Name), () => Continue(active));
+            else
+                _menu.Add(Loc.T("Neuer Abstieg: {0}", active.Name),
+                    () => Context.Scenes.Replace(new CharacterCreatorScene(Context, CreatorMode.NewRun, active)));
         }
+        if (progression.Characters.Count > 0)
+            _menu.Add(Loc.T("Gestalten"), () => Context.Scenes.Replace(new CharacterSelectScene(Context)));
         else
-        {
-            _menu.Add("Neuer Lauf", () => Context.Scenes.Replace(new CharacterCreatorScene(Context)));
-        }
+            _menu.Add(Loc.T("Neue Gestalt erschaffen"), () => Context.Scenes.Replace(new CharacterCreatorScene(Context)));
+        // Die Arena braucht eine Gestalt, die hineinsteigt – vorher bleibt der Eintrag ausgegraut.
+        _menu.Add(Loc.T("Arena"), () => Context.Scenes.Replace(new ArenaLobbyScene(Context)),
+                  isEnabled: progression.Characters.Count > 0);
         // Ohne laufenden Abstieg gibt es keinen begehbaren Tempel (kein Spielerfigur-Zustand) –
         // dann bleibt das Missionsbrett als Menü erreichbar.
         if (progression.CurrentRun is null)
-            _menu.Add("Bitten der Gläubigen", () => Context.Scenes.Push(new MissionBoardScene(Context)));
+            _menu.Add(Loc.T("Bitten der Gläubigen"), () => Context.Scenes.Push(new MissionBoardScene(Context)));
         // Optionen gehören auch ins Hauptmenü: Schwierigkeit, Audio und Controller-Profile sollen
         // vor dem ersten Abstieg einstellbar sein – nicht erst über die Pause im Tempel.
-        _menu.Add("Optionen", () => Context.Scenes.Push(new SettingsScene(Context)));
-        _menu.Add("Beenden", Context.RequestExit);
+        _menu.Add(Loc.T("Optionen"), () => Context.Scenes.Push(new SettingsScene(Context)));
+        _menu.Add(Loc.T("Beenden"), Context.RequestExit);
+        _menu.Select(selected);
+    }
+
+    private void Continue(SavedCharacter character)
+    {
+        Context.Progression.SelectCharacter(character);   // merkt sich "zuletzt gespielt"
+        Context.Scenes.Replace(new HubScene(Context));
     }
 
     public override void Update(float deltaSeconds)
@@ -51,19 +76,19 @@ public sealed class TitleScene : SceneBase
         int rings = Context.Definitions.Worlds.All.FirstOrDefault()?.Circles.Count ?? 9;
         InfernoFunnel.Draw(spriteBatch, Context.Assets.Pixel, new Vector2(centerX, 150), 460f, 90f, rings, -1, _time * 0.4f, animate: true);
 
-        Texture2D logo = Context.Assets.GetTexture("ui.logo");
-        spriteBatch.Draw(logo, new Vector2(centerX - logo.Width / 2f, 4 + MathF.Sin(_time) * 2f), Color.White);
+        UiDraw.Logo(spriteBatch, Context, centerX, 4 + MathF.Sin(_time) * 2f);
         _menu.Draw(spriteBatch, Context.Font, centerX, 126);
 
         MetaState meta = Context.Progression.Meta;
-        Context.Font.DrawCentered(spriteBatch, $"Gläubige: {meta.Believers}   ·   Tode: {meta.Deaths}   ·   Ewige Gaben: {meta.UnlockedAbilities.Count}",
+        Context.Font.DrawCentered(spriteBatch,
+            Loc.T("Gläubige: {0}   ·   Tode: {1}   ·   Ewige Gaben: {2}", meta.Believers, meta.Deaths, meta.UnlockedAbilities.Count),
             centerX, CirclesGame.VirtualHeight - 30, Palette.Faith);
         InputState input = Context.Input;
         string controls = input.HasGamePad
-            ? $"Stick laufen · {input.Glyph(GameAction.Jump)} springen · {input.Glyph(GameAction.Dash)} Dash · "
-              + $"{input.Glyph(GameAction.AbilityOne)}/{input.Glyph(GameAction.AbilityTwo)} Gaben · "
-              + $"{input.Glyph(GameAction.Interact)} benutzen · {input.Glyph(GameAction.Pause)} Pause"
-            : "A/D laufen · Leertaste springen · Shift Dash · Q/E Gaben · F benutzen · Esc Pause";
+            ? Loc.T("Stick laufen · {0} springen · {1} Dash · {2}/{3} Gaben · {4} benutzen · {5} Pause",
+                input.Glyph(GameAction.Jump), input.Glyph(GameAction.Dash), input.Glyph(GameAction.AbilityOne),
+                input.Glyph(GameAction.AbilityTwo), input.Glyph(GameAction.Interact), input.Glyph(GameAction.Pause))
+            : Loc.T("A/D laufen · Leertaste springen · Shift Dash · Q/E Gaben · F benutzen · Esc Pause");
         Context.Font.DrawCentered(spriteBatch, controls,
             centerX, CirclesGame.VirtualHeight - 16, Palette.Ash);
         spriteBatch.End();

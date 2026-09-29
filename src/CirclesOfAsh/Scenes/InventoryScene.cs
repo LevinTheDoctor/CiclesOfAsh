@@ -1,6 +1,9 @@
+using System.Globalization;
+using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 
@@ -41,7 +44,7 @@ public sealed class InventoryScene : SceneBase
         foreach (ItemDefinition item in _items)
         {
             ItemDefinition captured = item;
-            string marker = EquipmentService.IsEquipped(_run, item) ? " (angelegt)" : "";
+            string marker = EquipmentService.IsEquipped(_run, item) ? Loc.T(" (angelegt)") : "";
             // Bei getragener Kleidung zeigt die Zeile, wie viele Treffer sie noch abfängt – und in
             // welchem Zustand sie dabei ist, denn genau das sieht man am Sprite.
             int armorHits = item.Slot == ItemSlot.Armor ? EquipmentService.ArmorHitsOf(item) : 0;
@@ -49,7 +52,7 @@ public sealed class InventoryScene : SceneBase
             if (armorHits > 0 && EquipmentService.IsEquipped(_run, item))
             {
                 int remaining = Math.Clamp(_run.ArmorDurability, 0, armorHits);
-                wear = $"  {remaining}/{armorHits} Treffer · {EquipmentService.StageNames[EquipmentService.ArmorStage(item, _run)]}";
+                wear = Loc.T("  {0}/{1} Treffer · {2}", remaining, armorHits, EquipmentService.StageName(EquipmentService.ArmorStage(item, _run)));
             }
             _menu.Add($"[{SlotName(item.Slot)}] {item.Name}{marker}{wear}", () => Toggle(captured), hint: Describe(item));
         }
@@ -84,11 +87,11 @@ public sealed class InventoryScene : SceneBase
         UiDraw.Rect(spriteBatch, pixel, new Rectangle(0, 0, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight), Color.Black * 0.7f);
         var panel = new Rectangle(50, 24, CirclesGame.VirtualWidth - 100, 222);
         UiDraw.Panel(spriteBatch, pixel, panel);
-        Context.TitleFont.DrawCentered(spriteBatch, "Inventar", centerX, panel.Top + 4, Palette.Gold);
+        Context.TitleFont.DrawCentered(spriteBatch, Loc.T("Inventar"), centerX, panel.Top + 4, Palette.Gold);
 
         if (_items.Count == 0)
         {
-            Context.Font.DrawCentered(spriteBatch, "Noch nichts gefunden. Öffne Truhen in den Verliesen!", centerX, panel.Top + 80, Palette.Ash);
+            Context.Font.DrawCentered(spriteBatch, Loc.T("Noch nichts gefunden. Öffne Truhen in den Verliesen!"), centerX, panel.Top + 80, Palette.Ash);
         }
         else
         {
@@ -97,26 +100,31 @@ public sealed class InventoryScene : SceneBase
             Context.Font.DrawCenteredLines(spriteBatch, Context.Font.Wrap(hint, panel.Width - 24), centerX, panel.Bottom - 44, Palette.Bone * 0.85f);
         }
         Context.Font.DrawCentered(spriteBatch,
-            $"{Context.Input.Glyph(GameAction.Confirm)} anlegen/ablegen · {Context.Input.Glyph(GameAction.Cancel)} zurück",
+            Loc.T("{0} anlegen/ablegen · {1} zurück", Context.Input.Glyph(GameAction.Confirm), Context.Input.Glyph(GameAction.Cancel)),
             centerX, panel.Bottom - 12, Palette.Ash);
         spriteBatch.End();
     }
 
     private static string SlotName(ItemSlot slot) => slot switch
     {
-        ItemSlot.Lamp => "Laterne",
-        ItemSlot.Amulet => "Amulett",
-        ItemSlot.Ring => "Ring",
-        ItemSlot.Armor => "Kleidung",
-        _ => "Fund",
+        ItemSlot.Lamp => Loc.T("Laterne"),
+        ItemSlot.Amulet => Loc.T("Amulett"),
+        ItemSlot.Ring => Loc.T("Ring"),
+        ItemSlot.Armor => Loc.T("Kleidung"),
+        _ => Loc.T("Fund"),
     };
 
-    /// <summary>Beschreibung + Boni lesbar, z. B. "+30 LightRadius · +5 % Might".</summary>
+    /// <summary>Beschreibung + Boni lesbar, z. B. "+30 Lichtradius · +5 % Macht".</summary>
     private static string Describe(ItemDefinition item)
     {
         IEnumerable<string> bonuses = item.Modifiers.Select(modifier =>
-            modifier.IsPercent ? $"{modifier.Amount * 100:+0;-0} % {modifier.Stat}" : $"{modifier.Amount:+0.##;-0.##} {modifier.Stat}");
-        string rarity = item.Rarity switch { ItemRarity.Sacred => "Heilig", ItemRarity.Rare => "Selten", _ => "Gewöhnlich" };
+        {
+            string stat = StatSheet.TryParse(modifier.Stat, out StatType type) ? StatNames.Of(type) : modifier.Stat;
+            return modifier.IsPercent
+                ? Loc.T("{0} % {1}", (modifier.Amount * 100).ToString("+0;-0", CultureInfo.InvariantCulture), stat)
+                : $"{modifier.Amount.ToString("+0.##;-0.##", CultureInfo.InvariantCulture)} {stat}";
+        });
+        string rarity = item.Rarity switch { ItemRarity.Sacred => Loc.T("Heilig"), ItemRarity.Rare => Loc.T("Selten"), _ => Loc.T("Gewöhnlich") };
         return $"{rarity}: {item.Description}\n{string.Join(" · ", bonuses)}";
     }
 }

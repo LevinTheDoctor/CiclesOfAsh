@@ -3,6 +3,7 @@ using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 
 namespace CirclesOfAsh.Progression;
 
@@ -191,8 +192,14 @@ public static class EquipmentService
     /// </summary>
     public static readonly string[] StageSuffixes = { "", ".worn", ".broken" };
 
-    /// <summary>Menschenlesbare Stufennamen für Inventar und Meldungen.</summary>
-    public static readonly string[] StageNames = { "heil", "angeschlagen", "zerfetzt" };
+    /// <summary>
+    /// Stufennamen als deutscher Quelltext (für das Log). Angezeigt wird über
+    /// <see cref="StageName"/>, das übersetzt – Loc.N markiert sie für die Übersetzungsprüfung.
+    /// </summary>
+    public static readonly string[] StageNames = { Loc.N("heil"), Loc.N("angeschlagen"), Loc.N("zerfetzt") };
+
+    /// <summary>Stufenname in der aktuellen Sprache, für Inventar, Schmiede und Meldungen.</summary>
+    public static string StageName(int stage) => Loc.T(StageNames[Math.Clamp(stage, 0, StageNames.Length - 1)]);
 
     /// <summary>
     /// Verfallsstufe aus verbleibenden und höchstmöglichen Treffern. Gleichmäßig in Drittel
@@ -228,6 +235,15 @@ public static class EquipmentService
         if (string.IsNullOrEmpty(item.Sprite)) return null;
         return StageSprite(item.Sprite, ArmorStage(item, run), assets);
     }
+
+    /// <summary>
+    /// Sprite der Kleidung, mit der eine Klasse startet – oder null. Für Vorschauen ohne Lauf
+    /// (Editor, Gestaltenauswahl): So betritt die Gestalt das Verlies.
+    /// </summary>
+    public static string? StartingArmorSprite(DefinitionRegistry definitions, ClassDefinition playerClass) =>
+        definitions.Items.TryGet(playerClass.StartingArmor, out ItemDefinition? armor) && armor.Sprite.Length > 0
+            ? armor.Sprite
+            : null;
 
     /// <summary>Sprite-Id einer Stufe, mit Rückfall auf die nächstniedrigere vorhandene Fassung.</summary>
     public static string StageSprite(string sprite, int stage, AssetManager? assets = null)

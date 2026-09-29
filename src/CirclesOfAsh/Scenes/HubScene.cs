@@ -2,6 +2,7 @@ using CirclesOfAsh.Companions;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Persistence;
 using CirclesOfAsh.Pets;
 using CirclesOfAsh.Progression;
@@ -403,7 +404,8 @@ public sealed class HubScene : SceneBase
         var petNpc = new Npc(new NpcDefinition
         {
             Id = companion.Definition.Id,
-            Name = PetService.GetPet(Context, companion.Definition.Id)?.Name ?? companion.Definition.Name,
+            // Schon fertig übersetzt (oder vom Spieler vergeben) – darf nicht noch einmal durch Loc.
+            Name = LocalizedText.Verbatim(PetService.DisplayName(Context, companion.Definition)),
             SpriteSheet = companion.Definition.SpriteSheet,
             DialogId = "pet_talk",
         }, Context.Assets.GetSpriteSheet(companion.Definition.SpriteSheet), companion.Center, "pet")
@@ -423,7 +425,7 @@ public sealed class HubScene : SceneBase
         if (_decoMode)
         {
             Context.Audio.Play("lever", 0.4f);
-            Announce("Deko-Modus: Bewegen mit Richtungstasten, Platzieren mit Interagieren.");
+            Announce(Loc.T("Deko-Modus: Bewegen mit Richtungstasten, Platzieren mit Interagieren."));
         }
         else Context.Audio.Play("lever", 0.4f, 0.5f);
     }
@@ -458,14 +460,14 @@ public sealed class HubScene : SceneBase
         long believers = Context.Progression.Meta.Believers;
         if (believers < DecoCost)
         {
-            Announce($"Nicht genug Gläubige ({DecoCost} nötig).");
+            Announce(Loc.T("Nicht genug Gläubige ({0} nötig).", DecoCost));
             Context.Audio.Play("error", 0.5f);
             return;
         }
         // Bereits belegt?
         if (Context.HubDeco.Any(placement => placement.TileX == _decoCursorX && placement.TileY == _decoCursorY))
         {
-            Announce("Hier steht schon etwas.");
+            Announce(Loc.T("Hier steht schon etwas."));
             Context.Audio.Play("error", 0.5f);
             return;
         }
@@ -475,7 +477,7 @@ public sealed class HubScene : SceneBase
         Context.SaveHubDeco();
         Context.Progression.SaveMeta();
         Context.Audio.Play("chest", 0.4f, 0.2f);
-        Announce($"{definition.Name} platziert (-{DecoCost} Gläubige).");
+        Announce(Loc.T("{0} platziert (-{1} Gläubige).", definition.Name, DecoCost));
     }
 
     private void TryRemoveDecoAtCursor()
@@ -484,7 +486,7 @@ public sealed class HubScene : SceneBase
             .FirstOrDefault(candidate => candidate.TileX == _decoCursorX && candidate.TileY == _decoCursorY);
         if (placement is null)
         {
-            Announce("Hier ist nichts zu entfernen.");
+            Announce(Loc.T("Hier ist nichts zu entfernen."));
             return;
         }
         Context.HubDeco.Remove(placement);
@@ -496,7 +498,7 @@ public sealed class HubScene : SceneBase
         Context.SaveHubDeco();
         Context.Progression.SaveMeta();
         Context.Audio.Play("crumble", 0.4f);
-        Announce($"Entfernt (+{DecoCost / 2} Gläubige zurück).");
+        Announce(Loc.T("Entfernt (+{0} Gläubige zurück).", DecoCost / 2));
     }
 
     private void Announce(string text) => _announcement = (text, 2.6f);
@@ -555,7 +557,7 @@ public sealed class HubScene : SceneBase
         {
             Context.Font.DrawCentered(spriteBatch, notice.Text, CirclesGame.VirtualWidth / 2f, 10, Palette.Faith);
         }
-        Context.Font.DrawCentered(spriteBatch, "Tempel der Gläubigen", CirclesGame.VirtualWidth / 2f, CirclesGame.VirtualHeight - 12, Palette.Ash);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Tempel der Gläubigen"), CirclesGame.VirtualWidth / 2f, CirclesGame.VirtualHeight - 12, Palette.Ash);
         spriteBatch.End();
     }
 
@@ -567,7 +569,7 @@ public sealed class HubScene : SceneBase
         spriteBatch.Draw(pixel, new Rectangle((int)x + 3, (int)y + 4, 2, 3), new Color(150, 24, 36));
         spriteBatch.Draw(pixel, new Rectangle((int)x + 6, (int)y + 5, 2, 2), new Color(150, 24, 36));
         spriteBatch.Draw(pixel, new Rectangle((int)x + 4, (int)y + 8, 3, 2), new Color(150, 24, 36));
-        LabelStation(spriteBatch, "Bitten", new Vector2(x + 6, y + 18));
+        LabelStation(spriteBatch, Loc.T("Bitten"), new Vector2(x + 6, y + 18));
     }
 
     private void DrawShrine(SpriteBatch spriteBatch, Texture2D pixel)
@@ -579,7 +581,7 @@ public sealed class HubScene : SceneBase
         int shown = Math.Min(4, Context.Collectibles.Values.Sum());
         for (int index = 0; index < shown; index++)
             spriteBatch.Draw(pixel, new Rectangle((int)x + 2 + index * 3, (int)y + 8, 2, 2), new Color(240, 220, 140));
-        LabelStation(spriteBatch, "Schrein", new Vector2(x + 6, y + 18));
+        LabelStation(spriteBatch, Loc.T("Schrein"), new Vector2(x + 6, y + 18));
     }
 
     /// <summary>Kleine Stations-Beschriftung (Brett/Schrein), damit man die Hotspots wiederfindet.</summary>
@@ -628,15 +630,15 @@ public sealed class HubScene : SceneBase
         string use = Context.Input.Prompt(GameAction.Interact);
         string? prompt = _hotspot switch
         {
-            Hotspot.MissionBoard => $"{use} Bitten der Gläubigen",
-            Hotspot.Shrine => $"{use} Schrein der Reliquien",
-            Hotspot.Inventory => $"{use} Ausrüstung",
-            Hotspot.Forge => $"{use} Glutschmiede – Kleidung flicken",
-            Hotspot.Gate => $"{use} Höllentor – hinabsteigen",
+            Hotspot.MissionBoard => Loc.T("{0} Bitten der Gläubigen", use),
+            Hotspot.Shrine => Loc.T("{0} Schrein der Reliquien", use),
+            Hotspot.Inventory => Loc.T("{0} Ausrüstung", use),
+            Hotspot.Forge => Loc.T("{0} Glutschmiede – Kleidung flicken", use),
+            Hotspot.Gate => Loc.T("{0} Höllentor – hinabsteigen", use),
             Hotspot.Keeper when _hotspotNpc is not null =>
-                $"{use} Mit {_hotspotNpc.Definition.Name} sprechen",
+                Loc.T("{0} Mit {1} sprechen", use, _hotspotNpc.Definition.Name),
             Hotspot.Companion when _hotspotCompanion is not null =>
-                $"{use} {PetService.GetPet(Context, _hotspotCompanion.Definition.Id)?.Name ?? _hotspotCompanion.Definition.Name} streicheln/füttern",
+                Loc.T("{0} {1} streicheln/füttern", use, PetService.DisplayName(Context, _hotspotCompanion.Definition)),
             _ => null,
         };
         if (prompt is null) return;
@@ -654,15 +656,16 @@ public sealed class HubScene : SceneBase
         if (_decoCatalog.Count > 0)
         {
             PropDefinition selected = _decoCatalog[_decoSelectionIndex];
-            Context.Font.DrawShadowed(spriteBatch, $"Deko: {selected.Name} ({_decoSelectionIndex + 1}/{_decoCatalog.Count})",
+            Context.Font.DrawShadowed(spriteBatch, Loc.T("Deko: {0} ({1}/{2})", selected.Name, _decoSelectionIndex + 1, _decoCatalog.Count),
                 new Vector2(8, 8), Palette.Bone);
             InputState input = Context.Input;
             Context.Font.DrawShadowed(spriteBatch,
-                $"Richtung: bewegen · {input.Glyph(GameAction.AbilityOne)}/{input.Glyph(GameAction.AbilityTwo)}: wechseln · "
-                + $"{input.Glyph(GameAction.Interact)}: platzieren · {input.Glyph(GameAction.Dash)}: entfernen",
+                Loc.T("Richtung: bewegen · {0}/{1}: wechseln · {2}: platzieren · {3}: entfernen",
+                    input.Glyph(GameAction.AbilityOne), input.Glyph(GameAction.AbilityTwo),
+                    input.Glyph(GameAction.Interact), input.Glyph(GameAction.Dash)),
                 new Vector2(8, 22), Palette.Ash);
             Context.Font.DrawShadowed(spriteBatch,
-                $"Kosten: {DecoCost} Gläubige · {input.Glyph(GameAction.Randomize)}: Deko-Modus verlassen",
+                Loc.T("Kosten: {0} Gläubige · {1}: Deko-Modus verlassen", DecoCost, input.Glyph(GameAction.Randomize)),
                 new Vector2(8, 36), Palette.Ash);
         }
     }

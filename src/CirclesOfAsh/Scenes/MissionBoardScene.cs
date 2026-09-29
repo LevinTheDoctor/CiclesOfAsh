@@ -1,5 +1,6 @@
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 
@@ -26,17 +27,17 @@ public sealed class MissionBoardScene : SceneBase
         {
             MissionDefinition captured = mission;
             _menu.Add($"{mission.Title}  {Missions.ProgressOf(mission)}/{mission.Count}", () => Change(() => Missions.Abandon(captured)),
-                hint: $"{mission.Giver}: \"{mission.Text}\"\nBelohnung: {mission.RewardBelievers} Gläubige · {confirm}: Bitte aufgeben");
+                hint: Loc.T("{0}: \"{1}\"\nBelohnung: {2} Gläubige · {3}: Bitte aufgeben", mission.Giver, mission.Text, mission.RewardBelievers, confirm));
         }
         foreach (MissionDefinition mission in Missions.Available)
         {
             MissionDefinition captured = mission;
-            string hintSuffix = Missions.CanAccept ? $"{confirm}: annehmen" : $"Du kannst höchstens {Missions.MaxActive} Bitten tragen.";
-            _menu.Add($"Neu: {mission.Title}", () => Change(() => Missions.Accept(captured)), Missions.CanAccept,
-                hint: $"{mission.Giver}: \"{mission.Text}\"\nBelohnung: {mission.RewardBelievers} Gläubige · {hintSuffix}");
+            string hintSuffix = Missions.CanAccept ? Loc.T("{0}: annehmen", confirm) : Loc.T("Du kannst höchstens {0} Bitten tragen.", Missions.MaxActive);
+            _menu.Add(Loc.T("Neu: {0}", mission.Title), () => Change(() => Missions.Accept(captured)), Missions.CanAccept,
+                hint: Loc.T("{0}: \"{1}\"\nBelohnung: {2} Gläubige · {3}", mission.Giver, mission.Text, mission.RewardBelievers, hintSuffix));
         }
         foreach (MissionDefinition mission in Missions.Locked)
-            _menu.Add($"??? (ab {mission.RequiredBelievers} Gläubigen)", () => { }, isEnabled: false);   // "() => { }" = leere Aktion
+            _menu.Add(Loc.T("??? (ab {0} Gläubigen)", mission.RequiredBelievers), () => { }, isEnabled: false);   // "() => { }" = leere Aktion
         _menu.Select(selectedIndex);
     }
 
@@ -62,16 +63,16 @@ public sealed class MissionBoardScene : SceneBase
         UiDraw.Rect(spriteBatch, pixel, new Rectangle(0, 0, CirclesGame.VirtualWidth, CirclesGame.VirtualHeight), Color.Black * 0.75f);
         var panel = new Rectangle(34, 16, CirclesGame.VirtualWidth - 68, 238);
         UiDraw.Panel(spriteBatch, pixel, panel);
-        Context.TitleFont.DrawCentered(spriteBatch, "Bitten der Gläubigen", centerX, panel.Top + 4, Palette.Gold);
-        Context.Font.DrawCentered(spriteBatch, $"Aktiv {Missions.Active.Count()}/{Missions.MaxActive} · Erfüllt {Missions.Completed.Count()}",
+        Context.TitleFont.DrawCentered(spriteBatch, Loc.T("Bitten der Gläubigen"), centerX, panel.Top + 4, Palette.Gold);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("Aktiv {0}/{1} · Erfüllt {2}", Missions.Active.Count(), Missions.MaxActive, Missions.Completed.Count()),
             centerX, panel.Top + 26, Palette.Ash);
 
-        if (_menu.Count == 0) Context.Font.DrawCentered(spriteBatch, "Alle Bitten sind erfüllt. Die Gläubigen danken dir.", centerX, 110, Palette.Faith);
+        if (_menu.Count == 0) Context.Font.DrawCentered(spriteBatch, Loc.T("Alle Bitten sind erfüllt. Die Gläubigen danken dir."), centerX, 110, Palette.Faith);
         else _menu.Draw(spriteBatch, Context.Font, centerX, panel.Top + 42, maxVisible: 8);
 
         string hint = _menu.Selected?.Hint ?? "";
         Context.Font.DrawCenteredLines(spriteBatch, Context.Font.Wrap(hint, panel.Width - 24), centerX, panel.Bottom - 48, Palette.Bone * 0.85f);
-        Context.Font.DrawCentered(spriteBatch, "Esc zurück", centerX, panel.Bottom - 12, Palette.Ash);
+        Context.Font.DrawCentered(spriteBatch, Loc.T("{0} zurück", Context.Input.Glyph(GameAction.Cancel)), centerX, panel.Bottom - 12, Palette.Ash);
         spriteBatch.End();
     }
 }

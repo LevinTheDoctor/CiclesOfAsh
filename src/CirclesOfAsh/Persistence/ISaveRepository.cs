@@ -11,9 +11,18 @@ public interface ISaveRepository
 {
     MetaState LoadMeta();
     void SaveMeta(MetaState meta);
-    RunState? LoadRun();
-    void SaveRun(RunState run);
-    void DeleteRun();
+
+    /// <summary>Alle Gestalten, zuletzt gespielte zuerst, jeweils mit Kurzfassung ihres Laufs.</summary>
+    List<SavedCharacter> LoadCharacters();
+    /// <summary>Legt eine Gestalt an (Id 0) oder aktualisiert sie. Setzt beim Anlegen die neue Id.</summary>
+    void SaveCharacter(SavedCharacter character);
+    /// <summary>Löscht eine Gestalt samt ihrem Lauf.</summary>
+    void DeleteCharacter(int characterId);
+
+    /// <summary>Der Lauf einer Gestalt, oder null. Das Aussehen setzt der Aufrufer (es gehört der Gestalt).</summary>
+    RunState? LoadRun(int characterId);
+    void SaveRun(int characterId, RunState run);
+    void DeleteRun(int characterId);
 
     /// <summary>
     /// Lädt die Einstellungen. Fehlende Schlüssel behalten den Standardwert aus

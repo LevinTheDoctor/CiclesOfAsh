@@ -1,5 +1,6 @@
 using CirclesOfAsh.Assets;
 using CirclesOfAsh.Core;
+using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Entities;
 
@@ -39,6 +40,12 @@ public sealed class EffectSystem
     public EffectSystem(Random random) => _random = random;
 
     /// <summary>
+    /// Jeder ausgelöste Effekt als Ereignis (ohne die Umgebungspartikel, die jeder selbst würfelt).
+    /// Der Online-Gastgeber schickt sie weiter; der Gast löst dieselben Effekte bei sich aus.
+    /// </summary>
+    public event Action<WorldEvent>? Emitted;
+
+    /// <summary>
     /// Umgebungspartikel je Kreis: Staub im Limbus, Asche in der Gier, Glut im Zorn.
     /// Akkumulator-Muster: Bruchteile von Partikeln pro Frame werden aufsummiert -> gleichmäßige Rate.
     /// </summary>
@@ -70,6 +77,7 @@ public sealed class EffectSystem
 
     public void Burst(Vector2 position, Color color, int count, float speed, float lifetime = 0.5f, float gravity = 250f)
     {
+        Emitted?.Invoke(new BurstEvent(position, color, count, speed, lifetime, gravity));
         for (int index = 0; index < count && _particles.Count < MaxParticles; index++)
         {
             float life = lifetime * (0.5f + _random.NextSingle() * 0.5f);
@@ -88,6 +96,7 @@ public sealed class EffectSystem
 
     public void Ring(Vector2 center, float radius, Color color, int count = 28)
     {
+        Emitted?.Invoke(new RingEvent(center, radius, color, count));
         for (int index = 0; index < count && _particles.Count < MaxParticles; index++)
         {
             float angle = index / (float)count * MathHelper.TwoPi;
@@ -103,11 +112,15 @@ public sealed class EffectSystem
         }
     }
 
-    public void Text(Vector2 position, string text, Color color) =>
+    public void Text(Vector2 position, string text, Color color)
+    {
+        Emitted?.Invoke(new TextEvent(position, text, color));
         _texts.Add(new FloatingText { Position = position, Text = text, Color = color, Life = 0.8f });
+    }
 
     public void PlaySprite(SpriteSheet sheet, Vector2 bottomCenter, bool flip)
     {
+        Emitted?.Invoke(new SpriteEvent(sheet.Id, bottomCenter, flip));
         var animation = new AnimationPlayer(sheet);
         _sprites.Add(new SpriteEffect(animation, bottomCenter, flip));
     }

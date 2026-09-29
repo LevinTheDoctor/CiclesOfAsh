@@ -2,6 +2,7 @@ using CirclesOfAsh.Companions;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Tutorial;
@@ -42,7 +43,7 @@ public sealed class TutorialDirector
 
     /// <summary>Zeile für das HUD. Leer, wenn nichts mehr zu zeigen ist.</summary>
     public string Hint => Current is { } step
-        ? $"{step.Text}   ({_context.Input.Prompt(GameAction.Randomize)} überspringen)"
+        ? Loc.T("{0}   ({1} überspringen)", step.Text, _context.Input.Prompt(GameAction.Randomize))
         : "";
 
     /// <summary>Der Spieler bricht ab. Das Tutorial meldet sich in diesem Lauf nicht mehr.</summary>
@@ -50,7 +51,7 @@ public sealed class TutorialDirector
     {
         if (IsFinished) return;
         _index = _steps.Count;
-        world.Announce("Tutorial übersprungen.");
+        world.Announce(Loc.T("Tutorial übersprungen."));
         _context.Audio.Play("lever", 0.4f, -0.3f);
         Finish();
     }
@@ -107,7 +108,7 @@ public sealed class TutorialDirector
         _context.Audio.Play("pickup", 0.35f, 0.5f);
         if (!IsFinished) return;
 
-        world.Announce("Du kannst alles, was du brauchst.");
+        world.Announce(Loc.T("Du kannst alles, was du brauchst."));
         Finish();
     }
 

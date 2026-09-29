@@ -2,15 +2,29 @@ using CirclesOfAsh.Assets;
 using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 using Microsoft.Xna.Framework.Input;
 
 namespace CirclesOfAsh.Scenes;
 
+/// <summary>Wofür der Editor geöffnet wurde.</summary>
+public enum CreatorMode
+{
+    /// <summary>Neue Gestalt erschaffen und gleich mit ihr hinabsteigen.</summary>
+    NewCharacter,
+    /// <summary>Eine vorhandene Gestalt ohne Lauf bricht neu auf: Klasse und Begleitseele wählen.</summary>
+    NewRun,
+    /// <summary>Nur Name und Aussehen ändern – auch mitten im Lauf. Die Klasse bleibt, wie sie ist.</summary>
+    EditLook,
+}
+
 /// <summary>
 /// Charakter-Editor: Name, Klasse (die früheren Charaktere), Hautton, Frisur, Haar- und Akzentfarbe.
 /// Danach Auswahl der Begleitseele. Einfacher Zustandsautomat mit zwei Schritten.
+/// Derselbe Editor dient allen drei <see cref="CreatorMode"/>s – nur Überschrift, Zeilen und der
+/// letzte Schritt unterscheiden sich.
 /// </summary>
 public sealed class CharacterCreatorScene : SceneBase
 {
@@ -35,6 +49,14 @@ public sealed class CharacterCreatorScene : SceneBase
         "Aurel", "Beatrix", "Cassian", "Dante", "Elysia", "Fenris", "Galia", "Ilian", "Lucan", "Mira", "Orin", "Seraphine", "Vigil",
     };
 
+    private readonly CreatorMode _mode;
+    /// <summary>Die bearbeitete Gestalt, oder null beim Erschaffen einer neuen.</summary>
+    private readonly SavedCharacter? _character;
+    /// <summary>
+    /// Nur beim Ändern des Aussehens mitten im Lauf: der Lauf selbst. Die Vorschau zeigt dann dessen
+    /// Kleidung samt Verfall und Unterwäsche – genau so steht die Gestalt gerade da.
+    /// </summary>
+    private readonly RunState? _run;
     private readonly List<ClassDefinition> _classes;
     private readonly AppearanceDefinition _options;
     private readonly MenuList _companionMenu = new();
@@ -64,8 +86,15 @@ public sealed class CharacterCreatorScene : SceneBase
     private LayeredSprite _preview = null!;
     private float _time;
 
-    public CharacterCreatorScene(GameContext context) : base(context)
+    /// <summary>Neue Gestalt erschaffen.</summary>
+    public CharacterCreatorScene(GameContext context) : this(context, CreatorMode.NewCharacter, null) { }
+
+    /// <param name="character">Die Gestalt für <see cref="CreatorMode.NewRun"/> und <see cref="CreatorMode.EditLook"/>.</param>
+    public CharacterCreatorScene(GameContext context, CreatorMode mode, SavedCharacter? character) : base(context)
     {
+        // Ohne Gestalt gibt es nichts zu bearbeiten -> dann immer "neu erschaffen".
+        _mode = character is null ? CreatorMode.NewCharacter : mode;
+        _character = character;
         _classes = context.Definitions.Classes.All.ToList();
         _options = context.Definitions.Appearance;
         _bodies = new BodyTypeCatalog(_options.BodyTypes);
@@ -73,8 +102,32 @@ public sealed class CharacterCreatorScene : SceneBase
         // Das Muster wird hier schon gewürfelt, nicht erst beim Start: Auf den Zeilen Geschlecht
         // und Statur ist die Unterwäsche zu sehen, und was dort steht, muss auch im Lauf gelten.
         _underwear = _random.Next(Math.Max(1, _options.UnderwearStyles.Count));
+        if (character is not null)
+        {
+            LoadLook(character);
+            _classIndex = Math.Max(0, _classes.IndexOf(context.Progression.DisplayClassOf(character)));
+            if (_mode == CreatorMode.EditLook) _run = context.Progression.PeekRun(character);
+            // Mitten im Lauf gehört die Unterwäsche dem Lauf – die Vorschau zeigt die echte.
+            if (_run is not null) _underwear = _run.Underwear;
+        }
         _rows = Enum.GetValues<Row>().Where(HasOptions).ToArray();
         RebuildPreview();
+    }
+
+    /// <summary>Übernimmt Name und Aussehen einer vorhandenen Gestalt in die Regler des Editors.</summary>
+    private void LoadLook(SavedCharacter character)
+    {
+        CharacterAppearance look = character.Appearance;
+        _name = look.Name;
+        _skin = look.SkinTone;
+        _hair = look.HairStyle;
+        _hairColor = look.HairColor;
+        _accent = look.AccentColor;
+        _makeup = look.Makeup;
+        _makeupColor = look.MakeupColor;
+        _wings = look.Wings;
+        // Tupel-Dekonstruktion: Der gespeicherte Körpertyp zerfällt in die zwei Achsen des Editors.
+        (_gender, _build) = _bodies.FromBodyType(look.BodyType);
     }
 
     /// <summary>Gibt es für diese Zeile überhaupt etwas zu wählen?</summary>
@@ -87,12 +140,14 @@ public sealed class CharacterCreatorScene : SceneBase
         Row.Makeup => _options.MakeupStyles.Count > 0,
         Row.MakeupColor => _options.MakeupStyles.Count > 0 && _options.MakeupColors.Count > 0,
         Row.Wings => _options.WingStyles.Count > 0,
+        // Die Klasse gehört zum Lauf: Wer nur das Aussehen ändert, behält sie.
+        Row.Class => _mode != CreatorMode.EditLook,
         _ => true,
     };
 
     private Row CurrentRow => _rows[_rowIndex];
     private ClassDefinition SelectedClass => _classes[_classIndex];
-    private CharacterAppearance Look => new(_name.Trim().Length > 0 ? _name.Trim() : "Namenloser",
+    private CharacterAppearance Look => new(_name.Trim().Length > 0 ? _name.Trim() : Loc.T("Namenloser"),
         _skin, _hair, _hairColor, _accent, _bodies.ToBodyType(_gender, _build), _makeup, _makeupColor, _wings);
 
     public override void OnEnter()
@@ -102,7 +157,7 @@ public sealed class CharacterCreatorScene : SceneBase
             string companionId = companion.Id;   // lokale Kopie für das Lambda (Closure)
             _companionMenu.Add(companion.Name, () => StartRun(new[] { companionId }), hint: companion.Description);
         }
-        _companionMenu.Add("Allein hinabsteigen", () => StartRun(Array.Empty<string>()), hint: "Kein Begleiter.");
+        _companionMenu.Add(Loc.T("Allein hinabsteigen"), () => StartRun(Array.Empty<string>()), hint: Loc.T("Kein Begleiter."));
     }
 
     // ------------------------------------------------------------------ Eingabe
@@ -122,7 +177,7 @@ public sealed class CharacterCreatorScene : SceneBase
 
         if (input.WasPressed(GameAction.Cancel))
         {
-            Context.Scenes.Replace(new TitleScene(Context));
+            GoBack();
             return;
         }
         if (input.WasPressed(GameAction.Randomize)) Randomize();
@@ -162,8 +217,9 @@ public sealed class CharacterCreatorScene : SceneBase
 
         if (input.WasPressed(GameAction.Confirm))
         {
-            if (CurrentRow == Row.Continue) _step = Step.Companion;
-            else MoveRow(1);
+            if (CurrentRow != Row.Continue) MoveRow(1);
+            else if (_mode == CreatorMode.EditLook) ApplyLook();
+            else _step = Step.Companion;
         }
     }
 
@@ -202,8 +258,9 @@ public sealed class CharacterCreatorScene : SceneBase
 
     private void Randomize()
     {
-        _name = RandomNames[_random.Next(RandomNames.Length)];
-        _classIndex = _random.Next(_classes.Count);
+        // Eine vorhandene Gestalt behält Namen und (im Lauf) Klasse – gewürfelt wird nur das Aussehen.
+        if (_mode == CreatorMode.NewCharacter) _name = RandomNames[_random.Next(RandomNames.Length)];
+        if (_rows.Contains(Row.Class)) _classIndex = _random.Next(_classes.Count);
         _skin = _random.Next(Math.Max(1, _options.SkinTones.Count));
         _hair = _random.Next(Math.Max(1, _options.HairStyles.Count));
         _hairColor = _random.Next(Math.Max(1, _options.HairColors.Count));
@@ -213,7 +270,7 @@ public sealed class CharacterCreatorScene : SceneBase
         _makeup = _random.Next(Math.Max(1, _options.MakeupStyles.Count));
         _makeupColor = _random.Next(Math.Max(1, _options.MakeupColors.Count));
         _wings = _random.Next(Math.Max(1, _options.WingStyles.Count));
-        _underwear = _random.Next(Math.Max(1, _options.UnderwearStyles.Count));
+        if (_run is null) _underwear = _random.Next(Math.Max(1, _options.UnderwearStyles.Count));
         Context.Audio.Play("unseal", 0.3f, 0.6f);
         RebuildPreview();
     }
@@ -226,23 +283,55 @@ public sealed class CharacterCreatorScene : SceneBase
     /// </summary>
     private void RebuildPreview() =>
         _preview = CharacterVisuals.Create(Context, SelectedClass, Look,
-            ShowsBody ? null : StartingArmorSprite, _underwear);
+            ShowsBody ? null : PreviewArmorSprite, _underwear);
 
     /// <summary>Auf diesen Zeilen zählt der nackte Körper, nicht die Kleidung darüber.</summary>
     private bool ShowsBody => CurrentRow is Row.Gender or Row.Body;
 
-    /// <summary>Sprite der Kleidung, mit der diese Klasse startet – oder null.</summary>
-    private string? StartingArmorSprite =>
-        Context.Definitions.Items.TryGet(SelectedClass.StartingArmor, out ItemDefinition? armor)
-        && armor.Sprite.Length > 0
-            ? armor.Sprite
-            : null;
+    /// <summary>Mitten im Lauf die getragene Kleidung, sonst die Startkleidung der gewählten Klasse.</summary>
+    private string? PreviewArmorSprite => _run is not null
+        ? EquipmentService.ArmorSprite(Context.Definitions, _run, Context.Assets)
+        : EquipmentService.StartingArmorSprite(Context.Definitions, SelectedClass);
 
     private void StartRun(IEnumerable<string> companionIds)
     {
-        Context.Progression.StartNewRun(SelectedClass.Id, Look, companionIds, _underwear);
+        ProgressionService progression = Context.Progression;
+        // Erst JETZT entsteht bzw. ändert sich die Gestalt – wer vorher abbricht, hinterlässt nichts.
+        if (_character is null) progression.CreateCharacter(Look);
+        else
+        {
+            progression.ChangeAppearance(_character, Look);
+            progression.SelectCharacter(_character);
+        }
+        progression.StartNewRun(SelectedClass.Id, companionIds, _underwear);
         Context.Scenes.Replace(new HubScene(Context));
     }
+
+    /// <summary>Modus "Aussehen ändern": speichern und zurück zur Auswahl – ohne Begleitseele, ohne neuen Lauf.</summary>
+    private void ApplyLook()
+    {
+        // "!" = Null-Forgiving-Operator: Im Modus EditLook gibt es immer eine Gestalt (siehe Konstruktor).
+        Context.Progression.ChangeAppearance(_character!, Look);
+        Context.Audio.Play("unseal", 0.3f, 0.5f);
+        Context.Scenes.Replace(new CharacterSelectScene(Context));
+    }
+
+    /// <summary>Zurück zur Gestaltenauswahl – oder zum Titel, solange es noch keine Gestalt gibt.</summary>
+    private void GoBack()
+    {
+        IScene back = Context.Progression.Characters.Count > 0 ? new CharacterSelectScene(Context) : new TitleScene(Context);
+        Context.Scenes.Replace(back);
+    }
+
+    /// <summary>Überschrift je Schritt und Modus – switch-Ausdruck statt if-Kette.</summary>
+    private string Heading => _step == Step.Companion
+        ? Loc.T("Wähle eine Begleitseele")
+        : _mode switch
+        {
+            CreatorMode.NewRun => Loc.T("Ein neuer Abstieg"),
+            CreatorMode.EditLook => Loc.T("Gestalt verändern"),
+            _ => Loc.T("Erschaffe deine Gestalt"),
+        };
 
     // ------------------------------------------------------------------ Darstellung
     public override void Draw(SpriteBatch spriteBatch)
@@ -253,7 +342,7 @@ public sealed class CharacterCreatorScene : SceneBase
         Texture2D pixel = Context.Assets.Pixel;
         float centerX = CirclesGame.VirtualWidth / 2f;
 
-        Context.TitleFont.DrawCentered(spriteBatch, _step == Step.Look ? "Erschaffe deine Gestalt" : "Wähle eine Begleitseele", centerX, 6, Palette.Gold);
+        Context.TitleFont.DrawCentered(spriteBatch, Heading, centerX, 6, Palette.Gold);
 
         // Links: große Vorschau auf einem "Altar"
         // Beide Panels reichen bis 244 – erst bei 256 steht die Hilfezeile. Die Höhe wurde
@@ -273,7 +362,7 @@ public sealed class CharacterCreatorScene : SceneBase
         {
             _companionMenu.Draw(spriteBatch, font, panel.Center.X, panel.Top + 10, maxVisible: 8);
             font.DrawCenteredLines(spriteBatch, font.Wrap(_companionMenu.Selected?.Hint ?? "", panel.Width - 20), panel.Center.X, panel.Bottom - 40, Palette.Bone * 0.8f);
-            font.DrawCentered(spriteBatch, "Befreie Gefangene in den Kerkern für weitere Seelen.", panel.Center.X, panel.Bottom - 14, Palette.Ash);
+            font.DrawCentered(spriteBatch, Loc.T("Befreie Gefangene in den Kerkern für weitere Seelen."), panel.Center.X, panel.Bottom - 14, Palette.Ash);
         }
 
         string confirmGlyph = Context.Input.Glyph(GameAction.Confirm),
@@ -281,11 +370,11 @@ public sealed class CharacterCreatorScene : SceneBase
                randomGlyph = Context.Input.Glyph(GameAction.Randomize);
         string help = _step == Step.Look
             ? (CurrentRow == Row.Name
-                ? $"Tippen: Name · Runter/{confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück"
+                ? Loc.T("Tippen: Name · Runter/{0} weiter · {1} Zufall · {2} zurück", confirmGlyph, randomGlyph, cancelGlyph)
                 : ShowsBody
-                    ? $"Hoch/Runter Zeile · Links/Rechts ändern · Kleidung ausgeblendet · {cancelGlyph} zurück"
-                    : $"Hoch/Runter Zeile · Links/Rechts ändern · {confirmGlyph} weiter · {randomGlyph} Zufall · {cancelGlyph} zurück")
-            : $"{confirmGlyph} wählen · {cancelGlyph} zurück";
+                    ? Loc.T("Hoch/Runter Zeile · Links/Rechts ändern · Kleidung ausgeblendet · {0} zurück", cancelGlyph)
+                    : Loc.T("Hoch/Runter Zeile · Links/Rechts ändern · {0} weiter · {1} Zufall · {2} zurück", confirmGlyph, randomGlyph, cancelGlyph))
+            : Loc.T("{0} wählen · {1} zurück", confirmGlyph, cancelGlyph);
         font.DrawCentered(spriteBatch, help, centerX, CirclesGame.VirtualHeight - 14, Palette.Ash);
         spriteBatch.End();
     }
@@ -306,22 +395,23 @@ public sealed class CharacterCreatorScene : SceneBase
             Color color = isSelected ? Palette.Gold : Palette.Bone * 0.85f;
             string label = row switch
             {
-                Row.Name => "Name",
-                Row.Class => "Klasse",
-                Row.Skin => "Hautton",
-                Row.Hair => "Frisur",
-                Row.HairColor => "Haarfarbe",
-                Row.Gender => "Geschlecht",
-                Row.Body => _bodies.HasGenders ? "Statur" : "Gestalt",
-                Row.Makeup => "Bemalung",
-                Row.MakeupColor => "Bemalungsfarbe",
-                Row.Wings => "Flügel",
-                Row.Accent => "Wappenfarbe",
+                Row.Name => Loc.T("Name"),
+                Row.Class => Loc.T("Klasse"),
+                Row.Skin => Loc.T("Hautton"),
+                Row.Hair => Loc.T("Frisur"),
+                Row.HairColor => Loc.T("Haarfarbe"),
+                Row.Gender => Loc.T("Geschlecht"),
+                Row.Body => _bodies.HasGenders ? Loc.T("Statur") : Loc.T("Körperbau"),
+                Row.Makeup => Loc.T("Bemalung"),
+                Row.MakeupColor => Loc.T("Bemalungsfarbe"),
+                Row.Wings => Loc.T("Flügel"),
+                Row.Accent => Loc.T("Wappenfarbe"),
                 _ => "",
             };
             if (row == Row.Continue)
             {
-                font.DrawCentered(spriteBatch, isSelected ? "· Weiter zur Begleitseele ·" : "Weiter zur Begleitseele", panel.Center.X, y + 4, color);
+                string next = _mode == CreatorMode.EditLook ? Loc.T("Aussehen übernehmen") : Loc.T("Weiter zur Begleitseele");
+                font.DrawCentered(spriteBatch, isSelected ? $"· {next} ·" : next, panel.Center.X, y + 4, color);
                 break;
             }
 
@@ -341,7 +431,7 @@ public sealed class CharacterCreatorScene : SceneBase
                     font.DrawShadowed(spriteBatch, $"‹ {hairName} ›", valuePosition, Palette.Faith);
                     break;
                 case Row.Gender:
-                    font.DrawShadowed(spriteBatch, $"‹ {_bodies.GenderName(_gender)} ›", valuePosition, Palette.Faith);
+                    font.DrawShadowed(spriteBatch, $"‹ {Loc.T(_bodies.GenderName(_gender))} ›", valuePosition, Palette.Faith);
                     break;
                 case Row.Body:
                     string bodyName = _bodies.HasGenders ? _bodies.BuildName(_build) : OptionName(_options.BodyTypes, _build);
@@ -365,7 +455,9 @@ public sealed class CharacterCreatorScene : SceneBase
         UiDraw.Rect(spriteBatch, pixel, new Rectangle(panel.Left + 8, (int)infoTop - 4, panel.Width - 16, 1), Palette.Gold * 0.4f);
         font.DrawShadowed(spriteBatch, font.Wrap(SelectedClass.Description, panel.Width - 20), new Vector2(panel.Left + 10, infoTop), Palette.Bone * 0.8f);
         Dictionary<StatType, float> stats = StatSheet.ParseAll(SelectedClass.BaseStats);
-        string statLine = $"Leben {Value(stats, StatType.MaxHealth)} · Mana {Value(stats, StatType.MaxMana)} · Rüstung {Value(stats, StatType.Armor)} · Tempo {Value(stats, StatType.MoveSpeed)}";
+        string statLine = string.Join(" · ",
+            new[] { StatType.MaxHealth, StatType.MaxMana, StatType.Armor, StatType.MoveSpeed }
+                .Select(stat => $"{StatNames.Of(stat)} {Value(stats, stat)}"));
         font.DrawShadowed(spriteBatch, statLine, new Vector2(panel.Left + 10, panel.Bottom - 14), Palette.Soul);
     }
 

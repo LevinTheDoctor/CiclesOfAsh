@@ -1,5 +1,6 @@
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Entities;
 
 namespace CirclesOfAsh.World;
 
@@ -47,7 +48,8 @@ public sealed class CrumbleSystem
         {
             float left = time - deltaSeconds;
             var area = new Rectangle(tile.X * TileMap.TileSize, tile.Y * TileMap.TileSize, TileMap.TileSize, TileMap.TileSize);
-            if (left > 0f || area.Intersects(world.Player.Bounds))
+            // Nicht unter jemandem wieder auftauchen – sonst steckte er in der Plattform.
+            if (left > 0f || world.LivingPlayerIntersecting(area) is not null)
             {
                 _respawning[tile] = MathF.Max(left, 0f);
                 continue;
@@ -59,13 +61,17 @@ public sealed class CrumbleSystem
 
     private void DetectStepping(DungeonWorld world, TileMap map)
     {
-        if (!world.Player.OnGround) return;
-        Rectangle bounds = world.Player.Bounds;
-        int row = TileMap.ToTile(bounds.Bottom + 1);
-        for (int column = TileMap.ToTile(bounds.Left); column <= TileMap.ToTile(bounds.Right - 1); column++)
+        // Jede stehende Figur bringt Plattformen zum Bröckeln, nicht nur die Hauptfigur.
+        foreach (Player player in world.LivingPlayers)
         {
-            var tile = new Point(column, row);
-            if (map[column, row] == TileType.Crumbling && !_breaking.ContainsKey(tile)) _breaking[tile] = _delay;
+            if (!player.OnGround) continue;
+            Rectangle bounds = player.Bounds;
+            int row = TileMap.ToTile(bounds.Bottom + 1);
+            for (int column = TileMap.ToTile(bounds.Left); column <= TileMap.ToTile(bounds.Right - 1); column++)
+            {
+                var tile = new Point(column, row);
+                if (map[column, row] == TileType.Crumbling && !_breaking.ContainsKey(tile)) _breaking[tile] = _delay;
+            }
         }
     }
 }

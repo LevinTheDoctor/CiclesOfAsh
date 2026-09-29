@@ -1,6 +1,7 @@
 using CirclesOfAsh.Combat;
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Enemies;
@@ -24,7 +25,7 @@ public sealed class ChargeAttack : IBossAttack
     public void Begin(Enemy boss, DungeonWorld world, float intensity)
     {
         _intensity = intensity;
-        _direction = MathF.Sign(world.Player.Center.X - boss.Center.X);
+        _direction = MathF.Sign(world.TargetOf(boss.Center).Center.X - boss.Center.X);
         if (_direction == 0f) _direction = 1f;
         boss.ForcedAnimation = "cast";
     }
@@ -103,7 +104,7 @@ public sealed class SummonAttack : IBossAttack
             Vector2 spot = world.FindSpawnSpot(minion, preferred, room);
             world.SpawnEnemy(minion, spot, boss.Owner);
         }
-        world.Announce("Diener werden beschworen!");
+        world.Announce(Loc.T("Diener werden beschworen!"));
     }
 
     public bool Update(Enemy boss, DungeonWorld world, float deltaSeconds)
@@ -123,7 +124,7 @@ public sealed class SlamAttack : IBossAttack
     public void Begin(Enemy boss, DungeonWorld world, float intensity)
     {
         boss.Velocity.Y = -520f;
-        boss.Velocity.X = MathF.Sign(world.Player.Center.X - boss.Center.X) * 90f * intensity;
+        boss.Velocity.X = MathF.Sign(world.TargetOf(boss.Center).Center.X - boss.Center.X) * 90f * intensity;
     }
 
     public bool Update(Enemy boss, DungeonWorld world, float deltaSeconds)

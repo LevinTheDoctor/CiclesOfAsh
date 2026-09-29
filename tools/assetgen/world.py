@@ -1158,19 +1158,28 @@ def logo(textures, docs):
     image.paste(Image.new("RGBA", (width, height), (0, 0, 0, 200)), (2, 3), outline_mask)   # Schlagschatten
     image.paste(shadow, (0, 0), outline_mask)                                                # Blutrand
     image.paste(gradient, (0, 0), mask)
+    # Der Untertitel steht NICHT im Bild fürs Spiel: Das Spiel schreibt ihn zur Laufzeit in der
+    # gewählten Sprache an genau diese Stelle (UiDraw.Logo – gleiche Schrift, y = 88, gleiche
+    # Farbe). Die Asche wird trotzdem so verteilt, als stünde er da – so fällt kein Aschekorn auf
+    # die Buchstaben, und die Zufallsfolge bleibt dieselbe wie früher (alle übrigen Assets bleiben
+    # byte-gleich). docs/logo.png behält die deutsche Fassung für die README.
     sub_font = ImageFont.truetype(str(FONT_SOURCES / "Tiny5-Regular.ttf"), 8)
+    captioned = image.copy()
     d = ImageDraw.Draw(image)
-    d.fontmode = "1"
+    captioned_draw = ImageDraw.Draw(captioned)
+    captioned_draw.fontmode = "1"
     subtitle = "·  EIN ABSTIEG DURCH DIE KREISE  ·"
-    sw = d.textlength(subtitle, font=sub_font)
-    d.text(((width - sw) / 2, 88), subtitle, font=sub_font, fill=(200, 190, 170, 255))
+    sw = captioned_draw.textlength(subtitle, font=sub_font)
+    captioned_draw.text(((width - sw) / 2, 88), subtitle, font=sub_font, fill=(200, 190, 170, 255))
     for _ in range(60):                                                                    # Asche
         x, y = rng.randrange(width), rng.randrange(height)
-        if image.getpixel((x, y))[3] == 0:
-            d.point((x, y), fill=(150, 140, 150, rng.randrange(60, 200)))
+        if captioned.getpixel((x, y))[3] == 0:
+            ash = (150, 140, 150, rng.randrange(60, 200))
+            d.point((x, y), fill=ash)
+            captioned_draw.point((x, y), fill=ash)
     image.save(textures / "logo.png")
     docs.mkdir(parents=True, exist_ok=True)
-    image.resize((width * 4, height * 4), Image.NEAREST).save(docs / "logo.png")
+    captioned.resize((width * 4, height * 4), Image.NEAREST).save(docs / "logo.png")
     _ = (scale, CLEAR, OUTLINE, PALE, LEATHER, DARK_BLOOD, BLOOD)
 
 

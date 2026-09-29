@@ -1112,3 +1112,43 @@ Ein Rätseltyp, der auf **Gehör** setzt (Glockenreihe: eine Tonfolge nachspiele
 Sinn, den die fünf vorhandenen nicht ansprechen. Das bräuchte eigene Props **und** Töne und ist
 deshalb bewusst kein Auftrag — es steht als offener Punkt in der Roadmap, nicht hier.
 
+
+---
+
+# Sechster Stapel — Mehrsprachigkeit (v1.4.0)
+
+Das Spiel gibt es jetzt auf **Deutsch und Englisch** (Optionen → Sprache, mit Flaggen). Für dich
+ändern sich zwei Dinge, beide klein.
+
+## Neue Texte in deinen Datendateien brauchen eine englische Zeile
+
+In `items.json`, `enemies.json`, `companions.json` und `appearance.json` steht weiter der
+**deutsche** Text – er ist der Schlüssel der Übersetzung. Die englische Fassung steht in
+`src/CirclesOfAsh/Content/Lang/en.json`, Schlüssel = der deutsche Text, Wert = Englisch:
+
+```json
+"Grablaterne": "Grave Lantern",
+"Rostig, aber sie brennt noch. Vertreibt die erste Finsternis.": "Rusty, but it still burns. Drives back the first darkness."
+```
+
+**Diese Datei darfst du ergänzen**, aber nur um Einträge für Texte aus deinen Dateien. Prüfen:
+
+```bash
+dotnet run --project tools/LangCheck -- en
+```
+
+Das Werkzeug gibt jeden fehlenden Text als fertige JSON-Zeile aus. Die CI (Job `translations`)
+schlägt fehl, solange etwas fehlt. **Achtung:** Wer einen deutschen Namen umformuliert, ändert damit
+den Schlüssel – die alte englische Zeile meldet LangCheck dann als `VERWAIST`, die neue als `FEHLT`.
+
+## Den Logo-Untertitel habe ich aus `world.py` genommen – bitte nicht zurückdrehen
+
+`logo()` in `tools/assetgen/world.py` schreibt den Untertitel „Ein Abstieg durch die Kreise“ nicht
+mehr ins Spiel-Logo (`Textures/logo.png`), sondern nur noch in `docs/logo.png`. Das Spiel setzt ihn
+zur Laufzeit in der gewählten Sprache an genau dieselbe Stelle (`UiDraw.Logo`: gleiche Schrift, y = 88,
+gleiche Farbe). Die Asche wird weiter so verteilt, als stünde er im Bild – dadurch bleibt die
+Zufallsfolge gleich, und alle übrigen Assets bleiben byte-genau.
+
+Neu und **nicht** dein Bereich: `tools/assetgen/interface.py` (Sprachflaggen, demnächst
+Controller-Tasten) und der erweiterte Zeichensatz in `media.py` (Latin-1 für künftige Sprachen,
+mit Rand oben/links in jeder Zelle, damit Akzente nicht in die Nachbarzelle malen).

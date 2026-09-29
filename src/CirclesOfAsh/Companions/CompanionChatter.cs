@@ -88,8 +88,9 @@ public sealed class CompanionChatter
             if (matching.Count == 0) return false;
         }
 
-        string name = PetService.GetPet(_context, speaker.Definition.Id)?.Name ?? speaker.Definition.Name;
-        Show(matching[_random.Next(matching.Count)].Text.Replace("{name}", name, StringComparison.Ordinal), speaker);
+        string name = PetService.DisplayName(_context, speaker.Definition);
+        string line = matching[_random.Next(matching.Count)].Text;   // implizit: übersetzte Zeile
+        Show(line.Replace("{name}", name, StringComparison.Ordinal), speaker);
         _globalNextAllowed = _time + GlobalCooldown;
         // Repeat 0 heißt "nur einmal": eine Sperre, die in diesem Lauf nicht mehr abläuft.
         _nextAllowed[triggerId] = chatter.Repeat > 0f ? _time + chatter.Repeat : float.MaxValue;

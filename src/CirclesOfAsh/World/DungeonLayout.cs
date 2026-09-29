@@ -54,6 +54,11 @@ public sealed class RoomNode
 }
 
 /// <summary>Was der Generator erzeugen soll. Record = unveränderlicher Datencontainer mit Wertgleichheit.</summary>
+/// <param name="ArenaBoss">
+/// Nur in der Arena: der gewählte Gegner (Boss oder Kerkermeister). null = ein ganz normales Verlies.
+/// Optionale Parameter am Ende: Alle bisherigen Aufrufe bleiben unverändert gültig.
+/// </param>
+/// <param name="PartySize">Wie viele Spielfiguren kämpfen. Mehr Figuren = zähere Gegner.</param>
 public sealed record DungeonPlan(
     CircleDefinition Circle,
     int CircleIndex,
@@ -70,7 +75,16 @@ public sealed record DungeonPlan(
     int LeverCount,
     int DetourCount,
     int ChestCount,
-    int CollectibleCount);
+    int CollectibleCount,
+    string? ArenaBoss = null,
+    int PartySize = 1)
+{
+    /// <summary>Wer im Thronsaal wartet: der Boss des Kreises, in der Arena der gewählte Gegner.</summary>
+    public string BossEnemyId => ArenaBoss ?? Circle.Boss;
+
+    /// <summary>Ein Arena-Kampf: kein Lauf, der Seelen sammelt, keine Bitten, kein Siegel am Ende.</summary>
+    public bool IsArenaMatch => ArenaBoss is not null;
+}
 
 /// <summary>Ein platziertes Weltobjekt. Tag/Index verknüpfen es mit Rätseln ("lever", "rune" + Symbol ...).</summary>
 public sealed record PropPlacement(PropDefinition Definition, Vector2 BottomCenter, RoomNode Room, string Tag, int Index);

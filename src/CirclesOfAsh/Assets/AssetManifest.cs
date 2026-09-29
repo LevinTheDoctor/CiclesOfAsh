@@ -50,6 +50,12 @@ public sealed class FontEntry
     public int CellWidth { get; init; }
     public int CellHeight { get; init; }
     public int LineHeight { get; init; }
+    /// <summary>
+    /// Rand links bzw. oben in jeder Zelle, damit überstehende Glyphen (Akzente auf Großbuchstaben)
+    /// nicht in die Nachbarzelle malen. Wird beim Zeichnen abgezogen – die Grundlinie bleibt gleich.
+    /// </summary>
+    public int GlyphOffsetX { get; init; }
+    public int GlyphOffsetY { get; init; }
     public string Charset { get; init; } = "";
     public int[] Advances { get; init; } = Array.Empty<int>();
 }

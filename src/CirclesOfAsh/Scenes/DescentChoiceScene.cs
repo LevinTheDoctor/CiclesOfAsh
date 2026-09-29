@@ -1,5 +1,6 @@
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.Progression;
 using CirclesOfAsh.UI;
 
@@ -42,19 +43,19 @@ public sealed class DescentChoiceScene : SceneBase
         // Ohne Lauf (Welt befreit, Spiel durch) gibt es nichts mehr zu entscheiden.
         if (Run is not { } run)
         {
-            _menu.Add("Weiter", () => Context.Scenes.Replace(new TitleScene(Context)));
+            _menu.Add(Loc.T("Weiter"), () => Context.Scenes.Replace(new TitleScene(Context)));
             return;
         }
 
         string deeper = _outcome.CircleCompleted
-            ? $"Hinab in den {Context.Progression.CircleOf(run).Name}"
-            : $"Weiter ins Verlies {run.DungeonIndex + 1}";
+            ? Loc.T("Hinab in den {0}", Context.Progression.CircleOf(run).Name)
+            : Loc.T("Weiter ins Verlies {0}", run.DungeonIndex + 1);
         _menu.Add(deeper, () => Context.Scenes.Replace(LoadingScene.ForDungeon(Context, run)),
-                  hint: "Kein Halt, keine Ausrüstung, kein Missionsbrett. Stirbst du unten, ist der Lauf verloren.");
-        _menu.Add("Inventar", () => Context.Scenes.Push(new InventoryScene(Context, run, player: null)),
-                  hint: "Kleidung und Fundstücke anlegen, bevor es weitergeht.");
-        _menu.Add("Zurück in den Tempel", () => Context.Scenes.Replace(new HubScene(Context)),
-                  hint: "Sicher: Der Lauf ist gespeichert, du steigst später an dieser Stelle wieder ein.");
+                  hint: Loc.T("Kein Halt, keine Ausrüstung, kein Missionsbrett. Stirbst du unten, ist der Lauf verloren."));
+        _menu.Add(Loc.T("Inventar"), () => Context.Scenes.Push(new InventoryScene(Context, run, player: null)),
+                  hint: Loc.T("Kleidung und Fundstücke anlegen, bevor es weitergeht."));
+        _menu.Add(Loc.T("Zurück in den Tempel"), () => Context.Scenes.Replace(new HubScene(Context)),
+                  hint: Loc.T("Sicher: Der Lauf ist gespeichert, du steigst später an dieser Stelle wieder ein."));
     }
 
     public override void Update(float deltaSeconds)
@@ -87,7 +88,7 @@ public sealed class DescentChoiceScene : SceneBase
         {
             InfernoFunnel.Draw(spriteBatch, pixel, new Vector2(centerX, 124), 150f, 46f,
                                circles, run.CircleIndex, _time, animate: false);
-            Context.Font.DrawCentered(spriteBatch, $"Tiefe {run.CircleIndex + 1} / {circles} · {circle.Name}",
+            Context.Font.DrawCentered(spriteBatch, Loc.T("Tiefe {0} / {1} · {2}", run.CircleIndex + 1, circles, circle.Name),
                                       centerX, 176, Palette.Ash);
         }
         _menu.Draw(spriteBatch, Context.Font, centerX, 192);

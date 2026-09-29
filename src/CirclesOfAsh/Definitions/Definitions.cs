@@ -1,4 +1,5 @@
 using CirclesOfAsh.Core;
+using CirclesOfAsh.Localization;
 using Microsoft.Xna.Framework;
 
 namespace CirclesOfAsh.Definitions;
@@ -7,6 +8,10 @@ namespace CirclesOfAsh.Definitions;
 // Datenklassen ("Definitionen") = unveränderliche Baupläne, 1:1 aus den JSON-Dateien in Content/Data.
 // Sie enthalten KEINE Logik. Das Verhalten steckt in austauschbaren Behavior-Klassen, die über
 // einen String-Schlüssel ("Behavior": "projectile") verknüpft werden -> Data-Driven Design.
+//
+// Alles, was der Spieler zu lesen bekommt (Namen, Beschreibungen, Dialogzeilen), ist ein
+// LocalizedText: In der JSON steht der deutsche Quelltext, angezeigt wird die gewählte Sprache
+// (Content/Lang). Ids, Sprite- und Behavior-Schlüssel bleiben string – die übersetzt niemand.
 // ============================================================================================
 
 /// <summary>Gemeinsame Schnittstelle: alles mit einer eindeutigen ID kann in ein <see cref="DefinitionSet{T}"/>.</summary>
@@ -18,8 +23,8 @@ public interface IDefinition
 public sealed class ClassDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Description { get; init; } = "";
+    public LocalizedText Name { get; init; }
+    public LocalizedText Description { get; init; }
     /// <summary>
     /// Ausrüstungs-Ebene der Klasse (feste Farben): Waffe und die Faust, die sie hält. Sie liegt
     /// ÜBER der Kleidung und ist unzerstörbar – die Waffe bleibt also auch dann in der Hand, wenn
@@ -53,8 +58,8 @@ public enum AbilityActivation
 public sealed class AbilityDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Description { get; init; } = "";
+    public LocalizedText Name { get; init; }
+    public LocalizedText Description { get; init; }
     public string Behavior { get; init; } = "";
     public AbilityActivation Activation { get; init; } = AbilityActivation.Auto;
     public GameAction InputAction { get; init; } = GameAction.AbilityOne;
@@ -88,7 +93,7 @@ public sealed class BossPhaseDefinition
 public sealed class EnemyDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
+    public LocalizedText Name { get; init; }
     public string SpriteSheet { get; init; } = "";
     public string Brain { get; init; } = "walker";
     public float MaxHealth { get; init; } = 10f;
@@ -115,8 +120,8 @@ public sealed class EnemyDefinition : IDefinition
 public sealed class CompanionDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Description { get; init; } = "";
+    public LocalizedText Name { get; init; }
+    public LocalizedText Description { get; init; }
     public string SpriteSheet { get; init; } = "";
     public string Behavior { get; init; } = "";
     public float Power { get; init; } = 5f;
@@ -130,8 +135,8 @@ public sealed class CompanionDefinition : IDefinition
 public sealed class UpgradeDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Description { get; init; } = "";
+    public LocalizedText Name { get; init; }
+    public LocalizedText Description { get; init; }
     public string Stat { get; init; } = "";
     public float Amount { get; init; }
     public bool IsPercent { get; init; }
@@ -148,8 +153,8 @@ public sealed class SpawnWeight
 public sealed class CircleDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Lore { get; init; } = "";
+    public LocalizedText Name { get; init; }
+    public LocalizedText Lore { get; init; }
     public float Difficulty { get; init; } = 1f;
     public string TileTint { get; init; } = "#FFFFFF";
     public string BackgroundTint { get; init; } = "#FFFFFF";
@@ -182,8 +187,8 @@ public sealed class CircleDefinition
 public sealed class WorldDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Lore { get; init; } = "";
+    public LocalizedText Name { get; init; }
+    public LocalizedText Lore { get; init; }
     public List<CircleDefinition> Circles { get; init; } = new();
     /// <summary>Bonus-Gläubige, wenn alle Kreise befreit sind.</summary>
     public int BelieversOnLiberation { get; init; } = 100;
@@ -247,6 +252,12 @@ public sealed class BalanceDefinition
     public int ForgeWeaveCost { get; init; } = 25;
     /// <summary>Wie viele Treffer ein Besuch zurückgibt. Eine Stufe, nicht das ganze Stück.</summary>
     public int ForgeMendHits { get; init; } = 1;
+
+    /// <summary>
+    /// Arena zu zweit: So viel mehr Leben bekommt der Gegner je zusätzlicher Spielfigur
+    /// (0.6 = +60 %). Nicht +100 %: Zwei Spieler behindern sich auch, und Aufrichten kostet Zeit.
+    /// </summary>
+    public float ArenaHealthPerExtraPlayer { get; init; } = 0.6f;
 }
 
 /// <summary>
@@ -325,8 +336,8 @@ public sealed class StatModifierDefinition
 public sealed class ItemDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Description { get; init; } = "";
+    public LocalizedText Name { get; init; }
+    public LocalizedText Description { get; init; }
     public ItemSlot Slot { get; init; }
     public ItemRarity Rarity { get; init; }
     public List<StatModifierDefinition> Modifiers { get; init; } = new();
@@ -363,7 +374,7 @@ public enum PropAnchor { Floor, Ceiling, Wall }
 public sealed class PropDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
+    public LocalizedText Name { get; init; }
     public string SpriteSheet { get; init; } = "";
     /// <summary>Verhalten aus der BehaviorRegistry: static, bats, lever, rune_pillar, brazier, chest, cage, mural.</summary>
     public string Behavior { get; init; } = "static";
@@ -375,7 +386,7 @@ public sealed class PropDefinition : IDefinition
     public float LightFlicker { get; init; } = 0.08f;
     public bool Interactable { get; init; }
     /// <summary>Text der Interaktionsanzeige, z. B. "Hebel ziehen".</summary>
-    public string Prompt { get; init; } = "";
+    public LocalizedText Prompt { get; init; }
 }
 
 public enum RoomShape { Normal, Cave, Flooded }
@@ -392,7 +403,7 @@ public sealed class ThemePropRule
 public sealed class RoomThemeDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
+    public LocalizedText Name { get; init; }
     public RoomShape Shape { get; init; }
     public List<ThemePropRule> Props { get; init; } = new();
 }
@@ -403,9 +414,9 @@ public enum MissionType { Collect, Slay, Rescue, CompleteCircle }
 public sealed class MissionDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Giver { get; init; } = "";
-    public string Title { get; init; } = "";
-    public string Text { get; init; } = "";
+    public LocalizedText Giver { get; init; }
+    public LocalizedText Title { get; init; }
+    public LocalizedText Text { get; init; }
     public MissionType Type { get; init; }
     public string Target { get; init; } = "*";
     public int Count { get; init; } = 1;
@@ -417,7 +428,7 @@ public sealed class MissionDefinition : IDefinition
 public sealed class HairStyleDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
+    public LocalizedText Name { get; init; }
     /// <summary>Leer = kahl.</summary>
     public string Sprite { get; init; } = "";
 }
@@ -428,7 +439,7 @@ public sealed class DialogLineDefinition
     public string Id { get; init; } = "";
     /// <summary>Optionale Bedingung, damit derselbe NPC je nach Fortschritt anders spricht.</summary>
     public string? If { get; init; }
-    public string Text { get; init; } = "";
+    public LocalizedText Text { get; init; }
     /// <summary>Antwort-Möglichkeiten des Spielers. Leer = "Weiter"-Text.</summary>
     public List<DialogChoiceDefinition> Choices { get; init; } = new();
 }
@@ -436,7 +447,7 @@ public sealed class DialogLineDefinition
 /// <summary>Ein Dialog-Knoten.</summary>
 public sealed class DialogChoiceDefinition
 {
-    public string Label { get; init; } = "";
+    public LocalizedText Label { get; init; }
     /// <summary>Nächster Knoten. Leer = Dialog beenden.</summary>
     public string Next { get; init; } = "";
     /// <summary>Einmaliger Effekt beim Wählen: blessing | accept_mission | feed_pet.</summary>
@@ -462,7 +473,7 @@ public sealed class DialogDefinition : IDefinition
 public sealed class ArenaDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
+    public LocalizedText Name { get; init; }
     /// <summary>Grundhelligkeit (#RRGGBB). Nur im Thronsaal wirksam. Leer = die des Kreises.</summary>
     public string AmbientLight { get; init; } = "";
     /// <summary>Eigenes Stück. Nur im Thronsaal wirksam. Leer = das des Kreises.</summary>
@@ -501,7 +512,7 @@ public sealed class ArenaProp
 public sealed class TutorialStepDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Text { get; init; } = "";
+    public LocalizedText Text { get; init; }
     /// <summary>move | jump | crouch | attack | block | spin | interact | kill | wait</summary>
     public string Trigger { get; init; } = "wait";
     /// <summary>Sekunden, die ein Zustand gehalten werden muss (move, crouch, block).</summary>
@@ -529,7 +540,7 @@ public sealed class ChatterDefinition : IDefinition
 /// </summary>
 public sealed class ChatterLineDefinition
 {
-    public string Text { get; init; } = "";
+    public LocalizedText Text { get; init; }
     /// <summary>Nur für diese Begleiter-Id (leer = jede).</summary>
     public string Companion { get; init; } = "";
     /// <summary>Nur für Begleiter mit diesem Verhalten: attacker, healer, mana (leer = jedes).</summary>
@@ -543,7 +554,7 @@ public sealed class ChatterLineDefinition
 public sealed class NpcDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
+    public LocalizedText Name { get; init; }
     public string SpriteSheet { get; init; } = "";
     public string DialogId { get; init; } = "";
     /// <summary>Kann dieser NPC im Dungeon auftauchen (sonst nur im Hub)?</summary>
@@ -572,8 +583,8 @@ public sealed class NpcPlacement
 public sealed class DifficultyDefinition : IDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public string Description { get; init; } = "";
+    public LocalizedText Name { get; init; }
+    public LocalizedText Description { get; init; }
     public float EnemyHealth { get; init; } = 1f;
     public float EnemyDamage { get; init; } = 1f;
     public float EnemySpeed { get; init; } = 1f;
@@ -598,6 +609,11 @@ public sealed class ControllerProfileDefinition : IDefinition
     public List<string> Match { get; init; } = new();
     /// <summary>Spielaktion (Name aus GameAction) -> Tastenbeschriftung, z. B. "Jump" -> "A".</summary>
     public Dictionary<string, string> Labels { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>
+    /// Familie der Tastenbilder: Blatt "glyphs.&lt;familie&gt;" im Manifest (xbox, playstation, switch).
+    /// Die Einzelbilder heißen dort wie die Beschriftungen in <see cref="Labels"/>.
+    /// </summary>
+    public string Glyphs { get; init; } = "xbox";
 }
 
 /// <summary>
@@ -607,7 +623,7 @@ public sealed class ControllerProfileDefinition : IDefinition
 public sealed class AppearanceOptionDefinition
 {
     public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
+    public LocalizedText Name { get; init; }
     public string Sprite { get; init; } = "";
 }
 

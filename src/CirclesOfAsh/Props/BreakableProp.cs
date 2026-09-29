@@ -29,10 +29,10 @@ public sealed class BreakableProp : IPropBehavior
     public void Update(Prop prop, DungeonWorld world, float deltaSeconds)
     {
         if (prop.State != 0) return;
-        // Zerbricht, wenn der Spieler mit Schwung von oben auf dem Prop landet (Velocity > 200).
-        bool playerOnTop = world.Player.Bounds.Intersects(prop.Bounds)
-            && world.Player.Bounds.Bottom <= prop.Position.Y + 4
-            && world.Player.Velocity.Y > 180f;
+        // Zerbricht, wenn ein Spieler mit Schwung von oben auf dem Prop landet (Velocity > 180).
+        bool playerOnTop = world.LivingPlayers.Any(player => player.Bounds.Intersects(prop.Bounds)
+            && player.Bounds.Bottom <= prop.Position.Y + 4
+            && player.Velocity.Y > 180f);
         if (playerOnTop) Break(prop, world);
     }
 

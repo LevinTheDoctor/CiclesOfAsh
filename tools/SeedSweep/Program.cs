@@ -266,9 +266,12 @@ sealed class InMemorySaveRepository : ISaveRepository
     private MetaState _meta = new();
     public MetaState LoadMeta() => _meta;
     public void SaveMeta(MetaState meta) => _meta = meta;
-    public RunState? LoadRun() => null;
-    public void SaveRun(RunState run) { }
-    public void DeleteRun() { }
+    public List<SavedCharacter> LoadCharacters() => new();
+    public void SaveCharacter(SavedCharacter character) { }
+    public void DeleteCharacter(int characterId) { }
+    public RunState? LoadRun(int characterId) => null;
+    public void SaveRun(int characterId, RunState run) { }
+    public void DeleteRun(int characterId) { }
     public GameSettings LoadSettings() => new();
     public void SaveSettings(GameSettings settings) { }
     public List<HubDecoPlacement> LoadHubDeco() => new();

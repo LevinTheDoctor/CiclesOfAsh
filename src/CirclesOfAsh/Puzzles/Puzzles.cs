@@ -1,6 +1,7 @@
 using CirclesOfAsh.Core;
 using CirclesOfAsh.Definitions;
 using CirclesOfAsh.Entities;
+using CirclesOfAsh.Localization;
 using CirclesOfAsh.World;
 
 namespace CirclesOfAsh.Puzzles;
@@ -28,7 +29,7 @@ public sealed class LeverPuzzle : IPuzzle
     private int _pulled;
 
     public bool IsSolved => _total > 0 && _pulled >= _total;
-    public string Hint => $"Siegeltor: Hebel {_pulled}/{_total}";
+    public string Hint => Loc.T("Siegeltor: Hebel {0}/{1}", _pulled, _total);
 
     public void Initialize(DungeonWorld world) => _total = world.PropsWithTag("lever").Count();
 
@@ -36,7 +37,7 @@ public sealed class LeverPuzzle : IPuzzle
     {
         if (prop.Tag != "lever" || IsSolved) return;
         _pulled++;
-        world.Announce(IsSolved ? "Ein fernes Tor erbebt …" : $"Ein Mechanismus rastet ein ({_pulled}/{_total}).");
+        world.Announce(IsSolved ? Loc.T("Ein fernes Tor erbebt …") : Loc.T("Ein Mechanismus rastet ein ({0}/{1}).", _pulled, _total));
         if (IsSolved) world.OpenGate();
     }
 }
@@ -49,7 +50,7 @@ public sealed class RuneOrderPuzzle : IPuzzle
     private float _errorTimer;
 
     public bool IsSolved { get; private set; }
-    public string Hint => IsSolved ? "" : $"Siegeltor: Runenfolge {_step}/{_order.Count} – suche die Inschrift";
+    public string Hint => IsSolved ? "" : Loc.T("Siegeltor: Runenfolge {0}/{1} – suche die Inschrift", _step, _order.Count);
 
     public void Initialize(DungeonWorld world)
     {
@@ -67,7 +68,7 @@ public sealed class RuneOrderPuzzle : IPuzzle
             _step++;
             if (_step < _order.Count) return;
             IsSolved = true;
-            world.Announce("Die Runen leuchten im Einklang.");
+            world.Announce(Loc.T("Die Runen leuchten im Einklang."));
             world.OpenGate();
             return;
         }
@@ -75,7 +76,7 @@ public sealed class RuneOrderPuzzle : IPuzzle
         // Bewusst OHNE die Lösung im Text: Säulen und Inschrift zeigen Symbole, keine Ziffern –
         // eine Zahlenfolge im HUD wäre etwas, das der Spieler nirgends wiedererkennt.
         foreach (Prop pillar in world.PropsWithTag("rune")) pillar.Behavior.OnSignal(pillar, world, "error");
-        world.Announce(_step > 0 ? $"Falsche Rune – {_step} Schritte verloren." : "Falsche Rune.");
+        world.Announce(_step > 0 ? Loc.T("Falsche Rune – {0} Schritte verloren.", _step) : Loc.T("Falsche Rune."));
         world.Context.Audio.Play("error", 0.6f);
         world.ShakeCamera(2f);
         _errorTimer = 0.8f;
@@ -115,8 +116,8 @@ public sealed class RuneCirclePuzzle : IPuzzle
 
     public string Hint => IsSolved
         ? ""
-        : $"Lichtkranz: alle vier Runen zum Leuchten bringen ({LitCount()}/{_pillars.Count}) – "
-        + "jede Berührung kippt auch die Nachbarn";
+        : Loc.T("Lichtkranz: alle vier Runen zum Leuchten bringen ({0}/{1}) – jede Berührung kippt auch die Nachbarn",
+            LitCount(), _pillars.Count);
 
     private int LitCount() => _pillars.Count(pillar => pillar.State == 1);
 
@@ -157,7 +158,7 @@ public sealed class RuneCirclePuzzle : IPuzzle
 
         if (LitCount() < _pillars.Count) return;
         IsSolved = true;
-        world.Announce($"Der Kranz schließt sich ({_moves} Berührungen).");
+        world.Announce(Loc.T("Der Kranz schließt sich ({0} Berührungen).", _moves));
         world.OpenGate();
     }
 }
@@ -172,8 +173,8 @@ public sealed class BrazierPuzzle : IPuzzle
 
     public bool IsSolved { get; private set; }
     public string Hint => IsSolved ? "" : _lit == 0
-        ? $"Siegeltor: Entzünde {_total} Feuerbecken rasch hintereinander"
-        : $"Siegeltor: Feuer {_lit}/{_total} – noch {MathF.Ceiling(_timeLeft)} s";
+        ? Loc.T("Siegeltor: Entzünde {0} Feuerbecken rasch hintereinander", _total)
+        : Loc.T("Siegeltor: Feuer {0}/{1} – noch {2} s", _lit, _total, MathF.Ceiling(_timeLeft));
 
     /// <summary>Ab wann die Vorwarnung läuft: die letzten Sekunden zählen sichtbar herunter.</summary>
     private const float WarningSeconds = 3f;
@@ -194,7 +195,7 @@ public sealed class BrazierPuzzle : IPuzzle
         _lit++;
         if (_lit < _total) return;
         IsSolved = true;
-        world.Announce("Die Flammen brennen vereint.");
+        world.Announce(Loc.T("Die Flammen brennen vereint."));
         world.OpenGate();
     }
 
@@ -215,7 +216,7 @@ public sealed class BrazierPuzzle : IPuzzle
         foreach (Prop brazier in world.PropsWithTag("brazier")) brazier.Behavior.OnSignal(brazier, world, "extinguish");
         _lit = 0;
         _warned = false;
-        world.Announce("Die Flammen erlöschen …");
+        world.Announce(Loc.T("Die Flammen erlöschen …"));
         world.Context.Audio.Play("error", 0.5f);
     }
 }
@@ -237,7 +238,7 @@ public sealed class WeightPuzzle : IPuzzle
     /// einem Plattenereignis fortgeschrieben, und wer von einer Platte heruntertrat, ohne eine
     /// andere auszulösen, sah weiter die alte Zahl.
     /// </summary>
-    public string Hint => IsSolved ? "" : $"Siegeltor: Platten {PressedCount()}/{_total} gleichzeitig beschwert";
+    public string Hint => IsSolved ? "" : Loc.T("Siegeltor: Platten {0}/{1} gleichzeitig beschwert", PressedCount(), _total);
 
     private int PressedCount() => _world?.PropsWithTag("plate").Count(plate => plate.State == 1) ?? 0;
 
@@ -254,7 +255,7 @@ public sealed class WeightPuzzle : IPuzzle
         if (pressed < _total || _total == 0) return;
 
         IsSolved = true;
-        world.Announce("Der Stein senkt sich unter dem Gewicht.");
+        world.Announce(Loc.T("Der Stein senkt sich unter dem Gewicht."));
         world.OpenGate();
     }
 }
@@ -292,7 +293,7 @@ public sealed class MirrorPuzzle : IPuzzle
     /// </summary>
     public string Hint => IsSolved
         ? ""
-        : $"Siegeltor: Licht zum Standbild lenken – erreicht: {_reached}/{_mirrorsByTile.Count} Spiegel";
+        : Loc.T("Siegeltor: Licht zum Standbild lenken – erreicht: {0}/{1} Spiegel", _reached, _mirrorsByTile.Count);
 
     public void Initialize(DungeonWorld world)
     {
@@ -363,7 +364,7 @@ public sealed class MirrorPuzzle : IPuzzle
 
         IsSolved = true;
         _target.LightRadius = 70f;
-        world.Announce("Das Licht trifft das Standbild.");
+        world.Announce(Loc.T("Das Licht trifft das Standbild."));
         world.Context.Audio.Play("unseal", 0.8f);
         world.OpenGate();
     }

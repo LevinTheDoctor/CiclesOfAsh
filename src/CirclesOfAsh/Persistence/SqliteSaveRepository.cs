@@ -13,6 +13,8 @@ namespace CirclesOfAsh.Persistence;
 ///  * Alle Werte über Parameter ($name) -> kein SQL-Injection-Risiko, korrekte Typen.
 ///  * Mehrere Schreibvorgänge in einer Transaktion -> entweder alles oder nichts gespeichert
 ///    (kein halber Spielstand, wenn das Spiel mittendrin abstürzt).
+///  * Ab Version 5 gibt es mehrere Gestalten (Tabelle characters); runs, run_items und
+///    run_profile tragen die character_id ihrer Gestalt.
 /// </summary>
 public sealed class SqliteSaveRepository : ISaveRepository
 {
@@ -97,6 +99,99 @@ public sealed class SqliteSaveRepository : ISaveRepository
         """
         ALTER TABLE pets ADD COLUMN skin INTEGER NOT NULL DEFAULT 0;
         """,
+        // Version 5: mehrere Gestalten (Charaktere) mit je einem Lauf. Das Aussehen zieht aus
+        // run_profile in die neue Tabelle characters; runs, run_items und run_profile hängen jetzt
+        // an character_id. Ein vorhandener Lauf wird zur Gestalt Nr. 1 – kein Spielstand geht verloren.
+        // SQLite kann einen Primärschlüssel nicht per ALTER TABLE ändern. Deshalb das von SQLite
+        // empfohlene Vorgehen: neue Tabelle anlegen, Daten umkopieren, alte löschen, neue umbenennen.
+        """
+        CREATE TABLE characters (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            name           TEXT    NOT NULL,
+            skin           INTEGER NOT NULL DEFAULT 0,
+            hair_style     INTEGER NOT NULL DEFAULT 0,
+            hair_color     INTEGER NOT NULL DEFAULT 0,
+            accent         INTEGER NOT NULL DEFAULT 0,
+            body_type      INTEGER NOT NULL DEFAULT 0,
+            makeup         INTEGER NOT NULL DEFAULT 0,
+            makeup_color   INTEGER NOT NULL DEFAULT 0,
+            wings          INTEGER NOT NULL DEFAULT 0,
+            last_class_id  TEXT    NOT NULL DEFAULT '',
+            created_at     TEXT    NOT NULL,
+            last_played_at TEXT    NOT NULL,
+            runs           INTEGER NOT NULL DEFAULT 0,
+            deaths         INTEGER NOT NULL DEFAULT 0,
+            deepest_circle INTEGER NOT NULL DEFAULT 0,
+            arena_wins     INTEGER NOT NULL DEFAULT 0
+        );
+        -- Pivot: Die Schlüssel/Wert-Zeilen aus run_profile werden zu Spalten. Pro Schlüssel liefert
+        -- CASE nur in "seiner" Zeile einen Wert, MAX() sammelt ihn über die Gruppe ein.
+        -- LEFT JOIN ... ON 1 = 1: auch ohne run_profile-Zeilen entsteht genau eine Gestalt.
+        INSERT INTO characters (id, name, skin, hair_style, hair_color, accent, body_type, makeup, makeup_color, wings,
+                                last_class_id, created_at, last_played_at, runs, deepest_circle)
+        SELECT 1,
+               COALESCE(MAX(CASE WHEN p.key = 'name' THEN p.value END), 'Namenloser'),
+               CAST(COALESCE(MAX(CASE WHEN p.key = 'skin'         THEN p.value END), '0') AS INTEGER),
+               CAST(COALESCE(MAX(CASE WHEN p.key = 'hair_style'   THEN p.value END), '0') AS INTEGER),
+               CAST(COALESCE(MAX(CASE WHEN p.key = 'hair_color'   THEN p.value END), '0') AS INTEGER),
+               CAST(COALESCE(MAX(CASE WHEN p.key = 'accent'       THEN p.value END), '0') AS INTEGER),
+               CAST(COALESCE(MAX(CASE WHEN p.key = 'body_type'    THEN p.value END), '0') AS INTEGER),
+               CAST(COALESCE(MAX(CASE WHEN p.key = 'makeup'       THEN p.value END), '0') AS INTEGER),
+               CAST(COALESCE(MAX(CASE WHEN p.key = 'makeup_color' THEN p.value END), '0') AS INTEGER),
+               CAST(COALESCE(MAX(CASE WHEN p.key = 'wings'        THEN p.value END), '0') AS INTEGER),
+               r.class_id,
+               strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+               strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+               1,
+               r.circle_index + 1
+        FROM run AS r LEFT JOIN run_profile AS p ON 1 = 1
+        WHERE r.id = 1
+        GROUP BY r.id;
+
+        CREATE TABLE runs (
+            character_id  INTEGER PRIMARY KEY,
+            class_id      TEXT    NOT NULL,
+            world_id      TEXT    NOT NULL,
+            circle_index  INTEGER NOT NULL,
+            dungeon_index INTEGER NOT NULL,
+            level         INTEGER NOT NULL,
+            experience    REAL    NOT NULL,
+            seed          INTEGER NOT NULL
+        );
+        INSERT INTO runs (character_id, class_id, world_id, circle_index, dungeon_index, level, experience, seed)
+        SELECT 1, class_id, world_id, circle_index, dungeon_index, level, experience, seed FROM run WHERE id = 1;
+
+        CREATE TABLE character_run_items (
+            character_id INTEGER NOT NULL,
+            kind         TEXT    NOT NULL,
+            id           TEXT    NOT NULL,
+            value        INTEGER NOT NULL,
+            PRIMARY KEY (character_id, kind, id)
+        );
+        INSERT INTO character_run_items (character_id, kind, id, value)
+        SELECT 1, kind, id, value FROM run_items WHERE EXISTS (SELECT 1 FROM run WHERE id = 1);
+
+        CREATE TABLE character_run_profile (
+            character_id INTEGER NOT NULL,
+            key          TEXT    NOT NULL,
+            value        TEXT    NOT NULL,
+            PRIMARY KEY (character_id, key)
+        );
+        -- Nur, was zum Lauf gehört (Kleidung, Schmiede, Unterwäsche). Das Aussehen steht jetzt in characters.
+        INSERT INTO character_run_profile (character_id, key, value)
+        SELECT 1, key, value FROM run_profile
+        WHERE key NOT IN ('name', 'skin', 'hair_style', 'hair_color', 'accent', 'body_type', 'makeup', 'makeup_color', 'wings')
+          AND EXISTS (SELECT 1 FROM run WHERE id = 1);
+
+        DROP TABLE run_items;
+        DROP TABLE run_profile;
+        DROP TABLE run;
+        ALTER TABLE character_run_items RENAME TO run_items;
+        ALTER TABLE character_run_profile RENAME TO run_profile;
+
+        INSERT OR REPLACE INTO meta (key, value)
+        SELECT 'active_character', '1' WHERE EXISTS (SELECT 1 FROM characters WHERE id = 1);
+        """,
     };
     // """ ... """ = Raw String Literal (C# 11): mehrzeiliger Text ohne Escape-Zeichen, ideal für SQL
 
@@ -137,6 +232,7 @@ public sealed class SqliteSaveRepository : ISaveRepository
             meta.Believers = ReadLong(values, "believers");
             meta.Deaths = (int)ReadLong(values, "deaths");
             meta.RunsStarted = (int)ReadLong(values, "runs_started");
+            meta.ActiveCharacterId = (int)ReadLong(values, "active_character");
         }
 
         using (SqliteDataReader reader = CreateCommand(connection, "SELECT kind, id FROM unlocks;").ExecuteReader())
@@ -180,7 +276,14 @@ public sealed class SqliteSaveRepository : ISaveRepository
 
         // UPSERT: einfügen oder bei vorhandenem Schlüssel aktualisieren ("excluded" = der abgelehnte neue Datensatz)
         const string upsertMeta = "INSERT INTO meta (key, value) VALUES ($key, $value) ON CONFLICT(key) DO UPDATE SET value = excluded.value;";
-        foreach (var (key, value) in new (string, long)[] { ("believers", meta.Believers), ("deaths", meta.Deaths), ("runs_started", meta.RunsStarted) })
+        var metaValues = new (string Key, long Value)[]
+        {
+            ("believers", meta.Believers),
+            ("deaths", meta.Deaths),
+            ("runs_started", meta.RunsStarted),
+            ("active_character", meta.ActiveCharacterId),
+        };
+        foreach (var (key, value) in metaValues)
         {
             SqliteCommand command = CreateCommand(connection, upsertMeta, transaction);
             command.Parameters.AddWithValue("$key", key);
@@ -230,13 +333,115 @@ public sealed class SqliteSaveRepository : ISaveRepository
         transaction.Commit();
     }
 
-    // ------------------------------------------------------------------ Lauf
-    public RunState? LoadRun()
+    // ------------------------------------------------------------------ Gestalten
+    public List<SavedCharacter> LoadCharacters()
+    {
+        var characters = new List<SavedCharacter>();
+        using SqliteConnection connection = Open();
+        // LEFT JOIN: Jede Gestalt kommt vor, auch ohne Lauf – dann sind die Spalten aus runs NULL.
+        using SqliteDataReader reader = CreateCommand(connection, """
+            SELECT c.id, c.name, c.skin, c.hair_style, c.hair_color, c.accent, c.body_type, c.makeup, c.makeup_color, c.wings,
+                   c.last_class_id, c.created_at, c.last_played_at, c.runs, c.deaths, c.deepest_circle, c.arena_wins,
+                   r.class_id, r.world_id, r.circle_index, r.dungeon_index, r.level
+            FROM characters AS c LEFT JOIN runs AS r ON r.character_id = c.id
+            ORDER BY c.last_played_at DESC, c.id DESC;
+            """).ExecuteReader();
+        while (reader.Read())
+        {
+            characters.Add(new SavedCharacter
+            {
+                Id = reader.GetInt32(0),
+                Appearance = new CharacterAppearance(reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3),
+                    reader.GetInt32(4), reader.GetInt32(5), reader.GetInt32(6), reader.GetInt32(7), reader.GetInt32(8),
+                    reader.GetInt32(9)),
+                LastClassId = reader.GetString(10),
+                CreatedAt = ReadDate(reader.GetString(11)),
+                LastPlayedAt = ReadDate(reader.GetString(12)),
+                Runs = reader.GetInt32(13),
+                Deaths = reader.GetInt32(14),
+                DeepestCircle = reader.GetInt32(15),
+                ArenaWins = reader.GetInt32(16),
+                // IsDBNull: Ohne Lauf liefert der LEFT JOIN NULL statt einer Klassen-Id.
+                CurrentRun = reader.IsDBNull(17)
+                    ? null
+                    : new RunSummary(reader.GetString(17), reader.GetString(18), reader.GetInt32(19),
+                                     reader.GetInt32(20), reader.GetInt32(21)),
+            });
+        }
+        return characters;
+    }
+
+    public void SaveCharacter(SavedCharacter character)
+    {
+        (string Column, object Value)[] columns = CharacterColumns(character);
+        bool isNew = character.Id == 0;
+        // Spaltennamen sind feste Konstanten aus CharacterColumns -> Einsetzen per Interpolation ist
+        // sicher. Die WERTE laufen weiter über Parameter.
+        string sql = isNew
+            ? $"INSERT INTO characters ({string.Join(", ", columns.Select(column => column.Column))}) " +
+              $"VALUES ({string.Join(", ", columns.Select(column => "$" + column.Column))}); SELECT last_insert_rowid();"
+            : $"UPDATE characters SET {string.Join(", ", columns.Select(column => $"{column.Column} = ${column.Column}"))} WHERE id = $id;";
+
+        using SqliteConnection connection = Open();
+        SqliteCommand command = CreateCommand(connection, sql);
+        foreach (var (column, value) in columns) command.Parameters.AddWithValue("$" + column, value);
+        if (isNew)
+        {
+            // last_insert_rowid() = die Id, die SQLite eben vergeben hat (gilt je Verbindung).
+            character.Id = Convert.ToInt32(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+            return;
+        }
+        command.Parameters.AddWithValue("$id", character.Id);
+        command.ExecuteNonQuery();
+    }
+
+    public void DeleteCharacter(int characterId)
+    {
+        using SqliteConnection connection = Open();
+        using SqliteTransaction transaction = connection.BeginTransaction();
+        DeleteRunRows(connection, transaction, characterId);
+        SqliteCommand command = CreateCommand(connection, "DELETE FROM characters WHERE id = $id;", transaction);
+        command.Parameters.AddWithValue("$id", characterId);
+        command.ExecuteNonQuery();
+        transaction.Commit();
+    }
+
+    /// <summary>
+    /// Spalte -> Wert einer Gestalt. EINE Liste steuert INSERT, UPDATE und die Parameter (DRY):
+    /// Eine neue Spalte braucht hier eine Zeile – plus die Migration, die sie anlegt.
+    /// </summary>
+    private static (string Column, object Value)[] CharacterColumns(SavedCharacter character)
+    {
+        CharacterAppearance look = character.Appearance;
+        return new (string Column, object Value)[]
+        {
+            ("name", look.Name),
+            ("skin", look.SkinTone),
+            ("hair_style", look.HairStyle),
+            ("hair_color", look.HairColor),
+            ("accent", look.AccentColor),
+            ("body_type", look.BodyType),
+            ("makeup", look.Makeup),
+            ("makeup_color", look.MakeupColor),
+            ("wings", look.Wings),
+            ("last_class_id", character.LastClassId),
+            ("created_at", WriteDate(character.CreatedAt)),
+            ("last_played_at", WriteDate(character.LastPlayedAt)),
+            ("runs", character.Runs),
+            ("deaths", character.Deaths),
+            ("deepest_circle", character.DeepestCircle),
+            ("arena_wins", character.ArenaWins),
+        };
+    }
+
+    // ------------------------------------------------------------------ Lauf einer Gestalt
+    public RunState? LoadRun(int characterId)
     {
         using SqliteConnection connection = Open();
         RunState run;
-        using (SqliteDataReader reader = CreateCommand(connection,
-                   "SELECT class_id, world_id, circle_index, dungeon_index, level, experience, seed FROM run WHERE id = 1;").ExecuteReader())
+        using (SqliteDataReader reader = CreateCharacterCommand(connection,
+                   "SELECT class_id, world_id, circle_index, dungeon_index, level, experience, seed FROM runs WHERE character_id = $character;",
+                   characterId).ExecuteReader())
         {
             if (!reader.Read()) return null;
             run = new RunState
@@ -251,7 +456,8 @@ public sealed class SqliteSaveRepository : ISaveRepository
             };
         }
 
-        using (SqliteDataReader items = CreateCommand(connection, "SELECT kind, id, value FROM run_items;").ExecuteReader())
+        using (SqliteDataReader items = CreateCharacterCommand(connection,
+                   "SELECT kind, id, value FROM run_items WHERE character_id = $character;", characterId).ExecuteReader())
         {
             while (items.Read())
             {
@@ -269,22 +475,12 @@ public sealed class SqliteSaveRepository : ISaveRepository
         }
 
         var profile = new Dictionary<string, string>();
-        using (SqliteDataReader reader = CreateCommand(connection, "SELECT key, value FROM run_profile;").ExecuteReader())
+        using (SqliteDataReader reader = CreateCharacterCommand(connection,
+                   "SELECT key, value FROM run_profile WHERE character_id = $character;", characterId).ExecuteReader())
         {
             while (reader.Read()) profile[reader.GetString(0)] = reader.GetString(1);
         }
-        run.Appearance = new CharacterAppearance(
-            profile.GetValueOrDefault("name", CharacterAppearance.Default.Name),
-            (int)ReadLong(profile, "skin"),
-            (int)ReadLong(profile, "hair_style"),
-            (int)ReadLong(profile, "hair_color"),
-            (int)ReadLong(profile, "accent"),
-            // Neu hinzugekommene Felder. run_profile ist eine Schlüssel/Wert-Tabelle, fehlende
-            // Schlüssel lesen sich als 0 – ältere Spielstände brauchen also keine Migration.
-            (int)ReadLong(profile, "body_type"),
-            (int)ReadLong(profile, "makeup"),
-            (int)ReadLong(profile, "makeup_color"),
-            (int)ReadLong(profile, "wings"));
+        // Das Aussehen gehört seit Version 5 der Gestalt (Tabelle characters) – der Aufrufer setzt es.
         run.ArmorDurability = (int)ReadLong(profile, "armor_durability");
         run.ArmorWear = ReadWear(profile, "armor_wear");
         run.ForgeUses = (int)ReadLong(profile, "forge_uses");
@@ -292,15 +488,15 @@ public sealed class SqliteSaveRepository : ISaveRepository
         return run;
     }
 
-    public void SaveRun(RunState run)
+    public void SaveRun(int characterId, RunState run)
     {
         using SqliteConnection connection = Open();
         using SqliteTransaction transaction = connection.BeginTransaction();
 
-        SqliteCommand upsertRun = CreateCommand(connection, """
-            INSERT OR REPLACE INTO run (id, class_id, world_id, circle_index, dungeon_index, level, experience, seed)
-            VALUES (1, $class, $world, $circle, $dungeon, $level, $experience, $seed);
-            """, transaction);
+        SqliteCommand upsertRun = CreateCharacterCommand(connection, """
+            INSERT OR REPLACE INTO runs (character_id, class_id, world_id, circle_index, dungeon_index, level, experience, seed)
+            VALUES ($character, $class, $world, $circle, $dungeon, $level, $experience, $seed);
+            """, characterId, transaction);
         upsertRun.Parameters.AddWithValue("$class", run.ClassId);
         upsertRun.Parameters.AddWithValue("$world", run.WorldId);
         upsertRun.Parameters.AddWithValue("$circle", run.CircleIndex);
@@ -310,9 +506,9 @@ public sealed class SqliteSaveRepository : ISaveRepository
         upsertRun.Parameters.AddWithValue("$seed", run.Seed);
         upsertRun.ExecuteNonQuery();
 
-        CreateCommand(connection, "DELETE FROM run_items;", transaction).ExecuteNonQuery();
-        const string insertItem = "INSERT INTO run_items (kind, id, value) VALUES ($kind, $id, $value);";
-        // Concat + Select: alle drei Listen in eine einheitliche Folge von (kind, id, value)-Tupeln überführen
+        CreateCharacterCommand(connection, "DELETE FROM run_items WHERE character_id = $character;", characterId, transaction).ExecuteNonQuery();
+        const string insertItem = "INSERT INTO run_items (character_id, kind, id, value) VALUES ($character, $kind, $id, $value);";
+        // Concat + Select: alle Listen in eine einheitliche Folge von (kind, id, value)-Tupeln überführen
         IEnumerable<(string Kind, string Id, int Value)> items =
             run.AbilityLevels.Select(pair => (Kind: KindAbility, Id: pair.Key, Value: pair.Value))
                .Concat(run.UpgradeStacks.Select(pair => (Kind: KindUpgrade, Id: pair.Key, Value: pair.Value)))
@@ -322,26 +518,16 @@ public sealed class SqliteSaveRepository : ISaveRepository
                .Concat(run.Equipped.Select(pair => (Kind: KindEquipped, Id: pair.Value, Value: (int)pair.Key)));
         foreach (var (kind, id, value) in items)
         {
-            SqliteCommand command = CreateCommand(connection, insertItem, transaction);
+            SqliteCommand command = CreateCharacterCommand(connection, insertItem, characterId, transaction);
             command.Parameters.AddWithValue("$kind", kind);
             command.Parameters.AddWithValue("$id", id);
             command.Parameters.AddWithValue("$value", value);
             command.ExecuteNonQuery();
         }
 
-        CreateCommand(connection, "DELETE FROM run_profile;", transaction).ExecuteNonQuery();
-        CharacterAppearance look = run.Appearance;
+        CreateCharacterCommand(connection, "DELETE FROM run_profile WHERE character_id = $character;", characterId, transaction).ExecuteNonQuery();
         var profileValues = new (string Key, string Value)[]
         {
-            ("name", look.Name),
-            ("skin", look.SkinTone.ToString(CultureInfo.InvariantCulture)),
-            ("hair_style", look.HairStyle.ToString(CultureInfo.InvariantCulture)),
-            ("hair_color", look.HairColor.ToString(CultureInfo.InvariantCulture)),
-            ("accent", look.AccentColor.ToString(CultureInfo.InvariantCulture)),
-            ("body_type", look.BodyType.ToString(CultureInfo.InvariantCulture)),
-            ("makeup", look.Makeup.ToString(CultureInfo.InvariantCulture)),
-            ("makeup_color", look.MakeupColor.ToString(CultureInfo.InvariantCulture)),
-            ("wings", look.Wings.ToString(CultureInfo.InvariantCulture)),
             ("armor_durability", run.ArmorDurability.ToString(CultureInfo.InvariantCulture)),
             ("armor_wear", WriteWear(run.ArmorWear)),
             ("forge_uses", run.ForgeUses.ToString(CultureInfo.InvariantCulture)),
@@ -349,7 +535,8 @@ public sealed class SqliteSaveRepository : ISaveRepository
         };
         foreach (var (key, value) in profileValues)
         {
-            SqliteCommand command = CreateCommand(connection, "INSERT INTO run_profile (key, value) VALUES ($key, $value);", transaction);
+            SqliteCommand command = CreateCharacterCommand(connection,
+                "INSERT INTO run_profile (character_id, key, value) VALUES ($character, $key, $value);", characterId, transaction);
             command.Parameters.AddWithValue("$key", key);
             command.Parameters.AddWithValue("$value", value);
             command.ExecuteNonQuery();
@@ -357,12 +544,24 @@ public sealed class SqliteSaveRepository : ISaveRepository
         transaction.Commit();
     }
 
-    public void DeleteRun()
+    public void DeleteRun(int characterId)
     {
         using SqliteConnection connection = Open();
         using SqliteTransaction transaction = connection.BeginTransaction();
-        CreateCommand(connection, "DELETE FROM run_items; DELETE FROM run_profile; DELETE FROM run;", transaction).ExecuteNonQuery();
+        DeleteRunRows(connection, transaction, characterId);
         transaction.Commit();
+    }
+
+    /// <summary>
+    /// Löscht alle Zeilen eines Laufs. SQLite prüft Fremdschlüssel nur mit "PRAGMA foreign_keys = ON"
+    /// (und das pro Verbindung) – statt sich darauf zu verlassen, räumt der Code die Tabellen selbst auf.
+    /// </summary>
+    private static void DeleteRunRows(SqliteConnection connection, SqliteTransaction transaction, int characterId)
+    {
+        // Tabellennamen sind Konstanten (kein Nutzertext) -> Interpolation ist hier unbedenklich.
+        foreach (string table in new[] { "run_items", "run_profile", "runs" })
+            CreateCharacterCommand(connection, $"DELETE FROM {table} WHERE character_id = $character;", characterId, transaction)
+                .ExecuteNonQuery();
     }
 
     // ------------------------------------------------------------------ Einstellungen
@@ -392,6 +591,10 @@ public sealed class SqliteSaveRepository : ISaveRepository
         settings.Tutorial = ReadLong(values, "tutorial", settings.Tutorial ? 1 : 0) != 0;
         settings.ManualBossFights = ReadLong(values, "manual_boss", settings.ManualBossFights ? 1 : 0) != 0;
         if (values.TryGetValue("difficulty", out string? difficulty) && difficulty.Length > 0) settings.DifficultyId = difficulty;
+        // Neu ohne Migration: settings ist Schlüssel/Wert, ein alter Spielstand hat den Schlüssel
+        // einfach noch nicht und bleibt bei der Standardsprache.
+        if (values.TryGetValue("language", out string? language) && language.Length > 0) settings.Language = language;
+        settings.ArenaAddress = values.GetValueOrDefault("arena_address", "");
         // Bewusst KEIN Sanitize() hier: es würde die 0 bei screen_scale auf 1 klemmen und damit
         // die Unterscheidung "nicht gesetzt" zerstören. Der Aufrufer (GameContext) setzt erst den
         // Standard aus balance.json ein und klemmt danach.
@@ -422,6 +625,8 @@ public sealed class SqliteSaveRepository : ISaveRepository
         Write("tutorial", settings.Tutorial ? "1" : "0");
         Write("manual_boss", settings.ManualBossFights ? "1" : "0");
         Write("difficulty", settings.DifficultyId);
+        Write("language", settings.Language);
+        Write("arena_address", settings.ArenaAddress);
         transaction.Commit();
     }
 
@@ -534,10 +739,29 @@ public sealed class SqliteSaveRepository : ISaveRepository
         return command;
     }
 
+    /// <summary>Befehl mit schon gebundenem $character – jede Abfrage eines Laufs filtert nach seiner Gestalt.</summary>
+    private static SqliteCommand CreateCharacterCommand(SqliteConnection connection, string sql, int characterId,
+                                                        SqliteTransaction? transaction = null)
+    {
+        SqliteCommand command = CreateCommand(connection, sql, transaction);
+        command.Parameters.AddWithValue("$character", characterId);
+        return command;
+    }
+
+    /// <summary>Zeitpunkte als ISO-8601 in UTC ("O"): sortierbar als Text und ohne Zeitzonen-Rätsel.</summary>
+    private static string WriteDate(DateTime value) =>
+        DateTime.SpecifyKind(value, DateTimeKind.Utc).ToString("O", CultureInfo.InvariantCulture);
+
+    /// <summary>RoundtripKind: Das "Z" am Ende bleibt als UTC erhalten, statt in Ortszeit umgerechnet zu werden.</summary>
+    private static DateTime ReadDate(string raw) =>
+        DateTime.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTime parsed)
+            ? parsed
+            : DateTime.UnixEpoch;
+
     /// <summary>
     /// Zustand abgelegter Kleidung als eine Zeile: "id:treffer;id:treffer". Bewusst KEINE eigene
     /// Tabelle: run_profile ist Schlüssel/Wert, ein fehlender Schlüssel liest sich als leer, und
-    /// damit kommen ältere Spielstände ohne Migration aus (Schema bleibt auf 4).
+    /// damit kamen ältere Spielstände ohne eigene Migration aus.
     /// </summary>
     private static Dictionary<string, int> ReadWear(Dictionary<string, string> values, string key)
     {

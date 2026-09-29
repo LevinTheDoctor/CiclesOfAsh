@@ -1,4 +1,5 @@
 using System.Text;
+using CirclesOfAsh.Localization;
 using Microsoft.Xna.Framework.Input;
 
 namespace CirclesOfAsh.Core;
@@ -10,16 +11,26 @@ public enum GameAction { Left, Right, Up, Down, Jump, Dash, AbilityOne, AbilityT
 public enum InputDevice { Keyboard, Gamepad, Mouse }
 
 /// <summary>
+/// Was ein Controller-Profil (Content/Data/controllers.json) der Eingabe mitgibt: Anzeigename,
+/// Familie der Tastenbilder ("xbox", "playstation" …, siehe UI/ButtonGlyphs) und die Beschriftung
+/// je Aktion. "sealed record" = unveränderlicher Datenträger mit Wertgleichheit.
+/// </summary>
+public sealed record ControllerProfile(string Name, string GlyphFamily, IReadOnlyDictionary<GameAction, string> Labels);
+
+/// <summary>
 /// Kapselt Tastatur, Gamepad und Texteingabe. Speichert den Zustand des aktuellen UND vorherigen Frames,
 /// damit "gerade gedrückt" (Flanke) von "wird gehalten" unterschieden werden kann.
+/// Zugleich die Eingabe der Spielfigur im Einzelspiel (<see cref="IPlayerInput"/>).
 /// </summary>
-public sealed class InputState
+public sealed class InputState : IPlayerInput
 {
-    private const float StickDeadZone = 0.35f;
+    /// <summary>Unterhalb dieser Auslenkung zählt der Stick als "losgelassen". Auch für <see cref="DeviceInput"/>.</summary>
+    internal const float StickDeadZone = 0.35f;
 
     // Tupel (Keys[] Keys, Buttons[] Buttons) = leichtgewichtiger, benannter Datencontainer ohne eigene Klasse.
     // "new[] { ... }" = implizit typisiertes Array; der Compiler leitet Keys[] bzw. Buttons[] ab.
-    private readonly Dictionary<GameAction, (Keys[] Keys, Buttons[] Buttons)> _bindings = new()
+    // static: EINE Belegung für alle Eingabequellen – DeviceInput liest dieselbe Tabelle.
+    private static readonly Dictionary<GameAction, (Keys[] Keys, Buttons[] Buttons)> Bindings = new()
     {
         [GameAction.Left] = (new[] { Keys.A, Keys.Left }, new[] { Buttons.DPadLeft, Buttons.LeftThumbstickLeft }),
         [GameAction.Right] = (new[] { Keys.D, Keys.Right }, new[] { Buttons.DPadRight, Buttons.LeftThumbstickRight }),
@@ -56,18 +67,22 @@ public sealed class InputState
     public float RumbleScale { get; set; } = 0.6f;
 
     // Tastatur-Beschriftungen. Bewusst hier und nicht in JSON: die Tastenbelegung selbst steht
-    // ebenfalls fest in _bindings – beides gehört zusammen.
+    // ebenfalls fest in Bindings – beides gehört zusammen. Loc.N markiert die übersetzbaren
+    // Tastennamen, übersetzt wird beim Anzeigen in Glyph.
     private static readonly Dictionary<GameAction, string> KeyboardLabels = new()
     {
-        [GameAction.Jump] = "Leer", [GameAction.Dash] = "Umschalt",
+        [GameAction.Jump] = Loc.N("Leer"), [GameAction.Dash] = Loc.N("Umschalt"),
         [GameAction.AbilityOne] = "Q", [GameAction.AbilityTwo] = "E",
         [GameAction.Interact] = "F", [GameAction.Confirm] = "Enter",
         [GameAction.Cancel] = "Esc", [GameAction.Pause] = "Esc", [GameAction.Randomize] = "F5",
         [GameAction.Attack] = "J", [GameAction.Block] = "K",
     };
 
-    private IReadOnlyDictionary<GameAction, string>? _padLabels;
+    private ControllerProfile? _padProfile;
     private string _padName = "";
+
+    /// <summary>Familie der Tastenbilder für die Tastatur (Blatt "glyphs.keyboard").</summary>
+    public const string KeyboardGlyphFamily = "keyboard";
 
     private MouseState _currentMouse, _previousMouse;
     private bool _hasMouseBaseline;   // erster Frame: noch keine Vorher-Position, sonst "Maus bewegt"-Fehlalarm
@@ -92,10 +107,19 @@ public sealed class InputState
     public int ScrollDelta => _currentMouse.ScrollWheelValue - _previousMouse.ScrollWheelValue;
 
     /// <summary>
-    /// Liefert zu einem Gerätenamen die passenden Tastenbeschriftungen (Content/Data/controllers.json).
+    /// Liefert zu einem Gerätenamen das passende Profil (Content/Data/controllers.json).
     /// Wird von GameContext gesetzt; so kommt InputState ohne Kenntnis der Definitionen aus.
     /// </summary>
-    public Func<string, IReadOnlyDictionary<GameAction, string>?>? ControllerProfileResolver { get; set; }
+    public Func<string, ControllerProfile?>? ControllerProfileResolver { get; set; }
+
+    /// <summary>Profil des angeschlossenen Controllers, oder null ohne Controller.</summary>
+    public ControllerProfile? PadProfile => HasGamePad ? _padProfile : null;
+
+    /// <summary>true, wenn Hinweise gerade Controller-Tasten zeigen: Controller erkannt UND zuletzt benutzt.</summary>
+    public bool ShowsPadPrompts => HasGamePad && LastDevice == InputDevice.Gamepad && _padProfile is not null;
+
+    /// <summary>Familie der Tastenbilder für die aktuellen Hinweise: die des Controllers oder die Tastatur.</summary>
+    public string GlyphFamily => ShowsPadPrompts ? _padProfile!.GlyphFamily : KeyboardGlyphFamily;
 
     /// <summary>true, sobald ein Gamepad angeschlossen ist. Steuert, ob Glyphen oder Tasten angezeigt werden.</summary>
     public bool HasGamePad { get; private set; }
@@ -159,12 +183,21 @@ public sealed class InputState
     /// <summary>
     /// Beschriftung einer Aktion für die Anzeige: bei angeschlossenem Controller die Taste des
     /// erkannten Profils ("A", "○", "L1"), sonst die Tastatur ("F", "Leer").
+    /// Loc.T auch für Controller: "Menü"/"Ansicht" (Xbox) heißen im Englischen "Menu"/"View";
+    /// Buchstaben wie "A" oder "R1" haben keinen Eintrag und bleiben, wie sie sind.
     /// </summary>
-    public string Glyph(GameAction action)
+    public string Glyph(GameAction action) => Loc.T(GlyphLabel(action));
+
+    /// <summary>
+    /// Dieselbe Beschriftung UNübersetzt – sie ist zugleich der Name des Tastenbilds im Manifest
+    /// ("Menü", nicht "Menu"). Für UI/ButtonGlyphs.
+    /// </summary>
+    public string GlyphLabel(GameAction action) => LabelFor(action, ShowsPadPrompts ? _padProfile : null);
+
+    /// <summary>Beschriftung einer Aktion für ein bestimmtes Profil; null = Tastatur. Auch für Vorschauen.</summary>
+    public static string LabelFor(GameAction action, ControllerProfile? profile)
     {
-        if (HasGamePad && LastDevice == InputDevice.Gamepad
-            && _padLabels is not null && _padLabels.TryGetValue(action, out string? label))
-            return label;
+        if (profile is not null && profile.Labels.TryGetValue(action, out string? label)) return label;
         return KeyboardLabels.TryGetValue(action, out string? key) ? key : action.ToString();
     }
 
@@ -180,7 +213,7 @@ public sealed class InputState
         if (name == _padName) return;   // nichts geändert -> kein Nachschlagen
 
         _padName = name;
-        _padLabels = HasGamePad ? ControllerProfileResolver?.Invoke(name) : null;
+        _padProfile = HasGamePad ? ControllerProfileResolver?.Invoke(name) : null;
     }
 
     /// <summary>
@@ -251,9 +284,15 @@ public sealed class InputState
         }
     }
 
-    private bool IsDown(GameAction action, KeyboardState keys, GamePadState pad)
+    private static bool IsDown(GameAction action, KeyboardState keys, GamePadState pad) => IsActionDown(action, keys, pad);
+
+    /// <summary>
+    /// Ist die Aktion auf dieser Tastatur ODER diesem Controller gedrückt? Geteilt mit
+    /// <see cref="DeviceInput"/>; ein nicht beteiligtes Gerät wird als <c>default</c> (nichts gedrückt) übergeben.
+    /// </summary>
+    internal static bool IsActionDown(GameAction action, KeyboardState keys, GamePadState pad)
     {
-        var (boundKeys, boundButtons) = _bindings[action];   // Dekonstruktion des Tupels in zwei Variablen
+        var (boundKeys, boundButtons) = Bindings[action];   // Dekonstruktion des Tupels in zwei Variablen
         return boundKeys.Any(key => keys.IsKeyDown(key)) || boundButtons.Any(button => pad.IsButtonDown(button));
     }
 }

@@ -1,4 +1,5 @@
 using CirclesOfAsh.Definitions;
+using CirclesOfAsh.Localization;
 
 namespace CirclesOfAsh.Progression;
 
@@ -15,11 +16,42 @@ public sealed record CharacterAppearance(
     string Name, int SkinTone, int HairStyle, int HairColor, int AccentColor,
     int BodyType = 0, int Makeup = 0, int MakeupColor = 0, int Wings = 0)
 {
-    public static CharacterAppearance Default { get; } = new("Namenloser", 0, 0, 0, 0);
+    /// <summary>Rückfall, wenn kein Aussehen gespeichert ist. Der Name ist ein Quelltext und wird beim Anzeigen übersetzt.</summary>
+    public static CharacterAppearance Default { get; } = new(Loc.N("Namenloser"), 0, 0, 0, 0);
 }
 
 /// <summary>
-/// Zustand des AKTUELLEN Laufs. Geht beim Tod komplett verloren (Roguelike) – inklusive Klasse.
+/// Eine gespeicherte Gestalt (Charakter): Name, Aussehen und was sie erlebt hat. Sie überdauert den
+/// Tod – verloren geht nur ihr Lauf samt Klasse. Jede Gestalt hat höchstens EINEN Lauf; Gläubige,
+/// Ewige Gaben, Begleitseelen und der Tempel gehören dem Gott, also allen Gestalten gemeinsam.
+/// </summary>
+public sealed class SavedCharacter
+{
+    /// <summary>Primärschlüssel in der Tabelle characters. 0 = noch nicht gespeichert.</summary>
+    public int Id { get; set; }
+    /// <summary>Aussehen samt Name (Name steht in <see cref="CharacterAppearance.Name"/>).</summary>
+    public CharacterAppearance Appearance { get; set; } = CharacterAppearance.Default;
+    /// <summary>Klasse des letzten Laufs – vorausgewählt, wenn die Gestalt neu aufbricht.</summary>
+    public string LastClassId { get; set; } = "";
+    public DateTime CreatedAt { get; set; }
+    public DateTime LastPlayedAt { get; set; }
+    public int Runs { get; set; }
+    public int Deaths { get; set; }
+    /// <summary>Tiefster erreichter Kreis, 1-basiert. 0 = noch nie hinabgestiegen.</summary>
+    public int DeepestCircle { get; set; }
+    public int ArenaWins { get; set; }
+    /// <summary>Kurzfassung des laufenden Abstiegs für Auswahllisten, oder null ohne Lauf.</summary>
+    public RunSummary? CurrentRun { get; set; }
+
+    public string Name => Appearance.Name;
+}
+
+/// <summary>Was die Gestaltenauswahl über einen Lauf zeigen muss – ohne ihn ganz zu laden.</summary>
+public sealed record RunSummary(string ClassId, string WorldId, int CircleIndex, int DungeonIndex, int Level);
+
+/// <summary>
+/// Zustand des AKTUELLEN Laufs einer Gestalt. Geht beim Tod komplett verloren (Roguelike) –
+/// inklusive Klasse. Die Gestalt selbst bleibt (<see cref="SavedCharacter"/>).
 /// </summary>
 public sealed class RunState
 {
@@ -99,6 +131,8 @@ public sealed class MetaState
     public Dictionary<string, int> PendingMissionProgress { get; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>Schon befreite Kerker ("seed:kreis:dungeon") -> Belohnung nur einmal pro Lauf.</summary>
     public HashSet<string> RescuedPrisons { get; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Zuletzt gespielte Gestalt (Id in characters). 0 = keine. Der Titel bietet sie zum Weiterspielen an.</summary>
+    public int ActiveCharacterId { get; set; }
 }
 
 public enum MissionStatus { Active, Completed }
@@ -125,4 +159,5 @@ public sealed class DungeonOutcome
 }
 
 /// <summary>"record struct" = Werttyp-Record: klein, unveränderlich, ohne Heap-Allokation.</summary>
-public readonly record struct DeathReport(long BelieversBefore, long BelieversAfter, int ReachedCircle, string ClassName);
+public readonly record struct DeathReport(long BelieversBefore, long BelieversAfter, int ReachedCircle, string ClassName,
+                                          string CharacterName);

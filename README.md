@@ -26,16 +26,18 @@ Figuren, Kleidungsstufen und Tilesets sind im Spiel inzwischen weiter.</sub>
 2. [Schnellstart](#schnellstart)
 3. [Steuerung](#steuerung)
 4. [Der Tempel (Hub)](#der-tempel-hub)
-5. [Optionen & Schwierigkeit](#optionen--schwierigkeit)
-6. [Projektstruktur](#projektstruktur)
-7. [Architektur](#architektur)
-8. [Technische Entscheidungen](#technische-entscheidungen)
-9. [Erweitern – Schritt für Schritt](#erweitern--schritt-für-schritt)
-10. [Assets austauschen & Mods](#assets-austauschen--mods)
-11. [Spielstand (SQLite)](#spielstand-sqlite)
-12. [Auslieferung & Release](#auslieferung--release)
-13. [Roadmap](#roadmap)
-14. [Lizenz](#lizenz)
+5. [Arena & Mehrspieler](#arena--mehrspieler)
+6. [Optionen & Schwierigkeit](#optionen--schwierigkeit)
+7. [Sprachen](#sprachen)
+8. [Projektstruktur](#projektstruktur)
+9. [Architektur](#architektur)
+10. [Technische Entscheidungen](#technische-entscheidungen)
+11. [Erweitern – Schritt für Schritt](#erweitern--schritt-für-schritt)
+12. [Assets austauschen & Mods](#assets-austauschen--mods)
+13. [Spielstand (SQLite)](#spielstand-sqlite)
+14. [Auslieferung & Release](#auslieferung--release)
+15. [Roadmap](#roadmap)
+16. [Lizenz](#lizenz)
 
 ---
 
@@ -78,6 +80,10 @@ Viertel der Gläubigen.
   (+Schaden, +Leben) und wecken neue **Begleitseelen**. Beim Tod bleibt nur ein Teil treu (Standard 25 %).
 - **Klassen**: Kreuzritter (Nahkampf), Magier (Fernkampf/Mana), Schatten (Tarnung + Bonusschaden),
   Engel (Flügel als Funktion). Beim Tod ist die Klasse vergessen – du wählst neu.
+- **Gestalten**: Bis zu acht gespeicherte Charaktere, jeder mit eigenem Aussehen, eigenem Lauf und
+  eigenem Werdegang (Abstiege, Tode, tiefster Kreis, Arena-Siege). Der Tod kostet Lauf und Klasse,
+  die Gestalt bleibt und kann neu hinabsteigen. Gläubige, Ewige Gaben, Begleitseelen, Bitten und der
+  Tempel gehören dem Gott – also allen Gestalten gemeinsam.
 - **Begleitseelen**: Angreifer, Heiler oder Manaspender, die dir folgen.
 - **Metroidvania-Sperren**: Schatzräume liegen hinter rissigen Wänden. Erst mit dem *Abgrundschritt*
   (Belohnung des ersten Bosses) kommst du hinein – in allen künftigen Läufen.
@@ -96,6 +102,16 @@ Viertel der Gläubigen.
 | **Rätsel & Siegeltor** | Das Siegel steht hinter einem Gittertor. Sechs Typen öffnen es: verteilte **Hebel**, **Runenfolge** (Hinweis-Inschrift in einem anderen Raum), **Feuerbecken** auf Zeit, **Gewichte**, **Spiegel** und der **Lichtkranz**. Welche ein Kreis würfeln darf, steht in `worlds.json` | `Puzzles/Puzzles.cs`, `worlds.json` (`puzzles`) |
 | **Kerker & Mini-Boss** | Drei Kreise (Limbus, Gier, Zorn) haben ein Verlies mit optionalem Kerker. Besiege den Kerkermeister → Gefangene frei → **neue Begleitseele** | `WaveDirector`, `worlds.json` (`prison`), `companions.json` (`unlockAtBelievers: -1`) |
 | **Logo & Ladebildschirm** | Animierter Höllentrichter, Asche, Tipps, echter Fortschritt (Assets werden vorgeladen) | `Scenes/LoadingScene.cs`, `UI/InfernoFunnel.cs`, `tips.json` |
+
+### Neu in v1.4.0
+
+| Feature | Was passiert im Spiel | Wo im Code / in den Daten |
+|---|---|---|
+| **Eigenes Dock-Symbol** | Unter macOS zeigt das Dock beim Spielen den Höllentrichter statt des MonoGame-Logos | `Icon.bmp` (eingebettete Ressource), `tools/assetgen/icons.py` |
+| **Deutsch und Englisch** | Auswahl mit Flaggen im Optionsmenü, wirkt sofort | `Localization/`, `Content/Lang/*.json`, `tools/LangCheck` |
+| **Tastenbilder** | Xbox, PlayStation, Switch und Tastatur als eigene Bilder, Legende im Reiter „Steuerung" | `glyphs.*`, `UI/ButtonGlyphs.cs`, `controllers.json` |
+| **Mehrere Gestalten** | Bis zu acht Charaktere mit eigenem Lauf und Werdegang; der Tod kostet nur Lauf und Klasse | `Scenes/CharacterSelectScene.cs`, `ProgressionService`, Spielstand v5 |
+| **Arena** | Bosse und Kerkermeister allein, zu zweit an einem Rechner oder online bekämpfen – ohne Folgen für den Lauf | `Scenes/Arena*.cs`, `Progression/ArenaService.cs`, `Networking/` |
 
 ### Neu in v1.3.0
 
@@ -222,8 +238,32 @@ Hinweise im Spiel entsprechend – Xbox zeigt `A`, PlayStation `X`/`○`/`□`/`
 vertauschte Belegung `B`/`A`/`Y`/`X`, Steam Deck wie Xbox. Ohne Controller stehen dort die Tasten.
 
 Die Profile sind reine Daten: `Content/Data/controllers.json`. Ein neuer Controller braucht dort
-nur einen Eintrag mit `match` (Textbausteine im Gerätenamen) und `labels` – kein Codeeingriff.
-Das Auffangprofil ist das mit leerem `match`; genau eines davon muss es geben.
+nur einen Eintrag mit `match` (Textbausteine im Gerätenamen), `labels` und `glyphs` – kein
+Codeeingriff. Das Auffangprofil ist das mit leerem `match`; genau eines davon muss es geben.
+
+### Tastenbilder (Controller-Glyphen)
+
+Zu jeder Familie gibt es ein Blatt mit Tastenbildern in Pixel-Art, erzeugt von
+`tools/assetgen/interface.py`:
+
+| Blatt | Inhalt |
+|---|---|
+| `glyphs.xbox` | A B X Y (grün, rot, blau, gelb), LB RB LT RT, Menü, Ansicht, LS RS – dazu L1 R1 L2 R2 und Start/Select für Steam Deck und 8BitDo |
+| `glyphs.playstation` | ✕ ○ □ △ in ihren Farben, L1 R1 L2 R2, Options, Create, L3 R3 |
+| `glyphs.switch` | A B X Y, L R ZL ZR, + und −, LS RS |
+| `glyphs.keyboard` | eine leere Tastenkappe – das Spiel schreibt die Taste darauf und zieht sie für lange Namen in die Breite |
+
+Alle Controller-Blätter haben zusätzlich Steuerkreuz (`dpad`, `dpad_up` …), den Lauf-Stick
+(`stick`) und einen leeren Rundknopf (`round`). **Die Einzelbilder heißen genau wie die
+Beschriftungen** in `controllers.json` (`"A"`, `"RB"`, `"○"`, `"Menü"`), das Feld `glyphs` eines
+Profils wählt nur das Blatt. Fehlt ein Bild – etwa für die Nummern „1“ bis „10“ eines Logitech-Pads
+im DirectInput-Modus –, beschriftet `UI/ButtonGlyphs.cs` den leeren Rundknopf.
+
+Zu sehen sind sie im Optionsmenü unter **Steuerung**: eine Legende aller Aktionen mit dem Bild des
+erkannten Controllers, und über die Zeile **Tastenbilder** lassen sich alle Familien auch ohne
+angeschlossenen Controller durchblättern. Die Belegung selbst ist unverändert; Hinweise im Spiel
+schreiben die Tasten vorerst weiter als Text – der Umstieg auf die Bilder gehört zur Überarbeitung
+der Steuerung (Roadmap).
 
 Vibration hängt an `DungeonWorld.ShakeCamera`: Jeder wuchtige Moment erschüttert ohnehin schon die
 Kamera, also vibriert der Controller im selben Maß. Stärke = Regler im Optionsmenü × Schwierigkeitsstufe.
@@ -252,21 +292,101 @@ einer Stelle, damit Erkennung und Darstellung nicht auseinanderlaufen. Die Tempe
 sobald sich die Kleidung geändert hat – es gibt keinen Rückruf beim Schließen einer aufgesetzten
 Szene, also vergleicht `RefreshPlayerLook()` den Zustand.
 
+### Gestalten (mehrere Charaktere)
+
+Im Titel steht die zuletzt gespielte Gestalt ganz oben („Abstieg fortsetzen: Name" oder nach ihrem
+Tod „Neuer Abstieg: Name"). Alles andere liegt unter **Gestalten** (`Scenes/CharacterSelectScene.cs`):
+links die Liste, rechts Vorschau und Werdegang. `Enter` öffnet die Aktionen der gewählten Gestalt:
+
+| Aktion | Was passiert |
+|---|---|
+| Abstieg fortsetzen / Neuen Abstieg beginnen | Weiter im Tempel – oder ohne Lauf in den Editor, dort Klasse und Begleitseele neu wählen |
+| Aussehen ändern | Derselbe Editor ohne Klassenzeile, auch mitten im Lauf; die Vorschau trägt die aktuelle Kleidung |
+| Lauf aufgeben | Zählt als Tod (Gläubige schrumpfen), die Gestalt bleibt |
+| Gestalt löschen | Samt Lauf, nach Sicherheitsabfrage (`ConfirmScene`, „Nein" ist vorausgewählt) |
+
+Der Editor kennt dafür drei Modi (`CreatorMode`: `NewCharacter`, `NewRun`, `EditLook`). Die Gestalt
+entsteht erst, wenn der Lauf wirklich beginnt – wer vorher abbricht, hinterlässt nichts. Die Regeln
+dazu (anlegen, wählen, löschen, „zuletzt gespielt") stehen in `ProgressionService`, die Szenen rufen
+nur auf.
+
+---
+
+## Arena & Mehrspieler
+
+Im Titel unter **Arena**: Bosse und Kerkermeister noch einmal bekämpfen – allein, zu zweit an einem
+Rechner oder online. Die Arena kostet nichts und bringt nichts ein: kein Tod, keine Seelen, keine
+Beute, keine Bitten. Gezählt wird nur der Sieg, im Werdegang der Gestalt (Gestaltenauswahl).
+
+| Was | Wie |
+|---|---|
+| **Gegner** | Alle Bosse und Kerkermeister der Kreise, die eine deiner Gestalten schon erreicht hat (in befreiten Welten alle). Gekämpft wird im Thronsaal des Gegners – mit seiner eigenen Arena, Musik und Stärke |
+| **Kämpfer** | Eine Gestalt mit Lauf kämpft mit dessen Stand (Stufe, Gaben, Ausrüstung) – als **Kopie**, der Lauf bleibt unberührt. Ohne Lauf: Startausstattung der zuletzt gespielten Klasse. Gläubigen-Bonus und Ewige Gaben gelten wie im Verlies |
+| **Allein** | Mit der Begleitseele aus dem Lauf |
+| **Zu zweit (ein Rechner)** | Spieler 2 braucht einen Controller: Er bekommt den zuletzt angeschlossenen, Spieler 1 alles andere (Tastatur und übrige Controller). „Geräte" tauscht die Seiten. Der Gegner hält zu zweit 60 % mehr aus (`balance.json`: `arenaHealthPerExtraPlayer`) |
+| **Aufrichten** | Fällt eine Figur, bleibt sie liegen. Wer 2,5 s neben ihr steht, richtet sie mit 35 % Leben wieder auf. Verloren ist erst, wenn beide liegen |
+| **Online** | Einer eröffnet, der andere tritt mit der IP-Adresse bei (TCP-Port **47017**). Die Pause hält online nichts an |
+
+### Online spielen
+
+Wer eröffnet, sieht in der Lobby seine Adresse im lokalen Netz. Der Mitspieler wählt „Online
+beitreten", gibt sie ein (`192.168.0.12` oder `192.168.0.12:47017`) und verbindet sich; die Adresse
+merkt sich das Spiel. Beide brauchen **dieselbe Spielversion** – das prüft der Handschlag, dazu eine
+Prüfsumme über den erzeugten Kampfplatz.
+
+- **Im selben Netz** (LAN/WLAN) geht es direkt. Fragt die Firewall beim ersten Eröffnen nach: freigeben.
+- **Über das Internet** braucht der Eröffnende eine Portweiterleitung (TCP 47017) im Router und gibt
+  seine öffentliche Adresse weiter – oder beide nutzen ein virtuelles Netz wie Tailscale oder ZeroTier
+  und verwenden dessen Adressen.
+
+**Wie es funktioniert** (`Networking/`): Der Eröffnende rechnet den Kampf allein – „Gastgeber rechnet,
+Gast zeigt". Der Gast schickt nur seine Tasten (Bitmasken je Frame) und bekommt in jedem Frame einen
+Schnappschuss zurück: Figuren, Gegner, Geschosse, Aufsammelbares, geänderte Kacheln, dazu Töne und
+Effekte als Ereignisse. So gibt es genau **eine** Wahrheit; Rundungsunterschiede zwischen zwei
+Rechnern können den Kampf nicht auseinanderlaufen lassen.
+
+| Baustein | Aufgabe |
+|---|---|
+| `NetConnection` | TCP mit Nachrichtenrahmen `[Länge][Typ][Daten]`, je ein Thread zum Empfangen und Senden – das Spiel wartet nie auf das Netz. Schnappschüsse dürfen bei Stau entfallen, der nächste enthält wieder alles |
+| `ArenaProtocol` | Binärformat aller Nachrichten (Hello, Welcome, Input, Snapshot, End …); Schreiben und Lesen stehen je Datentyp direkt untereinander |
+| `ArenaHostSession`, `ArenaClientSession` | Zustandsautomaten für Warten, Handschlag und Kampf |
+| `NetworkInput` | Die Tasten des Gastes als `IPlayerInput` – seine Figur merkt keinen Unterschied zu einem Controller |
+| `World/WorldMirror.cs` | Schnappschuss aufnehmen (Gastgeber) und anwenden (Gast); Ereignisse sind Records mit eigener `Replay`-Methode |
+| `ArenaService.Sanitize` | Prüft Kämpfer aus dem Netz: Unbekanntes fällt weg, Zahlen werden geklemmt |
+
+Ansagen erscheinen beim Gast in der Sprache des Gastgebers (sie kommen fertig übersetzt an); alles
+andere zeigt jeder in seiner eigenen Sprache.
+
+**Eingabe je Figur:** `IPlayerInput` (Strategy-Pattern) hat drei Umsetzungen – `InputState`
+(Tastatur und erster Controller: Einzelspiel und alle Menüs), `DeviceInput` (bestimmte Geräte, zu zweit)
+und `NetworkInput` (Online-Gast). Die Tastenbelegung selbst ist unverändert und für alle gleich;
+frei belegbare Tasten stehen auf der Roadmap.
+
+**Mehrere Figuren in einer Welt:** `DungeonWorld.Players` statt eines einzelnen Spielers. Gegner
+wenden sich dem nächsten sichtbaren zu (`NearestVisiblePlayer`), Geschosse treffen, wer im Weg steht,
+Aufsammelbares fliegt zum Näheren, und die Kamera folgt der Mitte. Im Einzelspiel ist die Liste
+einfach eins lang – deshalb verhält sich das Verlies genau wie vorher.
+
 ---
 
 ## Optionen & Schwierigkeit
 
-Das Optionsmenü (`Esc` → Optionen, `Scenes/SettingsScene.cs`) hat **vier Reiter** – links/rechts
-wechselt den Reiter, hoch/runter die Zeile, die Schultertasten den Wert. Alles wirkt sofort und wird
-in SQLite gesichert:
+Das Optionsmenü (`Esc` → Optionen, `Scenes/SettingsScene.cs`) hat **fünf Reiter** – `Q`/`E`
+(Gamepad X/Y) wechselt den Reiter, hoch/runter die Zeile, links/rechts den Wert. Alles wirkt sofort
+und wird in SQLite gesichert:
 
 * **Bildschirm** – Größe (Auto = füllt den Bildschirm, oder pixelgenau 1×–6× der virtuellen 480×270), Vollbild, VSync.
   Das Fenster lässt sich außerdem frei ziehen oder maximieren – das Bild wächst mit
 * **Audio** – Master, Musik und Effekte getrennt regelbar; beim Ändern der Effekte spielt ein Probe-Sound
-* **Steuerung** – zeigt den erkannten Controller und sein Beschriftungsprofil aus `controllers.json`.
-  Das freie Umbelegen der Tasten steht noch auf der [Roadmap](#roadmap)
+* **Steuerung** – zeigt den erkannten Controller, sein Profil aus `controllers.json` und eine Legende
+  aller Aktionen mit den [Tastenbildern](#tastenbilder-controller-glyphen); die Zeile
+  „Tastenbilder“ blättert durch Xbox, PlayStation, Switch und Tastatur. Das freie Umbelegen der
+  Tasten steht noch auf der [Roadmap](#roadmap)
 * **Gameplay** – Helligkeit (gegen zu dunkle Verliese), Vibration, Schadenszahlen, Tutorial an/aus,
   Bosskämpfe selbst bestreiten, Schwierigkeit
+* **Sprache** – Deutsch oder Englisch, je mit Flagge und dem Namen in der eigenen Sprache. Die
+  Flagge der aktiven Sprache steht auch vor dem Reitertitel – wer sich in eine Sprache verirrt, die
+  er nicht liest, findet so zurück. Umgeschaltet wird sofort, auch mitten im Verlies (siehe [Sprachen](#sprachen))
 
 ### Schwierigkeitsstufen
 
@@ -288,6 +408,75 @@ existieren, sie ist der Rückfallwert.
 
 ---
 
+## Sprachen
+
+Das Spiel gibt es auf **Deutsch** und **Englisch**; gewählt wird im Optionsmenü unter **Sprache**
+(Flaggen). Die Wahl steht in der Tabelle `settings` (Schlüssel `language`) und gilt ab dem nächsten
+Bild – Menüs, HUD, Ansagen, Dialoge, Namen und Beschreibungen, auch das Logo (sein Untertitel wird
+seit der Mehrsprachigkeit zur Laufzeit geschrieben, nicht mehr ins Bild gebacken).
+
+### Wie übersetzt wird
+
+**Der Schlüssel ist der deutsche Quelltext** – wie bei gettext:
+
+```csharp
+_menu.Add(Loc.T("Neuer Lauf"), …);                                  // fester Text
+Loc.T("Gläubige: {0}   ·   Tode: {1}", meta.Believers, meta.Deaths); // Vorlage mit Werten
+```
+
+```json
+// Content/Lang/en.json
+"Neuer Lauf": "New run",
+"Gläubige: {0}   ·   Tode: {1}": "Believers: {0}   ·   Deaths: {1}"
+```
+
+* **Code:** Jeder sichtbare Text läuft durch `Loc.T(...)` (`Localization/Loc.cs`). Texte in
+  Konstanten oder Tabellen werden mit `Loc.N(...)` markiert und erst beim Anzeigen übersetzt.
+* **Inhaltsdaten:** Namen, Beschreibungen, Lore, Dialog- und Tutorialzeilen, Zwischenrufe und Tipps
+  sind in den Definitionen vom Typ `LocalizedText` (`Localization/LocalizedText.cs`). In der JSON
+  steht weiter der deutsche Text; die implizite Umwandlung in `string` liefert beim Anzeigen die
+  gewählte Sprache. Keine Anzeigestelle kann das Übersetzen vergessen.
+* **Fehlt eine Übersetzung**, erscheint der deutsche Text – nie ein leeres Feld oder ein Schlüssel.
+
+Warum nicht Schlüssel wie `"menu.new_run"`? Deutsch stünde dann doppelt im Projekt (Code bzw. Daten
+**und** `de.json`), der Code würde unlesbarer, und ein vergessener Eintrag zeigte einen rohen
+Schlüssel. So bleibt Deutsch die eine Quelle, und eine neue Sprache ist genau eine Datei.
+
+### Prüfen: `tools/LangCheck`
+
+```bash
+dotnet run --project tools/LangCheck          # alle Sprachen
+dotnet run --project tools/LangCheck -- en    # nur Englisch
+```
+
+Das Werkzeug sammelt jeden Text aus `Loc.T`/`Loc.N` im Code und jeden `LocalizedText` der
+Inhaltsdaten (per Reflection, niemand pflegt eine Liste) und meldet je Sprache:
+
+| Befund | Bedeutung |
+|---|---|
+| `FEHLT` | Quelltext ohne Übersetzung – wird als fertige JSON-Zeile ausgegeben, zum Einfügen |
+| `PLATZHALTER` | `{0}`, `{name}` … stimmen zwischen Quelle und Übersetzung nicht überein |
+| `VERWAIST` | Eintrag, dessen Quelltext es nicht mehr gibt (meist ein umformulierter deutscher Text) |
+| `INTERPOLIERT` | `Loc.T($"…")` – ein interpolierter Schlüssel findet nie eine Übersetzung |
+
+Rückgabewert 0 = vollständig. Die CI (`build.yml`, Job `translations`) lässt es bei jedem Push laufen.
+**Wer einen deutschen Text ändert, ändert damit den Schlüssel** – LangCheck meldet dann den alten
+Eintrag als verwaist und den neuen als fehlend.
+
+### Neue Sprache
+
+1. `Content/Lang/<id>.json` nach dem Vorbild von `en.json` anlegen (Dateiname = Id, z. B. `fr`),
+   mit `name` (in der eigenen Sprache), `flag` und `order`.
+2. Flagge in `tools/assetgen/interface.py` (`FLAGS`) ergänzen, Assets neu erzeugen und in
+   `manifest.json` als `flag.<id>` und `flag.<id>.small` eintragen.
+3. `dotnet run --project tools/LangCheck -- <id>` listet jeden fehlenden Text.
+
+Die Pixelschrift kennt alle westeuropäischen Buchstaben (Latin-1 plus Œ/œ, „“ ‚‘ « » €), eine
+neue Sprache braucht also keine neue Schrift. Auch Mods können eine Sprache mitbringen oder
+ergänzen: `Mods/<Name>/Lang/en.json` legt sich Eintrag für Eintrag über die mitgelieferte.
+
+---
+
 ## Projektstruktur
 
 ```
@@ -296,10 +485,12 @@ CirclesOfAsh/
 │  ├─ Content/                  ← ALLE austauschbaren Inhalte (wird neben die .exe kopiert)
 │  │  ├─ manifest.json          ← Asset-IDs → Dateien, Spritesheet-Raster, Animationen
 │  │  ├─ Data/*.json            ← Klassen, Fähigkeiten, Gegner, Welten, Upgrades, Balancing
+│  │  ├─ Lang/*.json            ← Sprachen: deutscher Quelltext → Übersetzung (de ist die Quelle)
 │  │  ├─ Textures/ Fonts/ Audio/
 │  ├─ Core/          Game-Loop-Infrastruktur: Szenen, Eingabe, Kamera, ContentLocator, Log
 │  ├─ Assets/        Laufzeit-Laden von PNG/WAV/Fonts, Spritesheets, Animationen
 │  ├─ Definitions/   Datenklassen (1:1 JSON) + Laden/Validieren
+│  ├─ Localization/  Loc (Übersetzen), Localizer (Sprachen laden/umschalten), LocalizedText (Datentexte)
 │  ├─ Modding/       BehaviorRegistry: JSON-Schlüssel → C#-Klassen
 │  ├─ World/         Kachelkarte, Physik, Generator, Wellen, Licht, Bröckeln, Laufzeitwelt
 │  ├─ Entities/      Spieler, Gegner, Projektile, Pickups, Props, Begleiter, Effekte
@@ -310,13 +501,15 @@ CirclesOfAsh/
 │  ├─ Companions/    Begleiter-Verhalten
 │  ├─ Dialogs/       DialogService: Bedingungen, Antworten, Wirkungen (Segen, Bitten, Füttern)
 │  ├─ Pets/          PetService: Name, Stimmung, Loyalität der Begleitseelen
-│  ├─ Progression/   Lauf/Meta-Zustand, Regeln, Level-Up, Spieler-Factory, Items, Missionen, Einstellungen
+│  ├─ Progression/   Gestalten, Lauf/Meta-Zustand, Regeln, Level-Up, Spieler-Factory, Items, Missionen, Einstellungen
 │  ├─ Persistence/   ISaveRepository + SQLite-Implementierung mit Migrationen
-│  ├─ Scenes/        Laden, Titel, Charakter-Editor, Tempel, Kreis-Übersicht, Dungeon, Dialog, Optionen, Overlays
+│  ├─ Networking/    Online-Arena: TCP-Verbindung, Protokoll, Sitzungen von Gastgeber und Gast
+│  ├─ Scenes/        Laden, Titel, Gestaltenauswahl, Charakter-Editor, Tempel, Kreis-Übersicht, Dungeon, Arena, Dialog, Optionen, Overlays
 │  └─ UI/            HUD, Minikarte, Menüs, Panels
 ├─ tools/generate_placeholder_assets.py   ← erzeugt alle Platzhalter-Assets (CC0)
 ├─ tools/assetgen/                         ← Generator-Module: Charaktere, Kreaturen, Welt, Medien, Musik, Icons
 ├─ tools/SeedSweep/                        ← Kommandozeilen-Prüfer: Seeds erzeugen, Erreichbarkeit und Rätsel messen
+├─ tools/LangCheck/                        ← Übersetzungsprüfung: fehlende/verwaiste Texte, Platzhalter
 ├─ build/build.sh                          ← ein Befehl, Paket für das laufende System
 ├─ build/publish.sh, macos-app.sh          ← Cross-Builds, macOS-Programmbündel
 ├─ build/icons/                            ← erzeugte App-Icons (.icns/.ico)
@@ -722,32 +915,37 @@ Pfad: `%APPDATA%\CirclesOfAsh\save.db` (Windows), `~/.config/CirclesOfAsh/save.d
 
 | Tabelle | Inhalt |
 |---|---|
-| `meta` | Schlüssel/Wert: Gläubige, Tode, gestartete Läufe |
+| `meta` | Schlüssel/Wert: Gläubige, Tode, gestartete Läufe, zuletzt gespielte Gestalt (`active_character`) |
 | `unlocks` | Dauerhafte Freischaltungen (`ability`, `companion`, `world`) mit Zeitstempel |
-| `run` | Genau **eine** Zeile (`CHECK (id = 1)`): aktueller Lauf – Klasse, Kreis, Verlies, Stufe, Seed |
-| `run_items` | Fähigkeitsstufen, Upgrades, Begleiter, Items (Anzahl) und angelegte Items (`equipped`, Slot als Zahl) |
-| `run_profile` *(v2)* | Schlüssel/Wert: Name und Aussehen aus dem Charakter-Editor, Haltbarkeit und Zustand der Kleidung (`armor_durability`, `armor_wear`), genutzte Reparaturen (`forge_uses`) |
+| `characters` *(v5)* | Die Gestalten: Name, Aussehen (Indizes in `appearance.json`), zuletzt gespielte Klasse, Zeitstempel und Werdegang (`runs`, `deaths`, `deepest_circle`, `arena_wins`) |
+| `runs` *(v5, ersetzt `run`)* | Höchstens **ein** Lauf je Gestalt (`character_id` ist Primärschlüssel): Klasse, Kreis, Verlies, Stufe, Seed |
+| `run_items` *(ab v5 mit `character_id`)* | Fähigkeitsstufen, Upgrades, Begleiter, Items (Anzahl) und angelegte Items (`equipped`, Slot als Zahl) |
+| `run_profile` *(v2, ab v5 mit `character_id`)* | Schlüssel/Wert je Lauf: Haltbarkeit und Zustand der Kleidung (`armor_durability`, `armor_wear`), genutzte Reparaturen (`forge_uses`), Unterwäsche. Das Aussehen stand bis v4 hier und liegt jetzt in `characters` |
 | `missions` *(v2)* | Bitten der Gläubigen: Status (`Active`/`Completed`) und Fortschritt |
-| `settings` *(v3)* | Optionsmenü: Bildschirm, Lautstärken, Helligkeit, Vibration, Schwierigkeit |
+| `settings` *(v3)* | Optionsmenü: Bildschirm, Lautstärken, Helligkeit, Vibration, Schwierigkeit, Sprache; dazu die zuletzt benutzte Arena-Adresse (`arena_address`) |
 | `hub_deco` *(v3)* | Im Tempel platzierte Deko (Prop-Id + Kachelkoordinate) |
 | `pets` *(v3, Spalte `skin` ab v4)* | Begleitseelen: Name, Stimmung, Loyalität, letzte Fütterung, Farbfassung |
 | `collectibles` *(v3)* | Gefundene Reliquien über alle Läufe (Schrein im Tempel) |
 
 Befreite Kerker stehen in `unlocks` mit `kind = 'prison'` (Belohnung nur einmal pro Lauf).
-Alte Spielstände werden beim Start automatisch bis zur aktuellen Version migriert (zuletzt **v4**:
-`pets.skin`, die Farbfassung der Begleitseelen).
+Alte Spielstände werden beim Start automatisch bis zur aktuellen Version migriert (zuletzt **v5**:
+mehrere Gestalten). Ein vorhandener Lauf wird dabei zur Gestalt Nr. 1 – Name und Aussehen wandern
+per Pivot-Abfrage (`MAX(CASE WHEN key = … THEN value END)`) aus den Schlüssel/Wert-Zeilen in Spalten.
+Weil SQLite einen Primärschlüssel nicht per `ALTER TABLE` ändern kann, legt die Migration neue
+Tabellen an, kopiert um und benennt sie danach um.
 Fehlt in `settings` ein Schlüssel – frische Installation oder neu dazugekommene Option –, gilt der
 Standardwert aus `GameSettings`; ein fehlender Wert darf nicht als 0 durchschlagen (sonst wäre das
 Spiel beim ersten Start stumm).
 
 **Schema ändern:** In `SqliteSaveRepository.Migrations` einen **neuen** SQL-Block anhängen
-(z. B. `ALTER TABLE run ADD COLUMN ...`). Beim Start wird `PRAGMA user_version` gelesen und jede
+(z. B. `ALTER TABLE characters ADD COLUMN ...`). Beim Start wird `PRAGMA user_version` gelesen und jede
 fehlende Migration in einer Transaktion ausgeführt. Bestehende Einträge niemals ändern.
 
 **Oft geht es auch ohne Migration:** `run_profile`, `meta` und `settings` sind Schlüssel/Wert-Tabellen,
 ein fehlender Schlüssel liest sich als leer. Neue Werte am Lauf gehören deshalb dorthin – so kamen
-`armor_wear` und `forge_uses` dazu, ohne dass das Schema über **v4** hinausgehen musste und ohne
-dass ein alter Spielstand etwas merkt.
+`armor_wear` und `forge_uses` dazu, ohne eigene Migration und ohne dass ein alter Spielstand etwas
+merkt. Eine neue Spalte in `characters` braucht dagegen eine Migration **und** eine Zeile in
+`SqliteSaveRepository.CharacterColumns` – aus dieser einen Liste entstehen INSERT, UPDATE und Parameter.
 
 Anschauen lässt sich die Datei z. B. mit `sqlite3 save.db ".tables"` oder DB Browser for SQLite.
 
@@ -768,6 +966,20 @@ python tools/generate_placeholder_assets.py   # erzeugt auch build/icons/*
 Ergebnis: `build/icons/CirclesOfAsh.ico` (Windows, in die .exe eingebettet über `<ApplicationIcon>`)
 und `CirclesOfAsh.icns` (macOS, landet im `.app`). Wo `iconutil` verfügbar ist, wird es genutzt,
 sonst schreibt das Skript das icns-Format selbst – die CI unter Linux kommt damit ebenfalls klar.
+
+**Dazu kommt `src/CirclesOfAsh/Icon.bmp` – das Symbol der *laufenden* App.** Das `.icns` gilt nur,
+bis das Spiel sein Fenster öffnet. Dann ruft MonoGame `SDL_SetWindowIcon` auf, und SDL setzt unter
+macOS damit das Dock-Bild. Welches Bild das ist, sucht MonoGame als eingebettete Ressource
+`Icon.bmp` in der Programmdatei (`SdlGameWindow`, dekompiliert geprüft) – fehlt sie, nimmt es sein
+**eigenes Logo**. Genau das stand vorher im Dock, sobald das Spiel lief, auch im fertigen `.app`.
+Die Datei ist deshalb über `<EmbeddedResource … LogicalName="Icon.bmp">` eingebunden und liegt im
+Repository (nicht unter `build/icons/`), weil jeder Build sie braucht – auch `dotnet run`. Sie ist
+eine 32-Bit-BMP mit Alphakanal (256 px), die SDL direkt lesen kann; unter Windows und Linux ist sie
+zugleich das Fenstersymbol in Titelleiste und Taskleiste.
+
+Dock-Symbol und `.icns` folgen dem macOS-Raster: die Kachel mit abgerundeten Ecken auf 824 von
+1024 px, drumherum durchsichtig. Ohne den Rand zieht macOS das Bild bis an die Kachelkante, und es
+wirkt größer als alle Symbole daneben. Vor und nach dem Start zeigt das Dock so dasselbe Bild.
 
 <p align="center"><img src="docs/icon-preview.png" alt="App-Icon, 512 px" width="192"></p>
 
@@ -842,12 +1054,21 @@ allen drei Systemen kompiliert **und** dass die Asset-Generatoren fehlerfrei dur
       verhindert, dass so ein Fehler noch einmal als „alles in Ordnung" durchgeht
 - [x] Kleidung flicken: Glutschmiede im Tempel und Trauernder Engel im Verlies
 - [x] Sechster Rätseltyp (Lichtkranz); Spiegelrätsel würfelt seine Anordnung und prüft sie nach
+- [x] Mehrsprachigkeit: Deutsch und Englisch, Auswahl mit Flaggen im Optionsmenü, Prüfwerkzeug
+      `tools/LangCheck` in der CI
+- [ ] Weitere Sprachen – die Schrift kann es schon (Latin-1), es fehlen nur Datei und Flagge
 - [ ] Der Lichtkranz hat nur vier Säulen, weil `runes.png` vier Symbole hat – mit mehr Runen könnte
       sowohl er als auch die Runenfolge länger werden (`balance.json`: `puzzleScaling.runeOrderLength`)
 - [ ] Ein Rätseltyp, der eigene Bilder braucht (Glockenreihe nach Gehör) – steht als Aufgabe in
       `GLM_TASKS.md`
-- [ ] Tastenbelegung frei belegbar aus `Content/Data/input.json` (Profile und der Reiter „Steuerung"
-      gibt es, das Umbelegen fehlt)
+- [x] Tastenbilder für Xbox, PlayStation, Switch und Tastatur (`glyphs.*`), Legende im Reiter „Steuerung"
+- [x] Mehrere Gestalten mit je eigenem Lauf und Werdegang, Gestaltenauswahl, Spielstand v5
+- [x] Arena: Bosse und Kerkermeister allein, zu zweit an einem Rechner (mit Aufrichten) und online
+      (Gastgeber rechnet, Gast zeigt; TCP-Port 47017)
+- [ ] Online ohne Portfreigabe (Vermittlungsserver oder Relay) und mit mehr als zwei Spielern
+- [ ] Zu zweit an EINER Tastatur – braucht eine zweite Belegung, gehört zur Überarbeitung der Steuerung
+- [ ] Steuerung überarbeiten: Hinweise im Spiel mit Tastenbildern statt Text, Tastenbelegung frei
+      belegbar aus `Content/Data/input.json` (Profile, Bilder und der Reiter „Steuerung" gibt es)
 - [ ] Unit-Tests für `DungeonGenerator` (Seed-Determinismus) und `ProgressionService` – gemessen wird
       bisher nur per Seed-Sweep, nicht in einer Testsuite. Der Sweep liefert inzwischen einen
       Rückgabewert (0 = sauber), lässt sich also schon in CI hängen

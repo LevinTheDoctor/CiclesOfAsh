@@ -1,4 +1,4 @@
-"""App-Icons für die Auslieferung: CirclesOfAsh.icns (macOS) und CirclesOfAsh.ico (Windows).
+"""App-Icons: CirclesOfAsh.icns (macOS), CirclesOfAsh.ico (Windows) und Icon.bmp (Fenster und Dock).
 
 Das Banner aus docs/logo.png taugt nicht als Icon – bei 16x16 wäre von einem 1280x440 breiten
 Schriftzug nichts mehr zu erkennen. Stattdessen wird das Bildmotiv des Spiels gezeichnet:
@@ -14,9 +14,25 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from .core import ASH, BLACK, BLOOD, DEEP_PURPLE, EMBER, FLAME, GOLD, ROOT
+from .core import ASH, BLACK, BLOOD, CLEAR, DEEP_PURPLE, EMBER, FLAME, GOLD, ROOT
 
 ICONS = ROOT / "build" / "icons"
+
+# Fenster- und Dock-Symbol der LAUFENDEN App. MonoGame (SdlGameWindow, dekompiliert geprüft) sucht
+# in der Programmdatei die eingebettete Ressource "Icon.bmp" und reicht sie an SDL_SetWindowIcon
+# weiter. Unter macOS setzt SDL damit das Dock-Bild ([NSApp setApplicationIconImage:]) – fehlt die
+# Datei, nimmt MonoGame sein eigenes Logo, und genau das stand bisher im Dock, sobald das Spiel lief.
+# Die Datei liegt im Repository (anders als build/icons/), weil jeder Build sie braucht, auch
+# "dotnet run" aus einem frischen Klon.
+WINDOW_ICON = ROOT / "src" / "CirclesOfAsh" / "Icon.bmp"
+# 256 px reichen für die größte Dock-Kachel auf Retina (128 pt) und für Cmd+Tab.
+WINDOW_ICON_SIZE = 256
+
+# macOS-Raster (Apple Human Interface Guidelines): Auf 1024 px ist die Kachel 824 px groß und
+# hat rund 185 px Eckenradius, der Rest bleibt durchsichtig. Ohne diesen Rand zieht macOS das Bild
+# bis an die Kante der Dock-Kachel, und das Symbol wirkt größer als alle anderen daneben.
+TILE_FRACTION = 824 / 1024
+CORNER_FRACTION = 185 / 824
 
 # Die Ringe von außen nach innen: (Anteil des Radius, Farbe). Außen kalt, innen glühend.
 RINGS = [
@@ -64,6 +80,45 @@ def draw_icon(size):
     return image
 
 
+def draw_app_icon(size):
+    """
+    Das Motiv als abgerundete Kachel mit durchsichtigem Rand (macOS-Raster). Gilt für das .icns
+    UND für Icon.bmp – so zeigt das Dock vor und nach dem Start dasselbe Bild, ohne Sprung.
+    """
+    tile = max(1, round(size * TILE_FRACTION))
+    motif = draw_icon(tile)
+    # Maske vierfach groß zeichnen und verkleinern: weiche statt treppiger Ecken.
+    mask = Image.new("L", (tile * 4, tile * 4), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, tile * 4 - 1, tile * 4 - 1],
+                                           radius=tile * 4 * CORNER_FRACTION, fill=255)
+    mask = mask.resize((tile, tile), Image.LANCZOS)
+    icon = Image.new("RGBA", (size, size), CLEAR)
+    offset = (size - tile) // 2
+    icon.paste(motif, (offset, offset), mask)
+    return icon
+
+
+def write_bmp(image, path):
+    """
+    32-Bit-BMP mit Alphakanal für SDL_LoadBMP (so lädt MonoGame das Fenstersymbol).
+    Kopf: BITMAPV4HEADER mit BI_BITFIELDS und ausdrücklichen Farbmasken. Pillow schreibt RGBA nur
+    mit dem alten 40-Byte-Kopf ohne Masken – dann muss SDL raten, ob das vierte Byte Alpha ist.
+    """
+    width, height = image.size
+    # BMP speichert die Zeilen von unten nach oben; "BGRA" ist die Bytefolge der Masken unten.
+    pixels = image.convert("RGBA").transpose(Image.FLIP_TOP_BOTTOM).tobytes("raw", "BGRA")
+    header_size = 108                  # BITMAPV4HEADER
+    data_offset = 14 + header_size     # Dateikopf (14 Byte) + Infokopf
+    bi_bitfields = 3
+    file_header = struct.pack("<2sIHHI", b"BM", data_offset + len(pixels), 0, 0, data_offset)
+    info_header = struct.pack("<IiiHHIIiiII", header_size, width, height, 1, 32, bi_bitfields,
+                              len(pixels), 2835, 2835, 0, 0)   # 2835 px/m = 72 dpi
+    masks = struct.pack("<IIII", 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000)   # R, G, B, A
+    color_space = struct.pack("<I", 0x73524742)   # "sRGB" (LCS_sRGB): Endpunkte und Gamma unbenutzt
+    unused_endpoints_and_gamma = bytes(36 + 12)
+    path.write_bytes(file_header + info_header + masks + color_space + unused_endpoints_and_gamma + pixels)
+
+
 def write_ico(path):
     path.parent.mkdir(parents=True, exist_ok=True)
     largest = draw_icon(max(ICO_SIZES))
@@ -85,15 +140,15 @@ def write_icns(path):
             iconset = Path(temporary) / "CirclesOfAsh.iconset"
             iconset.mkdir()
             for size in (16, 32, 128, 256, 512):
-                draw_icon(size).save(iconset / f"icon_{size}x{size}.png")
-                draw_icon(size * 2).save(iconset / f"icon_{size}x{size}@2x.png")
+                draw_app_icon(size).save(iconset / f"icon_{size}x{size}.png")
+                draw_app_icon(size * 2).save(iconset / f"icon_{size}x{size}@2x.png")
             subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(path)], check=True)
         return
 
     chunks = []
     for size in ICNS_SIZES:
         buffer = tempfile.SpooledTemporaryFile()
-        draw_icon(size).save(buffer, format="PNG")
+        draw_app_icon(size).save(buffer, format="PNG")
         buffer.seek(0)
         data = buffer.read()
         chunks.append(types[size] + struct.pack(">I", len(data) + 8) + data)
@@ -102,9 +157,10 @@ def write_icns(path):
 
 
 def generate(icons=ICONS):
-    """Schreibt beide Icon-Dateien nach build/icons/."""
+    """Schreibt .ico und .icns nach build/icons/ und das Fenstersymbol Icon.bmp ins Projekt."""
     icons.mkdir(parents=True, exist_ok=True)
     write_ico(icons / "CirclesOfAsh.ico")
     write_icns(icons / "CirclesOfAsh.icns")
-    # Vorschau für die Dokumentation
-    draw_icon(512).save(ROOT / "docs" / "icon-preview.png")
+    write_bmp(draw_app_icon(WINDOW_ICON_SIZE), WINDOW_ICON)
+    # Vorschau für die Dokumentation: so, wie es im Dock steht
+    draw_app_icon(512).save(ROOT / "docs" / "icon-preview.png")
